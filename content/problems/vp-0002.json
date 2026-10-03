@@ -1,0 +1,222 @@
+{
+  "public": {
+    "schema_version": 2,
+    "id": "vp-0002",
+    "title": "Add Digits",
+    "ramp": "easy",
+    "difficulty": 600,
+    "tags": [
+      "math"
+    ],
+    "source": "Add Digits (LeetCode 258)",
+    "statement": "You're given a non-negative integer. Repeatedly add up its digits until only one digit is left, and tell me that final digit.",
+    "constraints": [
+      "0 <= num <= 2^31 - 1",
+      "The number can be zero",
+      "Follow-up: can you do it in O(1) time, with no loop and no recursion?"
+    ],
+    "examples": [
+      {
+        "input": "num = 38",
+        "output": "2",
+        "explanation": "3 + 8 = 11, then 1 + 1 = 2. Two is a single digit, so that is the answer."
+      },
+      {
+        "input": "num = 0",
+        "output": "0",
+        "explanation": "Zero is already a single digit, so nothing is added."
+      }
+    ],
+    "est_speak_seconds": 60,
+    "collections": [
+      "starter"
+    ],
+    "glossary_terms": [
+      "digital root",
+      "modulo",
+      "single digit",
+      "iteration",
+      "recursion",
+      "congruent"
+    ]
+  },
+  "private": {
+    "reference_approaches": [
+      {
+        "key": "digital_root_formula",
+        "name": "O(1) digital root formula",
+        "sketch": [
+          "If the number is 0, the answer is 0",
+          "Otherwise the answer is 1 + (number - 1) mod 9",
+          "Return that in constant time, no loop at all"
+        ],
+        "time": "O(1)",
+        "space": "O(1)",
+        "verdict": "optimal"
+      },
+      {
+        "key": "iterative_digit_sum",
+        "name": "Loop: sum digits, repeat while more than one digit remains",
+        "sketch": [
+          "While the number has more than one digit, peel off digits with mod 10 and integer divide by 10, accumulating a sum",
+          "Once the loop over one number finishes, replace the number with that sum",
+          "Repeat the whole process until the current number is a single digit"
+        ],
+        "time": "O(log num) rounds, shrinking fast each round",
+        "space": "O(1)",
+        "verdict": "acceptable"
+      },
+      {
+        "key": "string_conversion_sum",
+        "name": "Convert to a string, sum the digit characters, recurse",
+        "sketch": [
+          "Turn the number into a string",
+          "Sum the numeric value of each character in the string",
+          "Recursively call the same function on that sum until it's a single digit"
+        ],
+        "time": "O(log num) rounds, with string allocation overhead each round",
+        "space": "O(log num) for the string and the recursion stack",
+        "verdict": "suboptimal"
+      },
+      {
+        "key": "single_pass_no_repeat",
+        "name": "Sum the digits once and return that",
+        "sketch": [
+          "Peel off and sum every digit of the number one time",
+          "Return that sum directly, without checking whether it is itself a single digit"
+        ],
+        "time": "O(log num)",
+        "space": "O(1)",
+        "verdict": "wrong"
+      }
+    ],
+    "key_insights": [
+      {
+        "key": "digital_root_congruence",
+        "text": "A number and the sum of its digits always leave the same remainder when divided by 9, because every power of ten is exactly one more than a multiple of nine. Repeating the digit-sum process just keeps landing on that same remainder class until it reaches its single-digit representative.",
+        "required": true,
+        "hints": [
+          "Every time you sum the digits, does the result relate to the original number in some fixed, reusable way?",
+          "Try dividing a few numbers and their digit sums by nine. What do you notice about the remainders?",
+          "Ten leaves a remainder of one when divided by nine. What does that mean for a number written out in place-value digits?"
+        ],
+        "never_say": [
+          "digital root",
+          "mod 9",
+          "modulo 9",
+          "congruent",
+          "remainder class"
+        ]
+      },
+      {
+        "key": "nine_maps_to_nine",
+        "text": "A positive multiple of nine has to reduce to 9, not 0 -- plain remainder-by-nine collapses those two different single-digit answers into one, so the formula needs a small adjustment for that case.",
+        "required": true,
+        "hints": [
+          "Test your idea by hand on a number that is exactly a multiple of nine. Does your formula give the digit you expect?",
+          "Nine itself is already a single digit. What should the process return for the number 9, or 18, or 900?",
+          "Plain remainder-by-nine gives zero for every multiple of nine. Is zero ever the right single-digit answer for a positive input?"
+        ],
+        "never_say": [
+          "off by one",
+          "num minus one",
+          "special case for nine",
+          "multiple of nine maps to nine"
+        ]
+      },
+      {
+        "key": "process_shrinks_fast",
+        "text": "Summing the digits of a multi-digit number always produces something strictly smaller, so the repeated process is guaranteed to reach a single digit quickly rather than looping unpredictably.",
+        "required": false,
+        "hints": [
+          "If you keep summing digits over and over, is there any risk the number could grow, or stay the same size forever?",
+          "How big can the digit sum of a ten-digit number possibly be, compared to the original number?",
+          "A number near the upper constraint has at most ten digits. Its digit sum tops out well under a hundred -- what happens after that?"
+        ],
+        "never_say": [
+          "always decreases",
+          "shrinks quickly",
+          "guaranteed to terminate",
+          "converges fast"
+        ]
+      },
+      {
+        "key": "zero_is_its_own_answer",
+        "text": "Zero has no digits to add up in any meaningful sense, so it's a base case that returns itself rather than something the general loop or formula naturally falls out of.",
+        "required": false,
+        "hints": [
+          "What does your approach do differently, if anything, for the smallest possible input?",
+          "Walk your loop by hand starting from zero. Does it even enter the loop body?",
+          "Zero is already a single digit before any summing happens at all -- does your code path recognize that up front?"
+        ],
+        "never_say": [
+          "base case",
+          "zero returns itself",
+          "handled separately",
+          "short-circuit for zero"
+        ]
+      }
+    ],
+    "common_wrong_turns": [
+      {
+        "key": "stop_after_one_pass",
+        "text": "Summing the digits exactly once and returning that sum, without checking whether it still has more than one digit",
+        "why_it_fails": "For a large enough input, the first digit sum can itself have more than one digit, so returning it immediately gives a multi-digit answer instead of the required single digit",
+        "counter_question": "What if the digits of the number sum to something that itself has more than one digit -- does your answer stop there?",
+        "failing_case": "num = 99999999 -> digit sum is 72, which still has two digits; the correct final answer is 9, not 72"
+      },
+      {
+        "key": "plain_mod_nine",
+        "text": "Using the formula num mod 9 directly, without adjusting for multiples of nine",
+        "why_it_fails": "A positive multiple of nine's digital root is 9, not 0, so plain remainder-by-nine gives the wrong single-digit answer for exactly that family of inputs",
+        "counter_question": "What does your formula give back for an input of 9, or 18? Is that the single-digit answer you'd expect?",
+        "failing_case": "num = 18 -> 18 mod 9 = 0, but summing the digits of 18 gives 9, which is already a single digit, so the correct answer is 9, not 0"
+      },
+      {
+        "key": "log10_digit_extraction",
+        "text": "Using a logarithm to count how many digits the number has, in order to peel them off one at a time",
+        "why_it_fails": "The logarithm of zero is undefined, so a digit-extraction approach built on log10 breaks or misbehaves on the smallest input unless it is special-cased first",
+        "counter_question": "How does your digit-counting approach handle an input of exactly zero?",
+        "failing_case": "num = 0 -> log10(0) is undefined (or negative infinity) in most languages, so a log10-based digit counter needs an explicit check for zero before it can run at all"
+      }
+    ],
+    "edge_cases": [
+      "num is 0, which has no digits to sum and is already single-digit",
+      "num is already a single digit from 1 to 9",
+      "num is a large multiple of 9, whose digital root is 9, not 0",
+      "num is at the very top of the constraint range, just under two to the thirty-first"
+    ],
+    "followups": [
+      {
+        "id": "fu_math",
+        "when_approach": [
+          "digital_root_formula"
+        ],
+        "question": "Why does that one-step formula actually work -- what's the mathematical reason summing digits relates to a remainder by nine?",
+        "model_answer": "Every power of ten is congruent to one modulo nine, since ten is one more than a multiple of nine. That means a number and the sum of its digits always land in the same remainder class mod nine. Repeating the digit-sum reduces down to the single-digit representative of that class, which is the number mod nine, adjusted so a positive multiple of nine maps to nine instead of zero.",
+        "grading_note": "Credit any explanation invoking congruence mod nine, or the informal version 'powers of ten are one more than a multiple of nine'. A full formal proof isn't required -- recognizing the invariant is enough."
+      },
+      {
+        "id": "fu_speed",
+        "when_approach": [
+          "iterative_digit_sum",
+          "string_conversion_sum",
+          "single_pass_no_repeat"
+        ],
+        "question": "At the top of the constraint range, roughly how many times does your approach loop, and is there a way to skip straight to the answer?",
+        "model_answer": "A ten-digit number's first digit sum is at most ninety, and every round after that shrinks fast, so it's only a handful of iterations total -- plenty fast either way. The one-step formula skips all of that looping and computes the answer directly from a single arithmetic operation.",
+        "grading_note": "Looking for recognition that the iteration count is already small, plus some move toward the constant-time formula. Naming the formula explicitly is a pass."
+      },
+      {
+        "id": "fu_zero",
+        "when_approach": [
+          "*"
+        ],
+        "question": "Walk me through exactly what your approach does when the input is zero.",
+        "model_answer": "Zero has no digits to sum in any useful sense, so the answer is zero itself. This has to be handled as an explicit base case in a loop or recursive approach, and in the mod-nine formula it happens to fall out correctly since zero mod nine is already zero.",
+        "grading_note": "Credit any answer that explicitly confirms the zero input is handled correctly, whichever approach they used."
+      }
+    ],
+    "editorial": "**The move: recognize the remainder-by-nine invariant.**\n\nThe brute-force instinct is to just loop: sum the digits, check if there's more than one, and repeat. That's correct and fast enough here, but it isn't the trick. The trick is noticing that summing a number's digits never changes its remainder when divided by nine -- because every power of ten is exactly one more than a multiple of nine, so shifting a digit into a higher place value doesn't change which remainder class the number belongs to.\n\n**Digital root formula -- O(1) time, O(1) space.** If the number is zero, return zero. Otherwise, return one plus the remainder of (number minus one) divided by nine. The minus-one, plus-one dance is what fixes the one real wrinkle: a positive multiple of nine reduces to nine, not zero, and plain `num mod 9` would incorrectly return zero for those inputs.\n\n**Iterative digit sum -- perfectly fine, just not the trick.** Loop, peeling off digits with mod ten and integer division by ten, summing as you go; once a full pass finishes, replace the number with that sum and repeat until only one digit is left. It's fast in practice, because the numbers shrink very quickly, but it doesn't reveal the underlying number-theory reason the answer works out the way it does.\n\n**Why the follow-up (no loop, no recursion) matters.** It's a hint that the intended solution is the formula, not a faster loop. Constraints here are small enough that either approach runs instantly, so the real signal in this problem is whether the digit-sum-preserves-remainder-mod-nine idea gets found at all."
+  }
+}

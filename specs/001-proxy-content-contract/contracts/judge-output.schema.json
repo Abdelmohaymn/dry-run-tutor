@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/judge-output.schema.json",
+  "title": "Assessment output — TEMPLATE",
+  "description": "This is NOT the schema sent to the provider. It is the template that buildJudgeSchema(problem) instantiates per request, replacing the three ENUM_PLACEHOLDER values with that problem's own authored keys. That substitution is what makes naming an unauthored approach or insight structurally impossible rather than merely discouraged (FR-014, SC-004). Sent as response_format: { type: 'json_schema', json_schema: { name: 'assessment', strict: true, schema: <this, instantiated> } }.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["matched_approach", "matched_verdict", "insights_hit", "insights_missed", "wrong_turns_taken", "complexity", "verdict", "confidence", "feedback"],
+  "properties": {
+    "matched_approach": {
+      "type": "string",
+      "enum": ["ENUM_PLACEHOLDER__APPROACH_KEYS_PLUS_NONE"],
+      "x-build": "problem.private.reference_approaches.map(a => a.key).concat('none')"
+    },
+    "matched_verdict": { "type": "string", "enum": ["optimal", "acceptable", "suboptimal", "wrong", "none"] },
+    "insights_hit": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["ENUM_PLACEHOLDER__INSIGHT_KEYS"] },
+      "x-build": "problem.private.key_insights.map(i => i.key)"
+    },
+    "insights_missed": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["ENUM_PLACEHOLDER__INSIGHT_KEYS"] },
+      "x-build": "problem.private.key_insights.map(i => i.key)",
+      "x-postcondition": "insights_hit UNION insights_missed == every authored insight key, and the two are disjoint (FR-017). Repaired server-side and recorded as prompt drift if violated."
+    },
+    "wrong_turns_taken": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["ENUM_PLACEHOLDER__WRONG_TURN_KEYS"] },
+      "x-build": "problem.private.common_wrong_turns.map(w => w.key)"
+    },
+    "complexity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["user_claimed_time", "user_claimed_space", "reference_time", "reference_space", "assessment"],
+      "properties": {
+        "user_claimed_time": { "type": ["string", "null"] },
+        "user_claimed_space": { "type": ["string", "null"] },
+        "reference_time": { "type": "string" },
+        "reference_space": { "type": "string" },
+        "assessment": { "type": "string", "enum": ["correct", "mismatched", "not_stated"] }
+      }
+    },
+    "verdict": {
+      "type": "string",
+      "enum": ["strong_pass", "pass", "borderline", "likely_tle", "incorrect", "unclear"],
+      "x-postcondition": "Overridden by mapVerdict() when inconsistent with the classification; the mapped value wins and the discrepancy is recorded (FR-019)."
+    },
+    "confidence": { "type": "number", "description": "0-1. The RANGE lives in the prompt, not the schema — Groq's constrained decoding does not enforce numeric bounds. Clamped server-side." },
+    "feedback": { "type": "string", "description": "At most 2 sentences, prompt-capped and server-truncated at 320 chars on a word boundary (FR-018). Length is NOT expressed in the schema." }
+  },
+  "x-not-in-schema": {
+    "editorial": "Attached server-side after a successful assessment (FR-022). The model never sees it and never produces it.",
+    "followup_id": "Dropped in v2. There is no scripted follow-up turn."
+  }
+}

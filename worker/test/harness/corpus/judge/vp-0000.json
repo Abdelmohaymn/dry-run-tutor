@@ -1,0 +1,83 @@
+{
+  "problem_id": "vp-0000",
+  "cases": [
+    {
+      "id": "optimal",
+      "kind": "optimal",
+      "expected_verdicts": [
+        "strong_pass",
+        "pass"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "I'd hold the first number as the answer so far, then walk the rest of the list once and swap in any number that beats it."
+        },
+        {
+          "role": "tutor",
+          "text": "As you move along, how much of what you've already seen do you actually still need?"
+        },
+        {
+          "role": "user",
+          "text": "Just the one biggest value I'm holding. I don't need to remember anything else I've passed. When the list runs out, whatever I'm holding is the answer. That's O(n) time and O(1) space."
+        }
+      ]
+    },
+    {
+      "id": "suboptimal",
+      "kind": "suboptimal",
+      "expected_verdicts": [
+        "likely_tle"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "I'd sort the whole list ascending, then return the last element."
+        },
+        {
+          "role": "tutor",
+          "text": "Sorting puts every number in its place. Do you need all of them in place to answer this, or only one of them?"
+        },
+        {
+          "role": "user",
+          "text": "Only the biggest one, really. But sorting is simple to reason about, so I'd still do that -- it's O(n log n) time, O(n) space."
+        }
+      ]
+    },
+    {
+      "id": "wrong",
+      "kind": "wrong",
+      "expected_verdicts": [
+        "incorrect"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "I'd just return the first element of the list."
+        },
+        {
+          "role": "tutor",
+          "text": "What does your answer give for [3, 9, 2, 7], and is that the number the question asked for?"
+        },
+        {
+          "role": "user",
+          "text": "It gives 3. I think that's fine since the list should already be roughly in order by the time it gets to me."
+        }
+      ]
+    },
+    {
+      "id": "none",
+      "kind": "none",
+      "expected_verdicts": [
+        "unclear",
+        "incorrect"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "I'd probably just write a SQL query for this, something with GROUP BY."
+        }
+      ]
+    }
+  ]
+}

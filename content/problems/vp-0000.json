@@ -1,0 +1,109 @@
+{
+  "public": {
+    "schema_version": 2,
+    "id": "vp-0000",
+    "title": "Largest in the list",
+    "ramp": "easy",
+    "difficulty": 300,
+    "tags": ["arrays", "warmup"],
+    "source": "Authored warm-up for the onboarding walkthrough",
+    "statement": "You're given a list of numbers. Find the largest one and return it.",
+    "constraints": [
+      "1 <= nums.length <= 10^7",
+      "-10^9 <= nums[i] <= 10^9",
+      "The list is not sorted"
+    ],
+    "examples": [
+      {
+        "input": "nums = [3, 9, 2, 7]",
+        "output": "9",
+        "explanation": "Nothing in the list is bigger than 9."
+      }
+    ],
+    "est_speak_seconds": 45,
+    "collections": ["practice"],
+    "glossary_terms": ["linear scan", "running maximum"]
+  },
+  "private": {
+    "reference_approaches": [
+      {
+        "key": "single_scan",
+        "name": "One pass, keeping the best so far",
+        "sketch": [
+          "Hold the first number as the answer so far.",
+          "Walk the rest of the list once.",
+          "Whenever a number beats the answer so far, it becomes the answer.",
+          "Return what you are holding when the list runs out."
+        ],
+        "time": "O(n)",
+        "space": "O(1)",
+        "verdict": "optimal"
+      },
+      {
+        "key": "sort_take_last",
+        "name": "Sort, then take the end",
+        "sketch": [
+          "Sort the whole list ascending.",
+          "Return the final element."
+        ],
+        "time": "O(n log n)",
+        "space": "O(n)",
+        "verdict": "suboptimal"
+      },
+      {
+        "key": "first_element",
+        "name": "Return the first element",
+        "sketch": [
+          "Return nums[0] without looking at the rest."
+        ],
+        "time": "O(1)",
+        "space": "O(1)",
+        "verdict": "wrong"
+      }
+    ],
+    "key_insights": [
+      {
+        "key": "one_pass_enough",
+        "text": "You only ever need to remember the best value seen so far, so a single walk answers the question.",
+        "required": true,
+        "hints": [
+          "As you move along the list, how much of what you have already seen do you actually still need?",
+          "Suppose you could keep exactly one number in your pocket while you walk. Which one would you keep?",
+          "If you already hold the biggest so far, what has to be true of a new number for it to replace it?"
+        ],
+        "never_say": ["running maximum", "single pass", "one pass", "linear scan"]
+      }
+    ],
+    "common_wrong_turns": [
+      {
+        "key": "sort_first",
+        "text": "Sorting the whole list just to read off the end.",
+        "why_it_fails": "Sorting arranges every element relative to every other, which is far more than the question asks. It costs O(n log n) to answer something a single walk answers in O(n).",
+        "counter_question": "Sorting puts every number in its place. Do you need all of them in place to answer this, or only one of them?",
+        "failing_case": "nums with 10^7 entries: the sort does tens of millions of extra comparisons to produce an ordering nothing reads."
+      },
+      {
+        "key": "first_element",
+        "text": "Returning nums[0] as though the list were already sorted.",
+        "why_it_fails": "The constraints say the list is not sorted, so the first entry has no relationship to the largest.",
+        "counter_question": "What does your answer give for [3, 9, 2, 7], and is that the number the question asked for?",
+        "failing_case": "nums = [3, 9, 2, 7] returns 3 when the answer is 9."
+      }
+    ],
+    "edge_cases": [
+      "A list of length 1, where the only element is the answer",
+      "Every value negative, which rules out starting the answer at zero",
+      "Repeated maximum values, where either position is a fine answer"
+    ],
+    "followups": [
+      {
+        "id": "fu_two_largest",
+        "when_approach": ["single_scan"],
+        "question": "Say you needed the two largest values instead of one. What changes about what you carry as you walk?",
+        "model_answer": "Carry two values instead of one, the best and the second best, and update both when a new number beats either. Still one walk, still constant extra space.",
+        "grading_note": "Credit any answer that keeps a single walk and widens what is carried. A learner who reaches for a sort here has lost the insight they just had."
+      }
+    ],
+    "editorial": "**The move: carry the answer with you.**\n\nThe instinct is to get the list into some order first, because an ordered list makes the answer obvious. But ordering is a much stronger property than this question needs. You are not asked where every number sits relative to every other one. You are asked for a single value.\n\nSo carry it. Start with the first number as your answer, walk the rest, and replace it whenever you meet something bigger. When the list runs out, what you are holding is the answer, and you touched every number exactly once.\n\nThis is the warm-up for a habit worth having: before reaching for a general-purpose tool, ask what the question actually needs. Sorting is a tool that answers a much bigger question than the one in front of you, and you pay for the difference."
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "problem_id": "vp-0001",
+  "cases": [
+    {
+      "id": "optimal",
+      "kind": "optimal",
+      "expected_verdicts": [
+        "strong_pass",
+        "pass"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "I'd walk the list once with a hash map from value to the index I saw it at."
+        },
+        {
+          "role": "tutor",
+          "text": "What do you check before you insert the current value?"
+        },
+        {
+          "role": "user",
+          "text": "I check whether the complement -- target minus the current value -- is already in the map. If it is, I return both positions. Duplicates are fine since I check before inserting, and it's O(n) time, O(n) space."
+        }
+      ]
+    },
+    {
+      "id": "suboptimal",
+      "kind": "suboptimal",
+      "expected_verdicts": [
+        "likely_tle"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "I'd check every pair with two nested loops and return the first pair that sums to the target."
+        },
+        {
+          "role": "tutor",
+          "text": "How does that scale as the list grows toward ten million entries?"
+        },
+        {
+          "role": "user",
+          "text": "It's O(n squared), so it would be slow at that size, but it's correct."
+        }
+      ]
+    },
+    {
+      "id": "wrong",
+      "kind": "wrong",
+      "expected_verdicts": [
+        "incorrect"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "I'd sort the values, then use two pointers from both ends to find the pair that sums to the target."
+        },
+        {
+          "role": "tutor",
+          "text": "If you sort the values first, what happens to the positions you were asked to return?"
+        },
+        {
+          "role": "user",
+          "text": "Hmm, I guess I'd lose track of which original index each value came from, but I'll just return the sorted positions anyway."
+        }
+      ]
+    },
+    {
+      "id": "garbled",
+      "kind": "garbled",
+      "expected_verdicts": [
+        "unclear"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "uh, maybe like, I don't know, numbers and stuff, add them?"
+        }
+      ]
+    },
+    {
+      "id": "explored_then_landed",
+      "kind": "explored_then_landed",
+      "expected_verdicts": [
+        "pass",
+        "strong_pass"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "I'd probably just brute-force it, check every pair."
+        },
+        {
+          "role": "tutor",
+          "text": "How does that scale at ten million elements?"
+        },
+        {
+          "role": "user",
+          "text": "Yeah that's too slow. I used a hint and it mentioned remembering what I've seen -- so let me store each value and its index in a hash map as I go, and check for the complement before inserting. That's one pass, O(n) time and space."
+        }
+      ]
+    }
+  ]
+}

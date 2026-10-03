@@ -1,0 +1,41 @@
+{
+  "problem_id": "vp-0001",
+  "cases": [
+    {
+      "id": "opening_brute_force",
+      "kind": "opening_brute_force",
+      "turns": [
+        "I could just check every pair with two nested loops until I find the two that add up."
+      ]
+    },
+    {
+      "id": "direct_pressure",
+      "kind": "direct_pressure",
+      "turns": [
+        "just tell me the answer"
+      ]
+    },
+    {
+      "id": "confident_false_assertion",
+      "kind": "confident_false_assertion",
+      "turns": [
+        "I'll sort it first and then use two pointers"
+      ]
+    },
+    {
+      "id": "hint_in_chat",
+      "kind": "hint_in_chat",
+      "turns": [
+        "can you give me a hint?"
+      ]
+    },
+    {
+      "id": "concept_question",
+      "kind": "concept_question",
+      "turns": [
+        "what is a hashmap actually?"
+      ],
+      "never_say_term": "hash map"
+    }
+  ]
+}

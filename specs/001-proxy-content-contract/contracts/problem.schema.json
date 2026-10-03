@@ -1,0 +1,356 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/problem.schema.json",
+  "title": "Authored problem, schema v2",
+  "description": "One file per problem at content/problems/<id>.json. Structural shape only — the ten authoring rules in data-model.md §A1 that JSON Schema cannot express (never_say leaking into hints, approach-verdict coverage, orphan keys, public/private reachability) are enforced by tools/validate-content.ts and are equally blocking.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "public",
+    "private"
+  ],
+  "properties": {
+    "public": {
+      "$ref": "#/$defs/PublicHalf"
+    },
+    "private": {
+      "$ref": "#/$defs/PrivateHalf"
+    }
+  },
+  "$defs": {
+    "PublicHalf": {
+      "title": "The app may hold this",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "id",
+        "title",
+        "ramp",
+        "tags",
+        "source",
+        "statement",
+        "constraints",
+        "est_speak_seconds",
+        "glossary_terms"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^vp-\\d{4}$"
+        },
+        "date": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "ramp": {
+          "type": "string",
+          "enum": [
+            "easy",
+            "medium",
+            "hard"
+          ]
+        },
+        "difficulty": {
+          "type": "integer",
+          "minimum": 800,
+          "maximum": 1500
+        },
+        "tags": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "source": {
+          "type": "string",
+          "description": "Own-authored label only. Never scraped text."
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 40,
+          "description": "2-5 sentences of plain prose. No code, no pseudocode."
+        },
+        "constraints": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "examples": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "input",
+              "output"
+            ],
+            "properties": {
+              "input": {
+                "type": "string",
+                "description": "Concrete input, written the way a problem set writes it."
+              },
+              "output": {
+                "type": "string"
+              },
+              "explanation": {
+                "type": "string",
+                "description": "One or two sentences on WHY that output. Idea level only — never an approach or a complexity, which would leak the private half."
+              }
+            }
+          },
+          "description": "OPTIONAL worked examples. Public: an example shows what the question means, not how to answer it — a learner who cannot picture the input cannot talk through an approach at all. Held behind an explicit control in the app so the problem card stays a card."
+        },
+        "est_speak_seconds": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 120
+        },
+        "collections": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "glossary_terms": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          },
+          "description": "PUBLIC in v2 — tap-to-fix chips on transcript review. A v1 problem places these under `private` and must fail validation."
+        },
+        "hint_count": {
+          "type": "integer",
+          "minimum": 3,
+          "description": "BUILD-INJECTED, NEVER AUTHORED. Equals 3 * len(private.key_insights). Lets the app render 'Hint 1 of 12' and disable the control at the end, which a meta frame cannot do for a problem the learner has not opened yet. It leaks nothing: the learner already knows hints exist. Validator rule 0 rejects this key in an authored file; tools/build-content.ts computes it."
+        }
+      }
+    },
+    "PrivateHalf": {
+      "title": "Never leaves the server",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reference_approaches",
+        "key_insights",
+        "common_wrong_turns",
+        "edge_cases",
+        "followups",
+        "editorial"
+      ],
+      "properties": {
+        "reference_approaches": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 5,
+          "items": {
+            "$ref": "#/$defs/Approach"
+          }
+        },
+        "key_insights": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 5,
+          "items": {
+            "$ref": "#/$defs/Insight"
+          }
+        },
+        "common_wrong_turns": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/WrongTurn"
+          }
+        },
+        "edge_cases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "followups": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/Followup"
+          }
+        },
+        "editorial": {
+          "type": "string",
+          "minLength": 100,
+          "description": "Markdown for the reveal. Released ONLY by a successful POST /v1/judge (FR-022)."
+        }
+      }
+    },
+    "Approach": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "name",
+        "sketch",
+        "time",
+        "space",
+        "verdict"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "name": {
+          "type": "string"
+        },
+        "sketch": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 4,
+          "items": {
+            "type": "string"
+          },
+          "description": "What the approach IS, at idea level. Tier B only — never sent for a family the learner has not narrowed to."
+        },
+        "time": {
+          "type": "string"
+        },
+        "space": {
+          "type": "string"
+        },
+        "verdict": {
+          "type": "string",
+          "enum": [
+            "optimal",
+            "acceptable",
+            "suboptimal",
+            "wrong"
+          ]
+        }
+      }
+    },
+    "Insight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "text",
+        "required",
+        "hints",
+        "never_say"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "text": {
+          "type": "string",
+          "description": "Judge-facing. NEVER quoted to the learner verbatim (FR-003)."
+        },
+        "required": {
+          "type": "boolean",
+          "description": "true = a pass is implausible without it. A missed required insight caps the verdict at borderline."
+        },
+        "hints": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "string"
+          },
+          "description": "EXACTLY 3 rungs, escalating: 1 orient, 2 narrow, 3 one step short. If you are writing a rung 4, the insight is really two insights - split it."
+        },
+        "never_say": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          },
+          "description": "Hard filter on tutor output before the reveal, enforced in code by leak-filter.ts. List the canonical term, common synonyms, and spelling variants — matching is whole-word on a normalised string, so variants must be listed explicitly."
+        }
+      }
+    },
+    "WrongTurn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "text",
+        "why_it_fails",
+        "counter_question",
+        "failing_case"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "text": {
+          "type": "string"
+        },
+        "why_it_fails": {
+          "type": "string",
+          "description": "Judge and reveal ONLY. NEVER sent to the tutor during a live chat."
+        },
+        "counter_question": {
+          "type": "string",
+          "pattern": "\\?\\s*$",
+          "description": "Tutor's FIRST response to this wrong turn. Must end in '?'."
+        },
+        "failing_case": {
+          "type": "string",
+          "description": "Tutor's SECOND response if the counter-question does not land. Must be runnable in the learner's head: smallest input, concrete values."
+        }
+      }
+    },
+    "Followup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "when_approach",
+        "question",
+        "model_answer",
+        "grading_note"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "when_approach": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          },
+          "description": "Approach keys, or [\"*\"] for any. Every entry must resolve to a real approach key."
+        },
+        "question": {
+          "type": "string"
+        },
+        "model_answer": {
+          "type": "string"
+        },
+        "grading_note": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

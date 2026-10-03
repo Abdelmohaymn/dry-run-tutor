@@ -1,0 +1,831 @@
+openapi: 3.1.0
+info:
+  title: Dry Run relay
+  version: 1.0.0
+  license: { name: Proprietary }
+  description: >
+    Stateless relay. Holds the private half of every problem and injects it into
+    requests paid for by the learner's own provider key. Never persists a key,
+    never persists message content, never returns private content except on a
+    successful POST /v1/judge.
+servers:
+  - url: https://api.example.com
+    description: prod
+  - url: https://dev-api.example.com
+    description: dev
+
+components:
+  securitySchemes:
+    InstallId:
+      type: apiKey
+      in: header
+      name: X-Install-Id
+      description: '<uuidv4>.<base64url HMAC-SHA256>, minted by POST /v1/install.'
+    UserKey:
+      type: apiKey
+      in: header
+      name: X-User-Key
+      description: >
+        The learner's own provider key. Used once for the relayed call and
+        NEVER persisted — not to storage, a log, an error trace, or a usage
+        record (FR-023). Absent on /v1/trial, which uses the operator key.
+    WebDemoToken:
+      type: apiKey
+      in: header
+      name: X-Web-Demo-Token
+      description: >
+        Feature 007. Signed token from /v1/web-demo/start. Valid for 15
+        minutes (data-model.md).
+
+  parameters:
+    ProviderHeader:
+      in: header
+      name: X-Provider
+      required: false
+      schema: { type: string }
+      description: >
+        Which provider the accompanying X-User-Key belongs to (FR-008b). The
+        learner chooses their provider by choosing which key to paste, so a
+        single server-side default cannot serve everyone — before this header
+        existed, a Gemini key was relayed to Groq and the misroute surfaced to
+        the learner as "your key was rejected".
+
+        Must be one of `config.keyed_providers`. An unknown or unoffered value
+        is BAD_REQUEST, never a silent fallback to `config.provider`: quietly
+        relaying a credential to a host it does not belong to is the failure
+        this header exists to prevent. Absent means `config.provider`.
+
+        The HOST is not selectable — only the provider identity is. Base URLs
+        live in a table compiled into the Worker so no request and no config
+        write can aim a learner's key at an arbitrary origin.
+
+        Accepted on /v1/chat and /v1/judge ONLY. /v1/trial ignores it
+        completely: that path spends the OPERATOR's credential, and which pool
+        member serves a leg is the pool's decision (FR-031c), never the
+        caller's.
+
+  responses:
+    Err:
+      description: Error, using the closed ten-code envelope in error-catalog.md
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    WebDemoUnavailable:
+      description: Feature 007. WEB_DEMO_UNAVAILABLE. The client goes scripted.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/WebDemoUnavailable' }
+
+  schemas:
+    MetaFrame:
+      description: >
+        The single `meta` frame that closes every successful /v1/chat stream,
+        immediately before `done`. This is the app's primary state channel:
+        every number it needs to render the composer comes from here, and
+        nothing here is echoed back on the next request except `summary`.
+      type: object
+      additionalProperties: false
+      required: [turn_index, turns_remaining, hints_revealed, hints_remaining,
+                 session_ended, leak_blocked]
+      properties:
+        turn_index:
+          type: integer
+          description: >
+            From the D1 counter, never from the payload (FR-010c). UNCHANGED
+            across a hint pull, which consumes no turn (FR-003b).
+        turns_remaining: { type: integer, minimum: 0 }
+        hints_revealed:
+          type: integer
+          minimum: 0
+          description: Rungs spent so far. Monotonic (data-model.md §B2.4).
+        hints_remaining:
+          type: integer
+          minimum: 0
+          description: >
+            Rungs left. Zero means the next pull returns the fixed
+            ladder-exhausted line, not the reveal (FR-003e).
+        summary:
+          type: [string, 'null']
+          maxLength: 4000
+          description: >
+            Present only when this turn condensed history. The app replaces its
+            stored summary and drops the turns now covered, which are exactly
+            the first `summary_covers` of the request's `messages`. The service
+            retains nothing (FR-010a).
+        summary_covers:
+          type: integer
+          minimum: 1
+          description: >
+            Present exactly when `summary` is. How many of the request's
+            leading `messages` the new summary covers. The rest were kept
+            verbatim and MUST be sent again on the next request. Before this
+            field the app marked every replayed turn covered, and the newest
+            turns silently dropped out of the conversation (2026-09-25).
+        session_ended:
+          type: [string, 'null']
+          enum: [user, cap, solution, null]
+          description: >
+            SERVER-DERIVED. "solution" is set by data-model.md §B2.2 and never
+            by the caller. Exhausting the hint ladder does NOT set this.
+        leak_blocked:
+          type: boolean
+          description: >
+            The never_say filter aborted the stream and the fallback line was
+            emitted instead (data-model.md §B1). The offending sentence is
+            never logged and never returned.
+
+    Turn:
+      type: object
+      additionalProperties: false
+      required: [role, text]
+      properties:
+        role:
+          type: string
+          enum: [user, tutor]
+          description: >
+            Our wire vocabulary. provider-groq.ts is the ONLY module that
+            translates it to the provider's `user`/`assistant` (data-model.md
+            §A2). No other module may speak the provider's vocabulary.
+        text: { type: string, minLength: 1, maxLength: 8000 }
+
+    Error:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, retryable]
+          properties:
+            code:
+              type: string
+              enum: [RATE_LIMITED, INVALID_KEY, QUOTA_EXHAUSTED, UNCLEAR_RETRY,
+                     TURN_CAP_REACHED, TRIAL_CONSUMED, SESSION_ALREADY_JUDGED,
+                     EMPTY_TURN, PROBLEM_KILLED, TRIAL_UNAVAILABLE, BAD_REQUEST,
+                     WEB_DEMO_UNAVAILABLE, INVALID_EMAIL]
+            message: { type: string }
+            retryable: { type: boolean }
+            retry_after_ms: { type: integer, minimum: 0 }
+
+    ChatRequest:
+      type: object
+      additionalProperties: false
+      required: [problem_id, messages]
+      properties:
+        problem_id: { type: string, pattern: '^vp-\d{4}$' }
+        messages:
+          type: array
+          minItems: 1
+          maxItems: 40
+          description: >
+            ONLY the turns not covered by `summary`. Its length is never used
+            to enforce the turn cap; the server counter is (FR-010c).
+          items: { $ref: '#/components/schemas/Turn' }
+        summary:
+          type: string
+          maxLength: 4000
+          description: >
+            The condensed summary of older turns, returned by a previous call
+            and replayed by the app. The service does not retain it (FR-010a).
+        earlier_learner_turns:
+          type: array
+          maxItems: 40
+          items: { type: string, minLength: 1, maxLength: 8000 }
+          description: >
+            The learner's own turns already folded into `summary`, oldest
+            first. Read ONLY to decide which never_say terms the learner has
+            said and which insights they have reached (data-model.md §B1,
+            §B3); never sent to the provider. Grants nothing a learner could
+            not get by typing the same words in `messages`. Without it, a word
+            said before the last summary was blocked again (2026-09-25).
+        hint_requested:
+          type: boolean
+          default: false
+          description: >
+            The learner explicitly asked for a hint. The service returns the
+            next unrevealed rung of the authored ladder VERBATIM, advances the
+            server-side counter, makes NO provider call, and does NOT consume a
+            turn against config.chat.turn_cap (FR-003a, FR-003b, data-model.md
+            §B7). Unlike solution_request_count this field is safe to honour
+            from the payload: it opens no branch, disables no filter, spends no
+            allowance, and the ladder is finite and monotonic.
+        solution_request_count:
+          type: integer
+          minimum: 0
+          default: 0
+          description: >
+            A HINT, NOT AN AUTHORITY. How many times the app believes the
+            learner has explicitly asked for the answer. The server keeps its
+            own count in D1; this value may raise that count by AT MOST ONE per
+            accepted turn and can never lower it (data-model.md §B2.2), so a
+            first-turn release is arithmetically unreachable no matter what is
+            sent here. Releasing the solution also stands down the never_say
+            output filter, which is why this field cannot be trusted (FR-006,
+            FR-006a, Constitution III).
+        key_check:
+          type: boolean
+          default: false
+          description: >
+            The app is checking a key the learner is saving. The service makes
+            one tiny provider call with the key (not the tutor prompt, no
+            ground truth), reserves NO turn, and answers `meta` then `done`
+            with the counters unchanged, or an `error` frame (INVALID_KEY,
+            QUOTA_EXHAUSTED, RATE_LIMITED...). `messages` is ignored.
+            /v1/chat only: /v1/trial rejects it with BAD_REQUEST.
+
+    JudgeRequest:
+      type: object
+      additionalProperties: false
+      required: [problem_id, conversation, ended_by]
+      properties:
+        problem_id: { type: string, pattern: '^vp-\d{4}$' }
+        conversation:
+          type: array
+          minItems: 1
+          maxItems: 40
+          items: { $ref: '#/components/schemas/Turn' }
+        ended_by: { type: string, enum: [user, cap, solution] }
+        reveal_at_index:
+          type: integer
+          minimum: 0
+          description: >
+            REQUIRED when ended_by is "solution". The assessment is built from
+            conversation[0 .. reveal_at_index-1] only, so the learner is graded
+            on what they had earned when they asked (FR-021).
+
+    Assessment:
+      type: object
+      additionalProperties: false
+      required: [matched_approach, matched_verdict, insights_hit, insights_missed,
+                 wrong_turns_taken, complexity, verdict, confidence, feedback, editorial]
+      properties:
+        matched_approach: { type: string, description: 'An authored approach key, or "none".' }
+        matched_verdict: { type: string, enum: [optimal, acceptable, suboptimal, wrong, none] }
+        insights_hit: { type: array, items: { type: string } }
+        insights_missed: { type: array, items: { type: string } }
+        wrong_turns_taken: { type: array, items: { type: string } }
+        complexity:
+          type: object
+          additionalProperties: false
+          required: [user_claimed_time, user_claimed_space, reference_time, reference_space, assessment]
+          properties:
+            user_claimed_time: { type: [string, 'null'] }
+            user_claimed_space: { type: [string, 'null'] }
+            reference_time: { type: string }
+            reference_space: { type: string }
+            assessment: { type: string, enum: [correct, mismatched, not_stated] }
+        verdict:
+          type: string
+          enum: [strong_pass, pass, borderline, likely_tle, incorrect, unclear]
+          description: 'Post-override value. mapVerdict() wins over the model (FR-019).'
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        feedback: { type: string, maxLength: 320 }
+        editorial:
+          type: string
+          description: >
+            Markdown for the reveal screen. THE ONLY PATH BY WHICH PRIVATE
+            CONTENT IS EVER RELEASED (FR-022).
+
+    RepairRequest:
+      type: object
+      additionalProperties: false
+      required: [problem_id, transcript]
+      properties:
+        problem_id:
+          type: string
+          pattern: '^vp-\d{4}$'
+        transcript:
+          type: string
+          minLength: 1
+          maxLength: 8000
+          description: >
+            The raw recogniser output for one spoken turn. TEXT ONLY. This
+            endpoint accepts no audio, no duration, no level samples and no
+            confidence score, and additionalProperties:false is what enforces
+            that (Constitution VII).
+
+    RepairResponse:
+      type: object
+      additionalProperties: false
+      required: [repaired, changed]
+      properties:
+        repaired:
+          type: string
+          description: >
+            The corrected transcript, or the request's transcript verbatim on
+            any fallback.
+        changed:
+          type: boolean
+          description: repaired !== transcript, computed server-side.
+
+    WebMessage:
+      description: >
+        Feature 007. Same shape as turnSchema in worker/src/lib/schemas.ts:6,
+        so chat-core and judge-core take it unchanged.
+      type: object
+      additionalProperties: false
+      required: [role, text]
+      properties:
+        role: { type: string, enum: [user, tutor] }
+        text: { type: string, minLength: 1, maxLength: 2000 }
+
+    WebDemoUnavailable:
+      description: >
+        Feature 007. Error envelope with code WEB_DEMO_UNAVAILABLE and
+        retryable false. The reason stays in the server logs and is not sent
+        to the client: disabled | daily_cap | rate_limited | turnstile_failed |
+        token_invalid | turn_cap | provider_unavailable.
+      allOf: [{ $ref: '#/components/schemas/Error' }]
+
+paths:
+  /v1/install:
+    post:
+      summary: Mint a signed anonymous install identity
+      description: >
+        Called once at first launch. No accounts, no PII (FR-036). The signature
+        prevents impersonation of another install; it does NOT prevent trial
+        farming — see research.md R-009.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [install_uuid]
+              properties:
+                install_uuid:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Signed identity
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [install_id]
+                properties:
+                  install_id: { type: string, example: '3f1c…-…-….Yk8sQ2p…' }
+        '400': { $ref: '#/components/responses/Err' }
+
+  /v1/chat:
+    post:
+      summary: One tutor turn, streamed
+      parameters: [{ $ref: '#/components/parameters/ProviderHeader' }]
+      security: [{ InstallId: [], UserKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChatRequest' }
+      responses:
+        '200':
+          description: >
+            Server-Sent Events. Frames, in order: zero or more `token`, then
+            exactly one `meta`, then `done`. An `error` frame may replace the
+            tail at any point and carries the same envelope as a non-2xx body.
+            When `hint_requested` is true the stream is a single `token` frame
+            carrying the authored rung verbatim, followed by `meta` and `done`;
+            no provider is contacted and `turn_index` is unchanged from the
+            previous turn.
+            THE `meta` FRAME'S `data` PAYLOAD CONFORMS TO
+            #/components/schemas/MetaFrame. OpenAPI cannot type the frames of
+            an SSE stream structurally, so that schema is referenced here and
+            asserted by test/contract/chat.stream.test.ts instead.
+          content:
+            text/event-stream:
+              schema: { type: string }
+              example: |
+                event: token
+                data: {"text":"What are you actually searching for at each step?"}
+
+                event: meta
+                data: {"turn_index":4,"turns_remaining":11,"hints_revealed":2,"hints_remaining":10,"summary":"Learner opened with a nested loop, was asked about cost as n grows, and is now considering storing what they have seen.","session_ended":null,"leak_blocked":false}
+
+                event: done
+                data: {}
+        '400': { $ref: '#/components/responses/Err' }
+        '401': { $ref: '#/components/responses/Err' }
+        '409':
+          description: >
+            TURN_CAP_REACHED, PROBLEM_KILLED, or SESSION_ALREADY_JUDGED. The
+            last one closes a session that has been assessed: neither a further
+            turn nor a further hint pull is served, so a learner cannot spend
+            their allowance on a session they are already reading the verdict
+            for (FR-013b).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/Err' }
+        '502': { $ref: '#/components/responses/Err' }
+
+  /v1/judge:
+    post:
+      summary: One structured assessment for a completed session
+      description: Called exactly once per session (FR-013).
+      parameters: [{ $ref: '#/components/parameters/ProviderHeader' }]
+      security: [{ InstallId: [], UserKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/JudgeRequest' }
+      responses:
+        '200':
+          description: The assessment, with the authored reveal attached
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Assessment' }
+        '400': { $ref: '#/components/responses/Err' }
+        '401': { $ref: '#/components/responses/Err' }
+        '409':
+          description: >
+            SESSION_ALREADY_JUDGED — this session was already assessed. The
+            claim is taken before the provider is called, so a repeat never
+            spends a second assessment against the learner's allowance
+            (FR-013a).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/Err' }
+        '502': { $ref: '#/components/responses/Err' }
+
+  /v1/repair:
+    post:
+      summary: Correct speech-recognition errors in one spoken transcript
+      description: >
+        Runs on the learner's own key, before the mandatory transcript review
+        (Principle V). Reserves no turn and can never return TURN_CAP_REACHED.
+        Every internal failure — guard rejection, malformed output, timeout,
+        repair switched off — answers 200 with the raw transcript and
+        changed:false, because a failed correction must cost the learner
+        nothing (FR-006). X-User-Key is REQUIRED; there is no trial path.
+      parameters: [{ $ref: '#/components/parameters/ProviderHeader' }]
+      security: [{ InstallId: [], UserKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RepairRequest' }
+      responses:
+        '200':
+          description: The corrected transcript, or the raw one verbatim
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RepairResponse' }
+        '400': { $ref: '#/components/responses/Err' }
+        '401': { $ref: '#/components/responses/Err' }
+        '409':
+          description: PROBLEM_KILLED — this problem was pulled.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/Err' }
+        '502': { $ref: '#/components/responses/Err' }
+
+  /v1/trial:
+    post:
+      summary: A complete session on the operator's credential, once per install
+      description: >
+        Behaves identically to /v1/chat and /v1/judge, selected by `mode`, but
+        runs on the operator key and requires no learner key. Hard-capped at
+        exactly one session per install, enforced server-side (FR-031, FR-032).
+        The cap row is written on the FIRST trial call and refuses a NEW
+        session, never the remaining turns of the one already in flight; trial
+        turns count against the same turn_counter as keyed turns, but against
+        `config.trial.turn_cap` rather than `config.chat.turn_cap` — the trial
+        runs its own shorter profile (FR-031a), which is what bounds an
+        abandoned trial (FR-032a). A trial call that reaches no provider — a hint pull —
+        neither starts nor consumes the trial: the taster exists to be spent on
+        the product, and a first-run learner who taps for a hint before
+        speaking must still have the whole session waiting for them.
+        The operator credentials exist only here and appear in no app, no
+        source, and no build artifact (FR-025).
+
+        PROVIDER POOL. This path does not have a single upstream. It selects a
+        member of `config.trial.pool` per leg (data-model.md §B8): only members
+        with `structured_output: true` are eligible for mode=judge, and mode=chat
+        deliberately prefers members without it so the scarce structured-output
+        budget is kept for the leg that cannot run without it. A rate limit from
+        a pool member is a ROUTING SIGNAL, not a response: the member is cooled
+        down and the next eligible one is tried (FR-031c). Consequently 429 is
+        NOT among this operation's responses — a learner on the trial path never
+        sees another party's rate limit. When no eligible member has budget left,
+        the answer is 503 TRIAL_UNAVAILABLE, and only for a NEW session; a
+        session already in flight always runs to its end (FR-031d).
+      security: [{ InstallId: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - allOf:
+                    - $ref: '#/components/schemas/ChatRequest'
+                    - type: object
+                      required: [mode]
+                      properties: { mode: { type: string, enum: [chat] } }
+                - allOf:
+                    - $ref: '#/components/schemas/JudgeRequest'
+                    - type: object
+                      required: [mode]
+                      properties: { mode: { type: string, enum: [judge] } }
+      responses:
+        '200':
+          description: SSE stream when mode=chat; an Assessment when mode=judge
+        '409':
+          description: TRIAL_CONSUMED — this install already used its one session
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '503':
+          description: >
+            TRIAL_UNAVAILABLE — every eligible pool member is out of daily budget
+            or on cooldown. Raised only for a NEW session. The client MUST render
+            this as "the free taster is at capacity today — add your key and start
+            now" and route into key entry; it is not a retry and not an outage
+            (FR-031c, SC-010b).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '400': { $ref: '#/components/responses/Err' }
+        '502': { $ref: '#/components/responses/Err' }
+
+  /v1/config:
+    get:
+      summary: The only remote-control surface
+      description: >
+        Gates app launch, so the payload stays small (FR-033). THE CLIENT MUST
+        FAIL OPEN: if this endpoint is unreachable, fall back to the last
+        cached response rather than blocking. Config must never be able to lock
+        a learner out.
+      security: []
+      responses:
+        '200':
+          description: Runtime configuration
+          headers:
+            Cache-Control: { schema: { type: string }, example: 'public, max-age=300' }
+            ETag: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: './config.schema.json' }
+
+  /v1/event:
+    post:
+      summary: Batched anonymous analytics
+      description: >
+        No PII and no message content, ever (FR-034). A batch containing a
+        disallowed key or a nested value is rejected, not trimmed.
+      security: [{ InstallId: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: './event.schema.json' }
+      responses:
+        '202': { description: Accepted }
+        '400': { $ref: '#/components/responses/Err' }
+
+  /v1/content/manifest.json:
+    get:
+      summary: Dated public problem entries for prefetch
+      description: >
+        Contains ONLY public fields. No private field is reachable from this
+        response, asserted automatically on every content build (FR-028, SC-014).
+      security: []
+      responses:
+        '200':
+          description: The public manifest
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [schema_version, generated, problems]
+                properties:
+                  schema_version: { const: 2 }
+                  generated: { type: string, format: date-time }
+                  problems:
+                    type: array
+                    items: { $ref: './problem.schema.json#/$defs/PublicHalf' }
+
+  # --- Feature 007: the landing site's own routes. No InstallId auth — the
+  # browser has no install ID. Guarded by CORS (runtime_config.web.allowed_origins),
+  # Turnstile, and rate-limit bindings instead (research.md R8). A request
+  # whose Origin is not allowed gets 403 with no CORS headers.
+  #
+  # FAIL-OPEN RULE (FR-014, SC-005): every refusal on /v1/web-demo/* is 503
+  # WEB_DEMO_UNAVAILABLE. The client MUST treat it as "switch to scripted
+  # replies" and show no error to the visitor.
+  /v1/web-demo/start:
+    post:
+      summary: Start one live demo on the warm-up problem
+      description: >
+        Verifies the Turnstile token (action "web_demo", hostname checked).
+        Applies WEB_DEMO_RL per CF-Connecting-IP and the daily cap
+        (web.daily_demo_cap) and the pool-share cap (web.max_pool_share,
+        research.md R9), and checks that web.enabled is true. It then
+        creates a web_demo_session row and returns a demo token. The problem is
+        always the warm-up (collection "practice"), so the client cannot choose
+        a problem. Only the public half is returned (Principle VI).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [turnstile_token]
+              properties:
+                turnstile_token: { type: string, maxLength: 2048 }
+      responses:
+        '200':
+          description: Demo started
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [demo_token, turn_cap, problem_id, expires_at]
+                properties:
+                  demo_token: { type: string }
+                  turn_cap: { type: integer, minimum: 1, maximum: 10 }
+                  problem_id: { type: string, example: vp-0000 }
+                  expires_at: { type: string, format: date-time }
+        '503': { $ref: '#/components/responses/WebDemoUnavailable' }
+        '400': { $ref: '#/components/responses/Err' }
+
+  /v1/web-demo/turn:
+    post:
+      summary: One live tutor turn, streamed
+      description: >
+        Same conversational core as /v1/trial mode=chat for the practice
+        problem: runConversationalTurn with the trial pool,
+        ground_truth_tier from config.trial, and condense off. The leak filter
+        and Principle III rules apply unchanged (FR-016). The client sends the
+        full history, and the server stores none of it. The turn is reserved
+        before the provider call and refunded if no reply arrives. WEB_TURN_RL
+        applies per demo_id. The caps in web.daily_demo_cap and
+        web.max_pool_share are checked only at /start: a demo that started
+        always runs to its end. The SSE event format is identical to /v1/trial
+        mode=chat, so the app's TurnEvent parser applies unchanged.
+      security: [{ WebDemoToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [messages, input_mode]
+              properties:
+                messages:
+                  type: array
+                  minItems: 1
+                  maxItems: 21
+                  items: { $ref: '#/components/schemas/WebMessage' }
+                input_mode: { type: string, enum: [voice, typed] }
+      responses:
+        '200':
+          description: text/event-stream, as /v1/trial mode=chat
+        '503': { $ref: '#/components/responses/WebDemoUnavailable' }
+        '400': { $ref: '#/components/responses/Err' }
+
+  /v1/web-demo/finish:
+    post:
+      summary: End the demo and get a hedged verdict
+      description: >
+        Runs runJudge (judge-core.ts) on the conversation against vp-0000's
+        reference_approaches, with installId "web:<demo_id>" (Principle II,
+        FR-020), then maps it with mapVerdict (verdict-map.ts:37). It returns
+        the verdict ENUM, not display text. The Flutter demo turns the enum
+        into the app's own hedged ARB copy (assessment_copy.dart), so the
+        wording is identical to the app (Principle IV). The session is marked
+        finished and verdict + matched_approach stored. If the judge fails, it
+        returns 200 with verdict null, never an error, and the page shows the
+        fixed close. A second call returns the stored result without judging
+        again. Requires vp-0000 judge corpus cases (research.md R7).
+      security: [{ WebDemoToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [messages]
+              properties:
+                messages:
+                  type: array
+                  minItems: 2
+                  maxItems: 21
+                  items: { $ref: '#/components/schemas/WebMessage' }
+      responses:
+        '200':
+          description: Finished
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [verdict]
+                properties:
+                  verdict:
+                    oneOf:
+                      - type: 'null'
+                      - type: object
+                        additionalProperties: false
+                        required: [verdict, matched_approach]
+                        properties:
+                          verdict: { type: string, enum: [strong_pass, pass, borderline, likely_tle, incorrect, unclear] }
+                          matched_approach: { type: string, enum: [single_scan, sort_take_last, first_element, none] }
+        '503': { $ref: '#/components/responses/WebDemoUnavailable' }
+
+  /v1/notify:
+    post:
+      summary: Ask to be emailed when the app reaches a store
+      description: >
+        Turnstile action "notify". The email is normalised (lower-case, trimmed)
+        and inserted with INSERT OR IGNORE into notify_signup (email, store).
+        A new signup and a duplicate get the same 202, so the form cannot be
+        used to check whether an address is signed up (FR-024). WEB_EVENT_RL
+        applies per IP. Stores no IP and no user agent.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email, store, turnstile_token]
+              properties:
+                email: { type: string, maxLength: 254 }
+                store: { type: string, enum: [play, app_store] }
+                turnstile_token: { type: string, maxLength: 2048 }
+      responses:
+        '202': { description: Accepted, content: { application/json: { schema: { type: object, required: [ok], properties: { ok: { const: true } } } } } }
+        '400': { description: 'INVALID_EMAIL, or a bad store value', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Turnstile failed }
+        '429': { description: Rate limited }
+        '503': { description: web.notify_enabled is false }
+
+  /v1/web-event:
+    post:
+      summary: Anonymous first-party page events
+      description: >
+        No auth, no cookie, no visitor ID, no IP stored (FR-027, R10). Rows go
+        to the events table with install_id "web". Uses a closed list of names,
+        separate from the app's EVENT_NAMES. A batch with an unknown name or prop
+        is rejected whole. WEB_EVENT_RL applies per IP. Sent with
+        navigator.sendBeacon, so a text/plain body is accepted too.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [events]
+              properties:
+                events:
+                  type: array
+                  minItems: 1
+                  maxItems: 10
+                  items:
+                    oneOf:
+                      - { type: object, additionalProperties: false, required: [name, client_ts], properties: { name: { const: web_page_view }, client_ts: { type: string, format: date-time } } }
+                      - { type: object, additionalProperties: false, required: [name, client_ts], properties: { name: { const: web_try_seen }, client_ts: { type: string, format: date-time } } }
+                      - { type: object, additionalProperties: false, required: [name, client_ts], properties: { name: { const: web_try_tapped }, client_ts: { type: string, format: date-time } } }
+                      - type: object
+                        additionalProperties: false
+                        required: [name, client_ts, props]
+                        properties:
+                          name: { const: web_demo_finished }
+                          client_ts: { type: string, format: date-time }
+                          props: { type: object, additionalProperties: false, required: [live], properties: { live: { type: boolean } } }
+                      - type: object
+                        additionalProperties: false
+                        required: [name, client_ts, props]
+                        properties:
+                          name: { const: web_download_tapped }
+                          client_ts: { type: string, format: date-time }
+                          props:
+                            type: object
+                            additionalProperties: false
+                            required: [store, demo_done]
+                            properties:
+                              store: { type: string, enum: [uptodown, play, app_store] }
+                              demo_done: { type: boolean }
+      responses:
+        '202': { description: Accepted }
+        '400': { description: Invalid batch }
+        '429': { description: Rate limited }
+
+

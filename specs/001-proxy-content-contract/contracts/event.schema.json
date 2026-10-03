@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/event.schema.json",
+  "title": "Batched analytics intake",
+  "description": "POST /v1/event. No PII and no message content, ever (FR-034). This intake is also why disputed-conversation capture is deferred (FR-041): it forbids message content and MUST continue to.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["events"],
+  "properties": {
+    "events": {
+      "type": "array", "minItems": 1, "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "client_ts"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": [
+              "app_open", "onboarding_started", "onboarding_done",
+              "key_prompt_shown", "key_entry_started", "key_saved",
+              "trial_session_started", "trial_session_completed",
+              "daily_opened", "chat_turn_sent", "transcript_edited",
+              "hint_revealed", "hint_ladder_exhausted",
+              "session_ended", "assessment_shown", "assessment_disputed",
+              "reveal_shown", "share_card_shared", "streak_advanced",
+              "assessment_verdict_overridden", "tutor_leak_blocked",
+              "config_fetch_failed", "offline_queue_drained"
+            ],
+            "description": "Closed set. An unknown name is a 400, not a silent insert — an open name field is how message content ends up in an analytics table. Every learner-facing affordance the service exposes must appear here: an affordance nobody can query is one nobody can judge against the D7 rule."
+          },
+          "client_ts": { "type": "string", "format": "date-time" },
+          "props": {
+            "type": "object",
+            "maxProperties": 12,
+            "additionalProperties": {
+              "type": ["string", "number", "boolean"],
+              "maxLength": 64,
+              "description": "Scalars only. No nesting. 64 chars max — long enough for an id or an enum, far too short for a conversation turn."
+            },
+            "propertyNames": { "pattern": "^[a-z][a-z0-9_]{0,31}$" }
+          }
+        }
+      }
+    }
+  }
+}

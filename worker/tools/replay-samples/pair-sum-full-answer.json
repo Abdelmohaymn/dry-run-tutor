@@ -1,0 +1,9 @@
+[
+  { "role": "user", "text": "hashamp" },
+  { "role": "user", "text": "hashamp" },
+  { "role": "tutor", "text": "Yes—using a hash map is the way to go." },
+  {
+    "role": "user",
+    "text": "I'll use a hash map and start a Traverse the array in the loop And Checking the med for Target minus the current Value and the After this exist Uh I returned the current index and the index in the map if it is not then I use tool the current value index in the map"
+  }
+]

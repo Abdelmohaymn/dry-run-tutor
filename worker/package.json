@@ -1,0 +1,30 @@
+{
+  "name": "dry-run-worker",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --project unit --project contract",
+    "test:harness": "node -e \"if(!process.env.GROQ_API_KEY){console.error('GROQ_API_KEY is not set — test:harness makes live provider calls and refuses to run without it (quickstart.md §7).');process.exit(1)}\" && vitest run --project harness",
+    "build:content": "NODE_PATH=./node_modules tsx ../tools/build-content.ts",
+    "validate:content": "NODE_PATH=./node_modules tsx ../tools/validate-content.ts",
+    "verify:examples": "python3 ../tools/verify-examples.py",
+    "check:content": "npm run validate:content && npm run verify:examples && npm run build:content",
+    "replay:tutor": "NODE_PATH=./node_modules tsx tools/replay-tutor.ts"
+  },
+  "dependencies": {
+    "hono": "^4.6.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.10.0",
+    "@cloudflare/workers-types": "^4.20251011.0",
+    "@types/node": "^26.2.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0",
+    "wrangler": "4.45.0"
+  }
+}

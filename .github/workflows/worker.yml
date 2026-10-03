@@ -1,0 +1,86 @@
+name: worker
+
+on:
+  pull_request:
+    paths:
+      - "worker/**"
+      - "content/**"
+      - "tools/**"
+  push:
+    branches: [main]
+    paths:
+      - "worker/**"
+      - "content/**"
+      - "tools/**"
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+      - run: npm ci
+      # typecheck imports src/generated/**, which is gitignored and produced
+      # by build:content — generate it before tsc runs, not after.
+      - run: npm run build:content
+      - run: npm run typecheck
+      - run: npm run validate:content
+      - run: npm run verify:examples
+      - run: npm test
+
+  # T089: the two live-provider harnesses. Gated on a diff actually touching
+  # worker/src/prompts/** or content/** — a change there is exactly what
+  # SC-001..SC-005 exist to re-prove, and a failure here blocks the merge
+  # (US4 scenario 5, Constitution III — not overridable by review).
+  harness:
+    runs-on: ubuntu-latest
+    needs: ci
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check for a prompt or content diff
+        id: filter
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          if [ -z "$GROQ_API_KEY" ]; then
+            echo "::notice::GROQ_API_KEY secret not set, skipping the live harness"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+          fi
+          if git rev-parse "$BASE" >/dev/null 2>&1 && \
+             git diff --name-only "$BASE" HEAD | grep -qE '^worker/src/prompts/|^content/'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.filter.outputs.run == 'true'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+      - run: npm ci
+        if: steps.filter.outputs.run == 'true'
+      - run: npm run build:content
+        if: steps.filter.outputs.run == 'true'
+      - run: npm run test:harness
+        if: steps.filter.outputs.run == 'true'
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}

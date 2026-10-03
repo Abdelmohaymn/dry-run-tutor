@@ -1,0 +1,128 @@
+import { describe, expect, it } from "vitest";
+import { getPrivate, getPublicManifest } from "../../src/lib/content";
+import { mapVerdict, type JudgeOutput } from "../../src/lib/verdict-map";
+import type { Problem } from "../../../tools/problem-types";
+
+const problem: Problem = {
+  public: getPublicManifest().problems.find((p) => p.id === "vp-0001")!,
+  private: getPrivate("vp-0001")!,
+};
+
+const requiredKeys = problem.private.key_insights.filter((i) => i.required).map((i) => i.key);
+const allInsightKeys = problem.private.key_insights.map((i) => i.key);
+const wrongApproachKey = problem.private.reference_approaches.find((a) => a.verdict === "wrong")!.key;
+const someWrongTurnKey = problem.private.common_wrong_turns[0].key;
+
+function out(overrides: Partial<JudgeOutput>): JudgeOutput {
+  return {
+    matched_approach: "hashmap",
+    matched_verdict: "optimal",
+    insights_hit: allInsightKeys,
+    insights_missed: [],
+    wrong_turns_taken: [],
+    verdict: "pass",
+    ...overrides,
+  };
+}
+
+// data-model.md §B4 — judge-spec.md §5's table, one case per row.
+describe("mapVerdict() — judge-spec.md §5, first match wins", () => {
+  it("optimal + all required hit + an edge case raised -> strong_pass", () => {
+    const nonRequired = problem.private.key_insights.find((i) => !i.required)!.key;
+    const result = mapVerdict(
+      out({ matched_verdict: "optimal", insights_hit: [...requiredKeys, nonRequired] }),
+      problem,
+    );
+    expect(result).toBe("strong_pass");
+  });
+
+  it("an approach the catalogue does not list, with every required insight reached -> pass", () => {
+    // The author's reference list is the approaches they thought of, not
+    // the only ones that work. This row does not exist in judge-spec.md
+    // §5's table; without it the mapping fell through to "unclear" and
+    // told a learner who had solved the problem their own way that the
+    // conversation was too garbled to classify.
+    expect(
+      mapVerdict(
+        out({ matched_approach: "none", matched_verdict: "none", insights_hit: allInsightKeys }),
+        problem,
+      ),
+    ).toBe("pass");
+  });
+
+  it("an unlisted approach never reaches strong_pass — the catalogue cannot confirm it is optimal", () => {
+    const nonRequired = problem.private.key_insights.find((i) => !i.required)!.key;
+    expect(
+      mapVerdict(
+        out({
+          matched_approach: "none",
+          matched_verdict: "none",
+          insights_hit: [...requiredKeys, nonRequired],
+        }),
+        problem,
+      ),
+    ).toBe("pass");
+  });
+
+  it("an unlisted approach missing a required insight is still borderline, not pass", () => {
+    expect(
+      mapVerdict(
+        out({
+          matched_approach: "none",
+          matched_verdict: "none",
+          insights_hit: requiredKeys.slice(1),
+        }),
+        problem,
+      ),
+    ).toBe("borderline");
+  });
+
+  it("optimal or acceptable + all required hit, no extra -> pass", () => {
+    expect(mapVerdict(out({ matched_verdict: "optimal", insights_hit: requiredKeys }), problem)).toBe("pass");
+    expect(mapVerdict(out({ matched_verdict: "acceptable", insights_hit: requiredKeys }), problem)).toBe("pass");
+  });
+
+  it("a required insight missed, but no wrong turn -> borderline", () => {
+    const missingOne = requiredKeys.slice(1);
+    const result = mapVerdict(out({ matched_verdict: "optimal", insights_hit: missingOne }), problem);
+    expect(result).toBe("borderline");
+  });
+
+  it("matched_verdict suboptimal -> likely_tle", () => {
+    expect(mapVerdict(out({ matched_verdict: "suboptimal" }), problem)).toBe("likely_tle");
+  });
+
+  it("matched_verdict wrong -> incorrect", () => {
+    expect(mapVerdict(out({ matched_verdict: "wrong" }), problem)).toBe("incorrect");
+  });
+
+  it("a wrong_turns_taken entry matching a 'wrong'-verdict approach key -> incorrect", () => {
+    const result = mapVerdict(
+      out({ matched_verdict: "optimal", insights_hit: requiredKeys, wrong_turns_taken: [wrongApproachKey] }),
+      problem,
+    );
+    expect(result).toBe("incorrect");
+  });
+
+  it("unclassifiable transcript (none matched, nothing hit) -> unclear", () => {
+    expect(mapVerdict(out({ matched_approach: "none", matched_verdict: "none", insights_hit: [] }), problem)).toBe(
+      "unclear",
+    );
+  });
+
+  it("the precedence case: optimal claimed but a required insight missed -> borderline, NOT pass", () => {
+    const result = mapVerdict(
+      out({ matched_verdict: "optimal", insights_hit: requiredKeys.slice(1), verdict: "pass" }),
+      problem,
+    );
+    expect(result).toBe("borderline");
+  });
+
+  it("a wrong_turns_taken entry naming an ordinary (non-approach) wrong-turn key does not by itself force incorrect", () => {
+    const result = mapVerdict(
+      out({ matched_verdict: "optimal", insights_hit: requiredKeys, wrong_turns_taken: [someWrongTurnKey] }),
+      problem,
+    );
+    expect(result).not.toBe("incorrect");
+  });
+});

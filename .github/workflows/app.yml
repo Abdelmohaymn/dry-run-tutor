@@ -1,0 +1,61 @@
+name: app
+
+on:
+  pull_request:
+    paths:
+      - "lib/**"
+      - "test/**"
+      - "integration_test/**"
+      - "android/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - "analysis_options.yaml"
+      - "build.yaml"
+      - "l10n.yaml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/**"
+      - "test/**"
+      - "integration_test/**"
+      - "android/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - "analysis_options.yaml"
+      - "build.yaml"
+      - "l10n.yaml"
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          # Pinned to the SDK this project develops against. Floating on
+          # `stable` broke CI on its own: Dart 3.13 deprecated the
+          # `analyzer: plugins:` mechanism custom_lint 0.8.1 (the latest
+          # release) still requires, and that warning alone fails
+          # `flutter analyze`. Bump this once custom_lint ships support for
+          # the new analyzer plugin system.
+          flutter-version: 3.41.3
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: dart run build_runner build --delete-conflicting-outputs
+      - run: flutter analyze
+      - run: flutter test
+      # flutter_secure_storage 11.0.0 (FR-003, research.md R-009) compiles
+      # against SDK 37, but the Android SDK now publishes that as the
+      # point-release directory `platforms/android-37.0`, not the bare
+      # `android-37` AGP's compileSdk=37 target-hash lookup expects. This
+      # aliases one to the other so the auto-downloaded platform resolves;
+      # drop it once AGP or the SDK repository catches up with the new
+      # point-release scheme.
+      - run: |
+          SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          mkdir -p "$SDK_ROOT/platforms"
+          ln -sfn android-37.0 "$SDK_ROOT/platforms/android-37"
+      - run: flutter build apk --flavor dev --debug --dart-define-from-file=config/dev.json
+      # No key.properties on the runner: this must stay green (dev is debug-signed for every build type).
+      - run: flutter build apk --flavor dev --release --dart-define-from-file=config/dev.json

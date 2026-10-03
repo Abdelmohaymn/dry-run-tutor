@@ -1,0 +1,215 @@
+{
+  "public": {
+    "schema_version": 2,
+    "id": "vp-0001",
+    "title": "Pair Sum",
+    "ramp": "easy",
+    "difficulty": 850,
+    "tags": [
+      "arrays",
+      "hashmap"
+    ],
+    "source": "Two Sum (classic)",
+    "statement": "You're given a list of integers and a target number. Exactly one pair of positions in the list adds up to the target. Return those two positions. Talk me through how you'd find them.",
+    "constraints": [
+      "The list can hold up to 10 million numbers",
+      "Values may be negative, and may repeat",
+      "You need the positions, not the values",
+      "It has to run in well under a second"
+    ],
+    "est_speak_seconds": 90,
+    "collections": [
+      "starter"
+    ],
+    "glossary_terms": [
+      "hash map",
+      "hashmap",
+      "complement",
+      "O of n",
+      "O of n squared",
+      "two pointers",
+      "brute force",
+      "index",
+      "lookup"
+    ]
+  },
+  "private": {
+    "reference_approaches": [
+      {
+        "key": "hashmap",
+        "name": "One-pass hash map",
+        "sketch": [
+          "Walk the list once, keeping a map from value to the position it was seen at",
+          "At each element, compute target minus that element -- its complement",
+          "If the complement is already in the map, those two positions are the answer",
+          "Otherwise store the current value and position and keep going"
+        ],
+        "time": "O(n)",
+        "space": "O(n)",
+        "verdict": "optimal"
+      },
+      {
+        "key": "sort_two_pointer",
+        "name": "Sort, then two pointers",
+        "sketch": [
+          "Pair each value with its original position, then sort by value",
+          "Walk one pointer from each end, moving inward based on whether the sum is too big or too small",
+          "Read the original positions off the pair that matches"
+        ],
+        "time": "O(n log n)",
+        "space": "O(n)",
+        "verdict": "acceptable"
+      },
+      {
+        "key": "brute_force",
+        "name": "Check every pair",
+        "sketch": [
+          "For each position, scan every later position",
+          "Return the first pair that sums to the target"
+        ],
+        "time": "O(n^2)",
+        "space": "O(1)",
+        "verdict": "suboptimal"
+      },
+      {
+        "key": "sort_lose_indices",
+        "name": "Sort the values and two-pointer without tracking positions",
+        "sketch": [
+          "Sort the raw values",
+          "Two-pointer inward to find the matching pair of values"
+        ],
+        "time": "O(n log n)",
+        "space": "O(1)",
+        "verdict": "wrong"
+      }
+    ],
+    "key_insights": [
+      {
+        "key": "complement_lookup",
+        "text": "Realizing you're searching for a specific complement, which turns a scan into a lookup",
+        "required": true,
+        "hints": [
+          "What exactly are you searching for at each step?",
+          "You know the target, and you know the value you're standing on. What does that tell you about the number you still need?",
+          "Each element implies one specific partner. Could you look that partner up instead of scanning for it?"
+        ],
+        "never_say": [
+          "complement",
+          "hash map",
+          "hashmap",
+          "lookup table",
+          "dictionary",
+          "map"
+        ]
+      },
+      {
+        "key": "single_pass",
+        "text": "You can check and insert in the same pass -- no need to build the whole map first",
+        "required": false,
+        "hints": [
+          "How many times does your idea walk the list?",
+          "When you're standing on an element, what do you actually need to already know about the part you've walked?",
+          "Could you record each value as you pass it, so a partner is already waiting by the time you need it?"
+        ],
+        "never_say": [
+          "single pass",
+          "one pass",
+          "two passes",
+          "as you go"
+        ]
+      },
+      {
+        "key": "index_storage",
+        "text": "The map has to store positions, not just presence, because the answer is positions",
+        "required": true,
+        "hints": [
+          "Read the question again - what is it asking you to return?",
+          "Suppose you find the partner value. Could you answer the question with only that value in hand?",
+          "What would you need to keep next to each value so you can say where it came from?"
+        ],
+        "never_say": [
+          "index",
+          "indices",
+          "position as the value",
+          "store the index"
+        ]
+      },
+      {
+        "key": "duplicates_ok",
+        "text": "Repeated values are fine as long as you check for the complement before inserting the current element",
+        "required": false,
+        "hints": [
+          "What happens if the same number shows up twice in the list?",
+          "Walk your idea by hand on a list where the answer is two copies of the same value. Does it still work?",
+          "Does the order of your two operations - checking, and recording - matter when the value repeats?"
+        ],
+        "never_say": [
+          "duplicate",
+          "duplicates",
+          "repeated value",
+          "check before insert"
+        ]
+      }
+    ],
+    "common_wrong_turns": [
+      {
+        "key": "sort_first",
+        "text": "Sorting the values first and then two-pointering",
+        "why_it_fails": "Sorting destroys the original positions, which are what the answer asks for -- unless you carry each value's position along through the sort",
+        "counter_question": "This does not end with a question mark.",
+        "failing_case": "nums = [3, 3], target = 6 - after sorting you can no longer tell which original index each 3 came from"
+      },
+      {
+        "key": "set_not_map",
+        "text": "Using a set of seen values instead of a map",
+        "why_it_fails": "A set tells you the complement exists but not where it is, so you can't produce the positions",
+        "counter_question": "A set can tell you the partner is somewhere in the list. Is that enough to answer this question?",
+        "failing_case": "nums = [4, 1, 9], target = 13 - a set confirms 9 was seen, but not that it sits at position 2"
+      },
+      {
+        "key": "insert_before_check",
+        "text": "Inserting the current value into the map before checking for its complement",
+        "why_it_fails": "When the target is exactly twice the current value, the element matches itself and you return the same position twice",
+        "counter_question": "What happens when the number you're standing on is exactly half the target?",
+        "failing_case": "nums = [3, 5], target = 6 - insert the 3 first and it finds itself, returning position 0 twice"
+      }
+    ],
+    "edge_cases": [
+      "Target is exactly twice one of the values -- must not match an element with itself",
+      "Negative values, which rule out any approach that assumes sorted-positive tricks",
+      "Repeated values in the list"
+    ],
+    "followups": [
+      {
+        "id": "fu_memory",
+        "when_approach": [
+          "hashmap"
+        ],
+        "question": "Your map holds every element you've walked past. Suppose memory were the tight constraint instead of time -- what would you trade, and what does it cost you?",
+        "model_answer": "Sort and use two pointers: O(n log n) time and O(1) extra space if you sort in place. The cost is that sorting scrambles the original positions, so you'd have to carry each value's position with it, which puts the memory back.",
+        "grading_note": "Credit any concrete space-for-time trade with a named complexity. The index-preservation catch is a bonus, not a requirement."
+      },
+      {
+        "id": "fu_speedup",
+        "when_approach": [
+          "brute_force",
+          "sort_two_pointer",
+          "sort_lose_indices"
+        ],
+        "question": "At ten million elements, how fast is your approach going to be, and is there anything you could precompute to avoid re-scanning?",
+        "model_answer": "Brute force is O(n^2), around 10^14 operations -- far too slow. Storing each value in a hash map as you go lets you check for the complement in constant time, making it one pass.",
+        "grading_note": "Looking for recognition that the current approach is too slow AND a move toward constant-time lookup. Naming a hash map explicitly is a pass; 'some kind of lookup structure' also passes."
+      },
+      {
+        "id": "fu_duplicates",
+        "when_approach": [
+          "*"
+        ],
+        "question": "What happens to your approach if the same value appears many times in the list?",
+        "model_answer": "It still works if you check for the complement before inserting the current element. Later duplicates overwrite earlier positions in the map, which is fine since exactly one pair is a valid answer.",
+        "grading_note": "Credit any answer showing they've thought about collision or overwrite behavior. Don't require the check-before-insert ordering unless they claimed it earlier."
+      }
+    ],
+    "editorial": "**The move: turn a search into a lookup.**\n\nThe brute-force instinct is to compare every pair, which is O(n^2). The reframe is that you aren't looking for *any* pair -- at each element you are looking for one specific number, `target - value`. Once the question is \"have I seen this exact number?\", a hash map answers it in constant time.\n\n**One-pass hash map -- O(n) time, O(n) space.** Walk once. At each element check whether its complement is already in the map; if so you have both positions. Otherwise store `value -> position` and continue. Checking *before* inserting is what stops an element matching itself when the target is double its value.\n\n**Sort + two pointers -- O(n log n) time.** Perfectly reasonable, and it's the right answer when space is the binding constraint. The trap is that sorting destroys the positions the problem asks for, so you have to pair each value with its index before sorting -- which puts the O(n) space back.\n\n**Why the constraints matter.** Ten million elements makes O(n^2) impossible and makes the difference between O(n) and O(n log n) worth caring about. Negative values kill any assumption about ordering or bucketing by magnitude."
+  }
+}

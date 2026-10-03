@@ -1,0 +1,54 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dry-run-tutor",
+  // Add "account_id" here if your Cloudflare login sees more than one account.
+  "main": "src/index.ts",
+  "compatibility_date": "2025-01-01",
+  "compatibility_flags": ["nodejs_compat"],
+  // Secrets (never committed): INSTALL_HMAC_SECRET, and one operator credential
+  // per trial pool member, each named by that member's `secret_binding` in
+  // contracts/config.schema.json — TRIAL_KEY_GROQ at minimum. Trial path only,
+  // never the learner-keyed path (FR-025). Also TURNSTILE_SECRET
+  // (feature 007, web-only routes).
+  "ratelimits": [
+    { "name": "WEB_EVENT_RL", "namespace_id": "7003", "simple": { "limit": 30, "period": 60 } }
+  ],
+  "env": {
+    "dev": {
+      "name": "dry-run-tutor-dev",
+      "vars": {
+        "ENVIRONMENT": "dev"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          // Create your own: `npx wrangler d1 create dry-run-tutor-dev`, then
+          // paste the id it prints.
+          "database_name": "dry-run-tutor-dev",
+          "database_id": "00000000-0000-0000-0000-000000000000",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "ratelimits": [
+        { "name": "WEB_EVENT_RL", "namespace_id": "7003", "simple": { "limit": 30, "period": 60 } }
+      ]
+    },
+    "prod": {
+      "name": "dry-run-tutor",
+      "vars": {
+        "ENVIRONMENT": "prod"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "dry-run-tutor",
+          "database_id": "00000000-0000-0000-0000-000000000000",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "ratelimits": [
+        { "name": "WEB_EVENT_RL", "namespace_id": "7003", "simple": { "limit": 30, "period": 60 } }
+      ]
+    }
+  }
+}

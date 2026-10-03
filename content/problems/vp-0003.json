@@ -1,0 +1,223 @@
+{
+  "public": {
+    "schema_version": 2,
+    "id": "vp-0003",
+    "title": "First Palindromic String",
+    "ramp": "easy",
+    "difficulty": 650,
+    "tags": [
+      "strings",
+      "two pointers"
+    ],
+    "source": "Find First Palindromic String in the Array (LeetCode 2108)",
+    "statement": "You're given a list of words. Find the first one that reads the same forwards and backwards, and return it. If no word in the list qualifies, return an empty string.",
+    "constraints": [
+      "1 <= words.length <= 100",
+      "1 <= words[i].length <= 100",
+      "words[i] is made of lowercase English letters",
+      "There may be no palindrome in the list at all"
+    ],
+    "examples": [
+      {
+        "input": "words = [\"abc\", \"car\", \"ada\", \"racecar\", \"cool\"]",
+        "output": "\"ada\"",
+        "explanation": "\"ada\" is the first word, in order, that reads the same forwards and backwards."
+      },
+      {
+        "input": "words = [\"notapalindrome\", \"racecar\"]",
+        "output": "\"racecar\"",
+        "explanation": "The first word is not a palindrome, so the answer is the second."
+      },
+      {
+        "input": "words = [\"def\", \"ghi\"]",
+        "output": "\"\"",
+        "explanation": "No word is a palindrome, so there is nothing to return."
+      }
+    ],
+    "est_speak_seconds": 60,
+    "collections": [
+      "starter"
+    ],
+    "glossary_terms": [
+      "palindrome",
+      "two pointers",
+      "index",
+      "in-place",
+      "short-circuit"
+    ]
+  },
+  "private": {
+    "reference_approaches": [
+      {
+        "key": "two_pointer_scan",
+        "name": "Scan words in order, check each with a two-pointer comparison",
+        "sketch": [
+          "Put one pointer at the start of the word and one at its end, stepping them toward each other and comparing characters as they go",
+          "A single mismatched pair disqualifies that word immediately; reaching the middle with every pair matching means it's the answer"
+        ],
+        "time": "O(n times m), n words of length up to m",
+        "space": "O(1) extra",
+        "verdict": "optimal"
+      },
+      {
+        "key": "reverse_compare_scan",
+        "name": "Scan words in order, check each by reversing and comparing",
+        "sketch": [
+          "Build a reversed copy of the word",
+          "Compare that reversed copy to the original word"
+        ],
+        "time": "O(n times m)",
+        "space": "O(m) per check, for the reversed copy",
+        "verdict": "acceptable"
+      },
+      {
+        "key": "collect_all_then_first",
+        "name": "Collect every palindromic word into a list, then return the first",
+        "sketch": [
+          "Check the palindrome property of every word in the list before deciding anything",
+          "Keep each qualifying word in a separate results list as you go",
+          "Once the full scan is done, take the first entry of that results list"
+        ],
+        "time": "O(n times m), but never stops early",
+        "space": "O(n times m) worst case, for the collected results",
+        "verdict": "suboptimal"
+      },
+      {
+        "key": "char_frequency_check",
+        "name": "Check whether the word's letters could be rearranged into a palindrome",
+        "sketch": [
+          "Count how many times each letter appears within a single word",
+          "Treat the word as a match when at most one letter has an odd count"
+        ],
+        "time": "O(n times m)",
+        "space": "O(1) extra (bounded alphabet)",
+        "verdict": "wrong"
+      }
+    ],
+    "key_insights": [
+      {
+        "key": "scan_in_array_order",
+        "text": "The word 'first' refers strictly to array index -- you have to check words left to right and return on the earliest one that qualifies, not search everywhere and pick the longest or the most obvious one.",
+        "required": true,
+        "hints": [
+          "If more than one word in the list happens to qualify, which one does the problem actually want back?",
+          "Does the order you check the words in matter to the final answer, or only which ones qualify?",
+          "Walk the list from the very first word onward, and return the moment one qualifies -- don't look ahead first."
+        ],
+        "never_say": [
+          "left to right",
+          "first match",
+          "stop at first"
+        ]
+      },
+      {
+        "key": "two_pointer_no_copy",
+        "text": "You can check whether a single word reads the same forwards and backwards without allocating a reversed copy of it, by walking two positions inward from both ends at once.",
+        "required": true,
+        "hints": [
+          "Do you actually need to build a whole new string to compare against the original, or could you compare characters directly?",
+          "What if you looked at the first and last character at the same time, then the second and second-to-last, and so on?",
+          "Two positions, one starting at the front and one at the back, stepping toward the middle -- what would that let you check without extra memory?"
+        ],
+        "never_say": [
+          "two pointer",
+          "two pointers",
+          "front and back",
+          "converge"
+        ]
+      },
+      {
+        "key": "bail_on_first_mismatch",
+        "text": "While checking a single word, you can stop the moment you find one pair of characters that doesn't match -- there's no need to keep comparing the rest of that word once it's already disqualified.",
+        "required": false,
+        "hints": [
+          "Once you find one pair of characters in a word that don't match each other, do you need to keep checking the rest of that word?",
+          "What's the earliest point at which you can be sure a word is NOT a palindrome?",
+          "The instant one comparison fails inside a word, that word is done -- you can move on to the next word right away."
+        ],
+        "never_say": [
+          "early exit",
+          "short circuit",
+          "stop early",
+          "break out"
+        ]
+      },
+      {
+        "key": "constraints_are_forgiving",
+        "text": "With at most a hundred words of at most a hundred characters each, essentially any correct approach runs instantly -- this problem is really testing clarity and correctness, not micro-optimization.",
+        "required": false,
+        "hints": [
+          "Given how small the list and the words are allowed to be, how much does the exact approach you pick actually matter for speed?",
+          "Roughly how many character comparisons would even the simplest correct approach make, worst case, at these limits?",
+          "At a hundred words of a hundred characters each, you're looking at at most about ten thousand character comparisons total either way."
+        ],
+        "never_say": [
+          "small enough",
+          "constraints are tiny",
+          "doesn't matter here",
+          "fast enough anyway"
+        ]
+      }
+    ],
+    "common_wrong_turns": [
+      {
+        "key": "frequency_instead_of_literal",
+        "text": "Checking whether a word's letters could be rearranged into a palindrome, by counting character frequencies, instead of checking whether the word as written already is one",
+        "why_it_fails": "A frequency check answers a different question -- whether SOME rearrangement of the letters could be a palindrome -- not whether this exact string, in this exact order, already reads the same forwards and backwards",
+        "counter_question": "Does the word need to already read the same forwards and backwards as given, or just have letters that could be shuffled into that shape?",
+        "failing_case": "word = \"aabb\" -- every letter appears an even number of times, so a frequency check says it could form a palindrome, but \"aabb\" reversed is \"bbaa\", which is not equal to \"aabb\", so it is not actually a palindrome"
+      },
+      {
+        "key": "mirror_across_array",
+        "text": "Comparing words at mirrored positions in the array -- the first word to the last, the second to the second-to-last -- instead of checking each word's own characters",
+        "why_it_fails": "The palindrome property belongs to a single word's own characters, not to that word's position relative to the opposite end of the array, so comparing mirrored array positions checks the wrong thing entirely",
+        "counter_question": "Whose characters actually need to match each other -- a word's own letters front-to-back, or that word's position against some other word?",
+        "failing_case": "words = [\"abc\",\"car\",\"ada\",\"racecar\",\"cool\"] -- comparing the first word \"abc\" against the last word \"cool\" tells you nothing about whether \"ada\", sitting in the middle, is itself a palindrome"
+      },
+      {
+        "key": "longest_not_first",
+        "text": "Assuming the answer should be the longest palindromic word, or the most noticeable one, rather than simply whichever one appears earliest",
+        "why_it_fails": "The problem defines 'first' strictly by array index -- the earliest qualifying word wins, regardless of its length or how prominent it looks",
+        "counter_question": "If two different words in the list both qualify, which one does the problem want -- the longer one, or the one that comes first?",
+        "failing_case": "words = [\"ada\",\"racecar\"] -- \"racecar\" is longer, but \"ada\" comes first, so the correct answer is \"ada\", not \"racecar\""
+      }
+    ],
+    "edge_cases": [
+      "No word in the list is a palindrome, so the empty string must be returned",
+      "A single-character word is trivially a palindrome",
+      "The list contains only one word",
+      "More than one word qualifies -- only the earliest by index counts"
+    ],
+    "followups": [
+      {
+        "id": "fu_space",
+        "when_approach": [
+          "two_pointer_scan"
+        ],
+        "question": "Your two-pointer check uses no extra memory per word. What would you give up if you used the reverse-and-compare approach instead, and does it actually matter at these constraints?",
+        "model_answer": "Reversing a word allocates a new string of the same length, so that costs O(m) extra space per check instead of O(1). At these tiny constraints (words up to length one hundred) that's negligible in practice, but the two-pointer version is the one that keeps scaling cleanly if the constraint were much larger.",
+        "grading_note": "Credit any answer naming the O(1) versus O(m) space tradeoff, even informally."
+      },
+      {
+        "id": "fu_speed",
+        "when_approach": [
+          "collect_all_then_first",
+          "char_frequency_check"
+        ],
+        "question": "Would your approach notice any slowdown if the list were much larger, and is there a cheaper way to stop once you already have your answer?",
+        "model_answer": "Collecting every palindromic word before picking the first one does strictly more work than necessary, since it never needs to look past the very first match. Returning as soon as the first qualifying word is found skips checking the rest of the list entirely.",
+        "grading_note": "Looking for recognition that short-circuiting is available and cheaper, whichever wrong or suboptimal path they took."
+      },
+      {
+        "id": "fu_empty",
+        "when_approach": [
+          "*"
+        ],
+        "question": "Walk me through what your approach returns if none of the words in the array are palindromic.",
+        "model_answer": "It should return the empty string. The scan finishes without ever finding a qualifying word, so the function falls through to a default empty-string return after every word has been checked.",
+        "grading_note": "Credit any answer that explicitly handles the no-match case by returning an empty string, not null or an error."
+      }
+    ],
+    "editorial": "**The move: check each word on its own terms, in the order given.**\n\nThe brute-force instinct that actually works here is fine: walk the list, check each word for the palindrome property, and return the first one that qualifies. The interesting part isn't the outer loop -- it's how you check a single word, and being disciplined about what 'first' means.\n\n**Two-pointer scan -- O(n times m) time, O(1) extra space.** For each word, put one index at the front and one at the back, and step them toward the middle, comparing characters as you go. The moment a pair doesn't match, that word is disqualified and you move on; if every pair matches all the way to the middle, that word is your answer. No extra string gets built.\n\n**Reverse-and-compare -- also fine, just costs a little memory.** Building a reversed copy of the word and comparing it to the original works correctly, and at these tiny constraints the extra allocation genuinely doesn't matter. It's a completely reasonable answer; it's just not the version that scales cleanest.\n\n**Why the frequency-check trap is worth naming.** Checking whether a word's letters COULD be rearranged into a palindrome answers a different question than whether the word, exactly as given, already IS one. \"aabb\" has letter counts that could form a palindrome, but \"aabb\" itself is not one -- that gap is exactly what trips people up when they pattern-match this problem to a different, similar-sounding one."
+  }
+}

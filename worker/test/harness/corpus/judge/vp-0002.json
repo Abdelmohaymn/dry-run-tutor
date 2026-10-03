@@ -1,0 +1,104 @@
+{
+  "problem_id": "vp-0002",
+  "cases": [
+    {
+      "id": "optimal",
+      "kind": "optimal",
+      "expected_verdicts": [
+        "strong_pass",
+        "pass"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "If the number is 0 I'd return 0, otherwise 1 plus the remainder of (number minus 1) divided by 9."
+        },
+        {
+          "role": "tutor",
+          "text": "What does that give you for an input of 9, or 18?"
+        },
+        {
+          "role": "user",
+          "text": "For 9: 1 + (8 mod 9) = 1 + 8 = 9. For 18: 1 + (17 mod 9) = 1 + 8 = 9. Both correct, since a positive multiple of nine reduces to nine, not zero. It's O(1) time and space."
+        }
+      ]
+    },
+    {
+      "id": "suboptimal",
+      "kind": "suboptimal",
+      "expected_verdicts": [
+        "likely_tle"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "I'd convert the number to a string, sum the digit characters, and recursively call the same function until one digit remains."
+        },
+        {
+          "role": "tutor",
+          "text": "How do you know when to stop recursing?"
+        },
+        {
+          "role": "user",
+          "text": "When the sum I get back is already less than 10, I return it instead of recursing again. It works, just does more allocation than it needs to."
+        }
+      ]
+    },
+    {
+      "id": "wrong",
+      "kind": "wrong",
+      "expected_verdicts": [
+        "incorrect"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "I'd just sum all the digits once and return that sum."
+        },
+        {
+          "role": "tutor",
+          "text": "What if the digits sum to something like 27, which itself has more than one digit -- does your answer stop there?"
+        },
+        {
+          "role": "user",
+          "text": "Yeah, I'd just return 27 as the answer in that case."
+        }
+      ]
+    },
+    {
+      "id": "garbled",
+      "kind": "garbled",
+      "expected_verdicts": [
+        "unclear"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "um, numbers, digits, add, I guess loop?"
+        }
+      ]
+    },
+    {
+      "id": "explored_then_landed",
+      "kind": "explored_then_landed",
+      "expected_verdicts": [
+        "pass",
+        "strong_pass"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "I'd just loop, summing digits over and over until one digit is left."
+        },
+        {
+          "role": "tutor",
+          "text": "That works. Is there a way to skip straight to the answer without looping at all?"
+        },
+        {
+          "role": "user",
+          "text": "I used a hint about remainders, and now I remember: it's congruent to the number mod 9, except a positive multiple of nine maps to nine instead of zero. So: if num is 0 return 0, else 1 + (num - 1) mod 9. Constant time."
+        }
+      ]
+    }
+  ]
+}

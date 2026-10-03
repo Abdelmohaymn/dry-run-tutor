@@ -1,0 +1,10 @@
+src/generated/
+.wrangler/
+node_modules/
+# Real local credentials for manual/live verification runs. .dev.vars
+# itself stays tracked (placeholder values only, needed for the binding to
+# exist type-wise in tests); anything environment-suffixed or .local is a
+# real secret and must never be committed.
+.dev.vars.dev
+.dev.vars.prod
+.dev.vars.*.local

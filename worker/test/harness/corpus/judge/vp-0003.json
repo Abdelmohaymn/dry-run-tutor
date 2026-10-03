@@ -1,0 +1,104 @@
+{
+  "problem_id": "vp-0003",
+  "cases": [
+    {
+      "id": "optimal",
+      "kind": "optimal",
+      "expected_verdicts": [
+        "strong_pass",
+        "pass"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "I'd scan the words in order and check each one with two pointers moving in from both ends, returning the first word that passes."
+        },
+        {
+          "role": "tutor",
+          "text": "What do you return if none of the words pass?"
+        },
+        {
+          "role": "user",
+          "text": "The empty string, once the scan finishes without a match. No extra memory is used for the check itself, and I stop checking a word the moment two characters don't match."
+        }
+      ]
+    },
+    {
+      "id": "suboptimal",
+      "kind": "suboptimal",
+      "expected_verdicts": [
+        "likely_tle"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "I'd collect every palindromic word into a list first by scanning the whole array, then return the first entry of that list."
+        },
+        {
+          "role": "tutor",
+          "text": "Do you need to check the rest of the words once you've already found the first match?"
+        },
+        {
+          "role": "user",
+          "text": "No, I guess not, but that's how I'd do it -- check everything, then return the first one collected."
+        }
+      ]
+    },
+    {
+      "id": "wrong",
+      "kind": "wrong",
+      "expected_verdicts": [
+        "incorrect"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "I'd check whether each word's letters could be rearranged into a palindrome by counting how many times each letter appears."
+        },
+        {
+          "role": "tutor",
+          "text": "Does the problem ask for the word itself to already read the same forward and backward, or just for its letters to be rearrangeable that way?"
+        },
+        {
+          "role": "user",
+          "text": "I think a frequency count is close enough -- if at most one letter has an odd count, I'll call it a match."
+        }
+      ]
+    },
+    {
+      "id": "garbled",
+      "kind": "garbled",
+      "expected_verdicts": [
+        "unclear"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "uh words and stuff, backwards maybe?"
+        }
+      ]
+    },
+    {
+      "id": "explored_then_landed",
+      "kind": "explored_then_landed",
+      "expected_verdicts": [
+        "pass",
+        "strong_pass"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "I'd reverse each word and compare it to the original, scanning in order."
+        },
+        {
+          "role": "tutor",
+          "text": "That works. Is there a way to check a word without building a whole reversed copy of it?"
+        },
+        {
+          "role": "user",
+          "text": "I used a hint about the front and back -- so two pointers, one starting at each end of the word, stepping inward and comparing characters, no extra copy needed. Scan the words in order and return the first one that passes."
+        }
+      ]
+    }
+  ]
+}

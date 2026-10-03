@@ -1,0 +1,6 @@
+{
+  "_comment": "Production. Switch with: flutter build appbundle --flavor prod --dart-define-from-file=config/prod.json",
+  "_relay": "Placeholder. Set this to your own deployed worker origin.",
+  "FLAVOR": "prod",
+  "RELAY_BASE_URL": "https://dry-run-tutor.example.workers.dev"
+}

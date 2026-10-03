@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+ (API 31) draws its own SplashScreen and ignores
+         launch_background.xml entirely. This is what actually wires our
+         cover art to it. windowSplashScreenAnimatedIcon is left unset on
+         purpose: it already falls back to the launcher icon (the same
+         glyph used in our cover), and a plain bitmap dropped in that slot
+         gets forced into the small ~240dp icon frame, which is fine for
+         the icon but too cramped for a two-line tagline. The name and
+         tagline go in windowSplashScreenBrandingImage instead, which the
+         platform anchors near the bottom rather than centering it, so the
+         layout differs slightly from the store cover art it is based on. -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowSplashScreenBackground">@color/splash_background</item>
+        <item name="android:windowSplashScreenBrandingImage">@mipmap/splash_branding</item>
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
+</resources>

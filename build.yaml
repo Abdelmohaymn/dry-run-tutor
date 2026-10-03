@@ -1,0 +1,16 @@
+targets:
+  $default:
+    builders:
+      freezed:
+        generate_for:
+          - lib/**
+      json_serializable:
+        generate_for:
+          - lib/**
+        options:
+          explicit_to_json: true
+      drift_dev:
+        generate_for:
+          - lib/core/db/**
+        options:
+          store_date_time_values_as_text: false

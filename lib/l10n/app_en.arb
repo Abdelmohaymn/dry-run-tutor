@@ -1,0 +1,1085 @@
+{
+  "@@locale": "en",
+  "appTitle": "{appName}",
+  "@appTitle": {
+    "description": "The application title, shown as the OS task/app label. The brand name is a placeholder, not a literal: lib/core/config/brand.dart is the single source of truth for it, and a product name is not translated.",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "seedingTitle": "Setting up",
+  "@seedingTitle": {
+    "description": "/seeding heading — first-launch waiting screen (FR-047a)."
+  },
+  "seedingBody": "Getting today's problem and your settings. This happens once, and it keeps retrying on its own.",
+  "@seedingBody": {
+    "description": "/seeding body: plain words for what it fetches and why it's needed once. No manual retry button — retries by itself as connectivity changes (SC-022)."
+  },
+  "updateRequiredTitle": "A fresh update is ready",
+  "@updateRequiredTitle": {
+    "description": "/update heading — FR-048's blocking update prompt."
+  },
+  "updateRequiredBody": "We've made {appName} better. Update to keep your streak going.",
+  "@updateRequiredBody": {
+    "description": "/update body. Upbeat on purpose: the update is required, but it should read as something good, not a wall. Updating keeps all local data, so the streak line is true.",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "updateRequiredAction": "Update",
+  "@updateRequiredAction": {
+    "description": "/update's direct route to the Play Store listing."
+  },
+  "withdrawnTitle": "Swapping in a different problem",
+  "@withdrawnTitle": {
+    "description": "/withdrawn heading — FR-040, reached only when every cached problem is withdrawn."
+  },
+  "withdrawnBody": "Today's problem isn't available. We're getting you another one.",
+  "@withdrawnBody": {
+    "description": "/withdrawn body — a swap, not a broken problem."
+  },
+  "withdrawnRetryAction": "Try again",
+  "@withdrawnRetryAction": {
+    "description": "/withdrawn's one affordance: retry the manifest fetch."
+  },
+  "dailyStreakTooltip": "Streak",
+  "@dailyStreakTooltip": {
+    "description": "Icon-button tooltip on the daily screen routing to /streak."
+  },
+  "dailySettingsTooltip": "Settings",
+  "@dailySettingsTooltip": {
+    "description": "Icon-button tooltip on the daily screen routing to /settings."
+  },
+  "settingsScreenTitle": "Settings",
+  "@settingsScreenTitle": {
+    "description": "/settings heading."
+  },
+  "settingsKeyManagementLabel": "Provider key",
+  "@settingsKeyManagementLabel": {
+    "description": "/settings row routing to /settings/key (FR-006)."
+  },
+  "settingsReminderLabel": "Daily reminder",
+  "@settingsReminderLabel": {
+    "description": "/settings row routing to /settings/reminder (FR-048a)."
+  },
+  "settingsWipeLabel": "Delete all data",
+  "@settingsWipeLabel": {
+    "description": "/settings row routing to /settings/wipe (FR-039f)."
+  },
+  "settingsBackendDevApi": "DEV API",
+  "@settingsBackendDevApi": {
+    "description": "Settings app-bar badge: this build talks to the dev relay (config/dev.json)."
+  },
+  "settingsBackendProdApi": "PROD API",
+  "@settingsBackendProdApi": {
+    "description": "Settings app-bar badge in a dev-app build talking to the prod relay. Hidden in the prod app on prod."
+  },
+  "keyManagementTitle": "Provider key",
+  "@keyManagementTitle": {
+    "description": "/settings/key heading (FR-006)."
+  },
+  "keyManagementNoKey": "No key saved. Add one now, or after your next session.",
+  "@keyManagementNoKey": {
+    "description": "Shown when KeyRepository.read() returns null, above the add-key action."
+  },
+  "keyManagementAddAction": "Add key",
+  "@keyManagementAddAction": {
+    "description": "Opens the inline entry flow from settings when no key is stored yet (FR-006)."
+  },
+  "keyManagementProviderLabel": "Saved for {provider}",
+  "@keyManagementProviderLabel": {
+    "description": "Names the provider the stored key belongs to, never the key value itself (FR-003).",
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "keyManagementReplaceAction": "Replace key",
+  "@keyManagementReplaceAction": {
+    "description": "Opens the inline replace flow, reusing KeyEntryCubit (FR-006)."
+  },
+  "keyManagementDeleteAction": "Delete key",
+  "@keyManagementDeleteAction": {
+    "description": "FR-006's delete."
+  },
+  "keyManagementDeletedNotice": "Key deleted. Add one again to use your own allowance.",
+  "@keyManagementDeletedNotice": {
+    "description": "Shown after a successful delete."
+  },
+  "reminderScreenTitle": "Daily reminder",
+  "@reminderScreenTitle": {
+    "description": "/settings/reminder heading (FR-048a)."
+  },
+  "reminderScreenBody": "One notification a day, made on this phone. It's cancelled once that day's session is done.",
+  "@reminderScreenBody": {
+    "description": "FR-048a/b explained plainly."
+  },
+  "reminderEnabledToggle": "Remind me daily",
+  "@reminderEnabledToggle": {
+    "description": "Toggle on /settings/reminder."
+  },
+  "reminderTimeLabel": "Time",
+  "@reminderTimeLabel": {
+    "description": "Label for the time picker row."
+  },
+  "wipeScreenTitle": "Delete all data",
+  "@wipeScreenTitle": {
+    "description": "/settings/wipe heading (FR-039f)."
+  },
+  "wipeScreenWarning": "Deletes every conversation, assessment and cached problem on this phone, and ends your streak. It won't give back your free taster or reset your device identity.",
+  "@wipeScreenWarning": {
+    "description": "Clear warning the streak ends, and honest about what a wipe cannot undo (FR-039f)."
+  },
+  "wipeConfirmAction": "Delete everything",
+  "@wipeConfirmAction": {
+    "description": "The one destructive action on this screen."
+  },
+  "wipeConfirmDialogTitle": "Are you sure?",
+  "@wipeConfirmDialogTitle": {
+    "description": "Confirmation dialog raised by the wipe action — the last step before an irreversible delete (FR-039f)."
+  },
+  "wipeConfirmDialogBody": "Your conversations, assessments and streak all go. This can't be undone.",
+  "@wipeConfirmDialogBody": {
+    "description": "Restates the consequence at the moment of the decision, rather than relying on the warning read further up the screen."
+  },
+  "wipeCancelAction": "Cancel",
+  "@wipeCancelAction": {
+    "description": "Dismisses the confirmation dialog with nothing deleted; the default action."
+  },
+  "wipeDoneNotice": "All data deleted.",
+  "@wipeDoneNotice": {
+    "description": "Shown after a successful wipe, before returning to the daily screen."
+  },
+  "errRateLimited": "The provider is catching up. This continues in a moment.",
+  "@errRateLimited": {
+    "description": "RATE_LIMITED. Not an error: the conversation catching up. No red, no failure icon, no apology (FR-045a)."
+  },
+  "errInvalidKey": "The provider rejected that key. Try a different one. Your conversation is safe.",
+  "@errInvalidKey": {
+    "description": "INVALID_KEY. A repairable interruption; the conversation is preserved (FR-005c)."
+  },
+  "errQuotaExhausted": "Your daily allowance with this provider is spent. It resets on its own, and nothing was charged.",
+  "@errQuotaExhausted": {
+    "description": "QUOTA_EXHAUSTED. Must say it is the learner's own allowance and that no charge occurred (FR-008d)."
+  },
+  "errUnclearRetry": "That didn't come through. Try sending it again.",
+  "@errUnclearRetry": {
+    "description": "UNCLEAR_RETRY. A hiccup. The practice run has already retried once silently by the time this shows; the daily chat offers a retry on the failed message."
+  },
+  "errTurnCapReached": "That's today's conversation length. Hints still work, and you can finish to see how it went.",
+  "@errTurnCapReached": {
+    "description": "TURN_CAP_REACHED. A normal ending, never styled as a failure (FR-023, FR-028)."
+  },
+  "errTrialConsumed": "Your free taster is used up. Add your own key to keep going. You can't be charged.",
+  "@errTrialConsumed": {
+    "description": "TRIAL_CONSUMED. Not an error, not an outage — straight into key entry (FR-007)."
+  },
+  "errAlreadyJudgedRepeat": "Your assessment for today is already in — here it is.",
+  "@errAlreadyJudgedRepeat": {
+    "description": "SESSION_ALREADY_JUDGED, repeat judge call. Invisible in the UI: a double-tap guard the learner never sees as an error."
+  },
+  "errSessionClosed": "This session is closed and the verdict is in. You can review the assessment or the reveal.",
+  "@errSessionClosed": {
+    "description": "SESSION_ALREADY_JUDGED, turn or hint after verdict. A closed door, plainly (FR-034 scenario 4)."
+  },
+  "errEmptyTurn": "Nothing was heard. Re-record, or type instead.",
+  "@errEmptyTurn": {
+    "description": "EMPTY_TURN. A prompt, not a failure; costs no turn."
+  },
+  "errorCodeLabel": "Code: {code}",
+  "@errorCodeLabel": {
+    "description": "Small caption under every error message, so a learner can quote the exact failure when they contact support. The code is the relay catalogue name (e.g. EMPTY_TURN) and is never translated.",
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "errTrialUnavailable": "The free taster is full today. Add your key and start now. You can't be charged.",
+  "@errTrialUnavailable": {
+    "description": "TRIAL_UNAVAILABLE. Capacity, never an outage or a fault of the learner's (FR-007 scenario 4)."
+  },
+  "errProblemKilled": "Today's problem has been withdrawn — here is another one.",
+  "@errProblemKilled": {
+    "description": "PROBLEM_KILLED. A swap, not a message, wherever the UI can make it invisible (FR-040)."
+  },
+  "errBadRequest": "Something failed on our side. Try again, and update the app if it keeps happening.",
+  "@errBadRequest": {
+    "description": "BAD_REQUEST. Our fault, said plainly. Never echoes a field from the request."
+  },
+  "errOfflineQueued": "No connection. Try again once you're back online.",
+  "@errOfflineQueued": {
+    "description": "Client-side transport failure (never reached the relay). A retryable bubble in the conversation, never a lost thought (FR-042)."
+  },
+  "crashTitle": "Something broke",
+  "@crashTitle": {
+    "description": "Title of the popup shown when the app hits an error it did not expect (a bug, not a relay error)."
+  },
+  "crashBody": "If it keeps happening, send us this code: {code}",
+  "@crashBody": {
+    "description": "Body of the unexpected-error popup. The code (e.g. APP-3F2A1C) is the same for the same bug, so reports can be grouped. Never translated.",
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "crashCopyAction": "Copy details",
+  "@crashCopyAction": {
+    "description": "Copies the code, app version, time and redacted error details to the clipboard."
+  },
+  "crashCloseAction": "Close",
+  "@crashCloseAction": {
+    "description": "Dismisses the unexpected-error popup."
+  },
+  "crashCopied": "Copied",
+  "@crashCopied": {
+    "description": "Snackbar after the error details were copied."
+  },
+  "retryAction": "Try again",
+  "@retryAction": {
+    "description": "Generic retry control on a Failure state — resends the same text for a transport/relay failure."
+  },
+  "composerMicSemanticLabel": "Speak your turn",
+  "@composerMicSemanticLabel": {
+    "description": "Semantic label on the mic — the composer's primary, single large target (FR-009)."
+  },
+  "composerTypeInsteadLink": "Type instead",
+  "@composerTypeInsteadLink": {
+    "description": "The small underlined link beneath the mic. Less prominent, never less reachable (FR-009)."
+  },
+  "textComposerLabel": "Type your turn…",
+  "@textComposerLabel": {
+    "description": "Text field label on the keyboard-only composer path (FR-010, FR-053)."
+  },
+  "textComposerSendLabel": "Send",
+  "@textComposerSendLabel": {
+    "description": "Send control on the typed-turn composer."
+  },
+  "recordingTitle": "Listening in English…",
+  "@recordingTitle": {
+    "description": "Recording screen heading (prototype screen 2)."
+  },
+  "recordingWarningNotice": "15 seconds left",
+  "@recordingWarningNotice": {
+    "description": "FR-013a's warning at 15 seconds remaining in the 90-second cap."
+  },
+  "recordingStopLabel": "Done speaking",
+  "@recordingStopLabel": {
+    "description": "Ends the listen session normally, producing a final transcript."
+  },
+  "recordingCancelLabel": "Cancel",
+  "@recordingCancelLabel": {
+    "description": "Abandons the listen session with no final transcript."
+  },
+  "recordingWaveformSemanticLabel": "Microphone input level",
+  "@recordingWaveformSemanticLabel": {
+    "description": "The waveform is labelled, not read out loud value-by-value (design-tokens.md accessibility section)."
+  },
+  "micRationaleTitle": "Why we ask for the microphone",
+  "@micRationaleTitle": {
+    "description": "Mic rationale screen heading (prototype screen 9), shown at first record, never at launch (FR-014)."
+  },
+  "micRationaleBody": "Your phone turns your speech into text, and may send the audio to its maker's service to do it. We never record or receive your audio. Once you've spoken, the words are sent as text to your tutor. Speaking works in English for now.",
+  "@micRationaleBody": {
+    "description": "Honest about the platform recognizer possibly using the network — Android's docs say it 'is likely to stream audio to remote servers' — while stating what this app itself does and does not do with audio (FR-014, Principle VII)."
+  },
+  "micRationaleContinue": "Continue",
+  "@micRationaleContinue": {
+    "description": "Proceeds to the system microphone permission prompt."
+  },
+  "reviewTitle": "Review before sending",
+  "@reviewTitle": {
+    "description": "Transcript review screen heading (prototype screen 3) — the mandatory, unskippable step (Principle V)."
+  },
+  "reviewEditHint": "Edit anything that was misheard, then send.",
+  "@reviewEditHint": {
+    "description": "Explains why the review step exists without ever implying the transcript is wrong to have needed it."
+  },
+  "reviewEditHintTyped": "Check it reads the way you meant, then send.",
+  "@reviewEditHintTyped": {
+    "description": "The same mandatory review step reached from the typed composer. Nothing was heard on that path, so the spoken-path wording about mishearing would be nonsense (found on device)."
+  },
+  "reviewDiscardLabel": "Back",
+  "@reviewDiscardLabel": {
+    "description": "The typed path's peer of send: returns to the composer to keep editing. Re-record would open the microphone, which is not what a typed turn asked for."
+  },
+  "reviewSendLabel": "Send",
+  "@reviewSendLabel": {
+    "description": "Sends the reviewed turn — the one call path into SessionRepository.sendTurn."
+  },
+  "reviewReRecordLabel": "Re-record",
+  "@reviewReRecordLabel": {
+    "description": "A peer of send, not a fallback (FR-012b)."
+  },
+  "reviewRevertLabel": "Show what I said",
+  "@reviewRevertLabel": {
+    "description": "Restores the unmodified recogniser output after transcript repair changed the draft (FR-005, US2). Shown only when repair changed something and the learner has not already reverted."
+  },
+  "problemExpandLabel": "Read the full problem",
+  "@problemExpandLabel": {
+    "description": "Opens the collapsed problem card. The statement is clipped to three lines on the daily screen so the conversation owns the rest of it; without this there was no way to read the rest at all (found on device)."
+  },
+  "problemCollapseLabel": "Show less",
+  "@problemCollapseLabel": {
+    "description": "Collapses the problem card back to its three-line summary."
+  },
+  "problemConstraintsLabel": "Constraints",
+  "@problemConstraintsLabel": {
+    "description": "Heading for the authored constraints list, revealed with the full statement."
+  },
+  "conversationEmptyBody": "Say how you'd start. Think out loud, half-formed is fine.",
+  "@conversationEmptyBody": {
+    "description": "Stands in for the conversation before the first turn, where the screen was otherwise a large empty void that read as a loading failure (found on device)."
+  },
+  "recordingNothingHeardNotice": "Didn't catch that. Try again in English, or type.",
+  "@recordingNothingHeardNotice": {
+    "description": "Shown when a listen session ends with no transcript at all. Returning to the idle composer in silence made the recording screen look like it had crashed (found on device)."
+  },
+  "messageListYouLabel": "You",
+  "@messageListYouLabel": {
+    "description": "Sender label for a learner turn in the conversation."
+  },
+  "messageListTutorLabel": "Tutor",
+  "@messageListTutorLabel": {
+    "description": "Sender label for a tutor turn in the conversation."
+  },
+  "messageListFailedRetryLabel": "Not sent — tap to retry",
+  "@messageListFailedRetryLabel": {
+    "description": "A retryable bubble in the conversation, never a lost thought (FR-042)."
+  },
+  "turnGaugeLabel": "{count, plural, =0{No turns left today} =1{1 turn left today} other{{count} turns left today}}",
+  "@turnGaugeLabel": {
+    "description": "Worded as remaining allowance, never as a score (FR-022a) — the same wording is used as the semantic label so screen readers announce it the same way.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "wrapUpBannerTitle": "Wrapping up",
+  "@wrapUpBannerTitle": {
+    "description": "Entered at config.chat.wrap_up_at_turn — the conversation winds down rather than stopping dead (FR-022)."
+  },
+  "wrapUpBannerBody": "You're near today's limit. A few more, then finish and see how it went.",
+  "@wrapUpBannerBody": {
+    "description": "Protects the learner's own free allowance rather than scoring them (FR-022a)."
+  },
+  "capReachedTitle": "Today's conversation is complete",
+  "@capReachedTitle": {
+    "description": "A normal ending, never styled as a failure (FR-023, FR-028)."
+  },
+  "capReachedBody": "You can still pull a hint or end the session to see how it went.",
+  "@capReachedBody": {
+    "description": "Hints and end-session remain live — the cap bounds conversation, not either of those (FR-028)."
+  },
+  "recognitionUnavailableTitleLanguage": "Speech recognition doesn't cover this language yet",
+  "@recognitionUnavailableTitleLanguage": {
+    "description": "FR-011a — a recognizer exists, but not for the language being spoken. No in-app fix, so no action is offered beyond the keyboard."
+  },
+  "recognitionUnavailableBodyLanguage": "Your phone's speech recognition doesn't handle this language. You can still type.",
+  "@recognitionUnavailableBodyLanguage": {
+    "description": "Says plainly that there is nothing to install — the app uses the platform's default recognizer, which needs no language pack (FR-011a)."
+  },
+  "recognitionUnavailableTitleUnsupported": "Speech recognition isn't available on this device",
+  "@recognitionUnavailableTitleUnsupported": {
+    "description": "FR-011a — no recognizer on the device at all."
+  },
+  "recognitionUnavailableBodyUnsupported": "You can still take part by typing.",
+  "@recognitionUnavailableBodyUnsupported": {
+    "description": "The keyboard path is fully capable, not a lesser substitute (FR-053)."
+  },
+  "spokenLanguageSheetTitle": "Which language will you speak?",
+  "@spokenLanguageSheetTitle": {
+    "description": "FR-011b picker heading. The platform recognizer takes one language per session and cannot auto-detect, so the learner must say which."
+  },
+  "spokenLanguageSearchHint": "Search languages",
+  "@spokenLanguageSearchHint": {
+    "description": "FR-011b search field. The list spans every locale the platform knows, so it needs filtering."
+  },
+  "spokenLanguageNoMatches": "No language matches that.",
+  "@spokenLanguageNoMatches": {
+    "description": "Shown when the FR-011b search filters everything out."
+  },
+  "recognitionUnavailableTypeInstead": "Type instead",
+  "@recognitionUnavailableTypeInstead": {
+    "description": "The keyboard path, permitted only while recognition is unavailable (FR-011a)."
+  },
+  "errorReEnterKeyAction": "Enter key",
+  "@errorReEnterKeyAction": {
+    "description": "INVALID_KEY / QUOTA_EXHAUSTED next action on a Failure notice — routes to key entry rather than retrying with the same key (FR-005c, FR-008d)."
+  },
+  "wallCannotBeCharged": "You cannot be charged",
+  "@wallCannotBeCharged": {
+    "description": "The wall's lead line (prototype screen 10) — the one fact most likely to matter first (FR-005a)."
+  },
+  "wallBody": "Your free taster is done. Add your own key from a provider's free tier to keep going. {appName} never charges you.",
+  "@wallBody": {
+    "description": "Explains the free-forever model without pressuring an immediate decision.",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "wallAddKey": "Add your key",
+  "@wallAddKey": {
+    "description": "Routes to /keys/entry."
+  },
+  "wallNotNow": "Not now",
+  "@wallNotNow": {
+    "description": "Returns to the daily screen — hints and ending the session are still available at the cap (FR-028)."
+  },
+  "keyEntryTitle": "Add your key",
+  "@keyEntryTitle": {
+    "description": "Key entry screen heading (prototype screen 11)."
+  },
+  "keyEntryIntro": "Pick a provider and paste a key from its free tier. The key stays on this phone.",
+  "@keyEntryIntro": {
+    "description": "States where the key lives (FR-005d) before asking for it."
+  },
+  "keyEntryNoProviders": "No providers available right now. Try again shortly.",
+  "@keyEntryNoProviders": {
+    "description": "config.keyed_providers came back empty — a fail-open case, not a crash."
+  },
+  "keyEntryDisclosure": "{provider} receives the text of your conversation. Never your key, never the hidden solution. Check {provider}'s terms for whether it trains on free-tier content.",
+  "@keyEntryDisclosure": {
+    "description": "FR-008a/e — names the provider actually chosen and points at its own policy rather than asserting one that could go stale.",
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "keyEntryGetFreeKey": "Get a free {provider} key",
+  "@keyEntryGetFreeKey": {
+    "description": "Link to the chosen provider's own key console.",
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "keyEntryFieldLabel": "API key",
+  "@keyEntryFieldLabel": {
+    "description": "The key input field. obscureText — never shown in the clear once pasted."
+  },
+  "keyEntrySave": "Save and continue",
+  "@keyEntrySave": {
+    "description": "Probes before persisting (FR-005b) — this label covers both."
+  },
+  "keyEntryAllowanceGrew": "Key saved. Same conversation, more room.",
+  "@keyEntryAllowanceGrew": {
+    "description": "FR-007b — says the allowance grew rather than silently giving more (SC-020)."
+  },
+  "keyPromptTrialTitle": "Your free taster is done",
+  "@keyPromptTrialTitle": {
+    "description": "TRIAL_CONSUMED prompt dialog heading (FR-007). Shown over the conversation instead of dropping the learner on the key form unannounced."
+  },
+  "keyPromptTrialBody": "You've used the one free session {appName} provides. Add a key from a provider's free tier to keep going. It stays on this phone, and {appName} never charges you.",
+  "@keyPromptTrialBody": {
+    "description": "Explains why the key is being asked for, and that it cannot cost anything, before the form is offered.",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "keyPromptTrialUnavailableTitle": "The free taster is at capacity",
+  "@keyPromptTrialUnavailableTitle": {
+    "description": "TRIAL_UNAVAILABLE prompt dialog heading — the shared taster is full for everyone today, not this learner's allowance."
+  },
+  "keyPromptTrialUnavailableBody": "Today's free taster is full, for everyone using {appName} today. Add a key from a provider's free tier and start now. It stays on this phone, and {appName} never charges you.",
+  "@keyPromptTrialUnavailableBody": {
+    "description": "Must never borrow QUOTA_EXHAUSTED copy — this is capacity, not an allowance the learner spent.",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "keyPromptQuotaTitle": "Your provider allowance is spent",
+  "@keyPromptQuotaTitle": {
+    "description": "QUOTA_EXHAUSTED popup heading (FR-008d) — the learner's own key hit its provider limit."
+  },
+  "keyPromptQuotaBody": "Your daily allowance with this provider is used up. It resets on its own, and nothing was charged. Wait for it, or add a key from another provider.",
+  "@keyPromptQuotaBody": {
+    "description": "Leads with the reset and the no-charge fact before offering the replace action (ErrorNextAction.waitOrReplaceKey)."
+  },
+  "keyPromptAddAction": "Add your key",
+  "@keyPromptAddAction": {
+    "description": "Primary action on the trial prompts — pushes /keys/entry so the conversation is still behind it."
+  },
+  "keyPromptReplaceAction": "Use a different key",
+  "@keyPromptReplaceAction": {
+    "description": "Primary action on the QUOTA_EXHAUSTED popup — replacing the key is the only way to continue before the reset."
+  },
+  "keyPromptDismissAction": "Not now",
+  "@keyPromptDismissAction": {
+    "description": "Dismisses a key prompt. The same explanation stays on the daily screen as an inline notice, so nothing is lost by declining."
+  },
+  "keyPromptQuotaDismissAction": "Wait for the reset",
+  "@keyPromptQuotaDismissAction": {
+    "description": "Dismisses the QUOTA_EXHAUSTED popup. Named after what it actually does rather than a bare OK."
+  },
+  "rateLimitTitle": "Your key hit its limit",
+  "@rateLimitTitle": {
+    "description": "RATE_LIMITED popup heading. The learner's own key sent too many messages this minute."
+  },
+  "rateLimitBody": "{seconds, plural, =1{Too many messages this minute. Yours sends again in 1 second.} other{Too many messages this minute. Yours sends again in {seconds} seconds.}}",
+  "@rateLimitBody": {
+    "description": "RATE_LIMITED popup body. The turn resends by itself; seconds is the provider's retry-after.",
+    "placeholders": {
+      "seconds": { "type": "int" }
+    }
+  },
+  "rateLimitOkAction": "OK",
+  "@rateLimitOkAction": {
+    "description": "Closes the RATE_LIMITED popup. The resend happens either way."
+  },
+  "hintActionLabel": "Hint",
+  "@hintActionLabel": {
+    "description": "The explicit hint control (FR-025), distinct from asking for a hint in conversation."
+  },
+  "hintMessageLabel": "Hint {index} of {count}",
+  "@hintMessageLabel": {
+    "description": "Label above a hintRung message bubble (FR-026).",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "hintLadderExhaustedLabel": "Hints",
+  "@hintLadderExhaustedLabel": {
+    "description": "Label above the fixed ladder-exhausted closing line — the session stays open, this is not an error."
+  },
+  "endSessionLabel": "End session",
+  "@endSessionLabel": {
+    "description": "The end-session affordance kept live in CapReached (FR-023) — the cap bounds conversation, not the learner's ability to close the session."
+  },
+  "askForAnswerLabel": "Answer",
+  "@askForAnswerLabel": {
+    "description": "Entry point to the solution-request flow. The tutor never says correct or wrong on its own, so without this the learner has no way to stop being asked questions. The first tap is an ordinary turn; a second routes through confirmSolutionWarning (FR-021) before anything is sent."
+  },
+  "confirmSolutionTitle": "One more thing before that",
+  "@confirmSolutionTitle": {
+    "description": "Confirm-solution screen heading — the only route a second solution request can be sent from (FR-021)."
+  },
+  "confirmSolutionWarning": "This ends today's session. You still get your assessment and the write-up, for the work up to now.",
+  "@confirmSolutionWarning": {
+    "description": "FR-021's warning, shown before the second solution request is sendable at all."
+  },
+  "confirmSolutionCancel": "Keep going instead",
+  "@confirmSolutionCancel": {
+    "description": "Backs out without sending anything."
+  },
+  "confirmSolutionProceed": "Yes, show me the solution",
+  "@confirmSolutionProceed": {
+    "description": "The only button that can send a second solution request."
+  },
+  "verdictStrongPass": "Strong approach",
+  "@verdictStrongPass": {
+    "description": "Hedged word for Verdict.strongPass — paired with a hue, never hue alone (FR-030)."
+  },
+  "verdictPass": "Solid approach",
+  "@verdictPass": {
+    "description": "Hedged word for Verdict.pass."
+  },
+  "verdictBorderline": "Getting there",
+  "@verdictBorderline": {
+    "description": "Hedged word for Verdict.borderline."
+  },
+  "verdictFail": "Worth another pass",
+  "@verdictFail": {
+    "description": "Hedged word for Verdict.fail — never the word \"fail\" or \"wrong\" itself (FR-030)."
+  },
+  "verdictUnclear": "Hard to call",
+  "@verdictUnclear": {
+    "description": "Hedged word for Verdict.unclear."
+  },
+  "matchedApproachOptimal": "This matched the strongest approach on file.",
+  "@matchedApproachOptimal": {
+    "description": "MatchedVerdict.optimal."
+  },
+  "matchedApproachAcceptable": "This matched a solid, accepted approach.",
+  "@matchedApproachAcceptable": {
+    "description": "MatchedVerdict.acceptable."
+  },
+  "matchedApproachSuboptimal": "This matched a workable approach, though not the strongest one.",
+  "@matchedApproachSuboptimal": {
+    "description": "MatchedVerdict.suboptimal."
+  },
+  "matchedApproachWrong": "This took a different direction than the problem intended.",
+  "@matchedApproachWrong": {
+    "description": "MatchedVerdict.wrong — hedged; never the word \"wrong\" itself (FR-030)."
+  },
+  "matchedApproachNone": "Nothing here matched an approach on file.",
+  "@matchedApproachNone": {
+    "description": "MatchedVerdict.none — a designed state (Principle II), not an error."
+  },
+  "complexityMatch": "matches the reference",
+  "@complexityMatch": {
+    "description": "Complexity.assessment == correct."
+  },
+  "complexityMismatch": "differs from the reference",
+  "@complexityMismatch": {
+    "description": "Complexity.assessment == mismatched — hedged, not \"wrong\"."
+  },
+  "complexityNotStated": "wasn't stated",
+  "@complexityNotStated": {
+    "description": "Complexity.assessment == not_stated."
+  },
+  "verdictScreenTitle": "How it went",
+  "@verdictScreenTitle": {
+    "description": "Verdict screen heading (prototype screen 6)."
+  },
+  "verdictInsightsHitLabel": "Reached",
+  "@verdictInsightsHitLabel": {
+    "description": "Label over the insights-hit glyph list."
+  },
+  "verdictInsightsMissedLabel": "Not reached",
+  "@verdictInsightsMissedLabel": {
+    "description": "Label over the insights-missed glyph list — a distinct glyph, not a red dot (design-tokens.md)."
+  },
+  "verdictComplexityLabel": "Complexity",
+  "@verdictComplexityLabel": {
+    "description": "Section heading for the complexity comparison."
+  },
+  "verdictDisputeAction": "Dispute this assessment",
+  "@verdictDisputeAction": {
+    "description": "The dispute affordance, present on every assessment screen, one tap away (FR-031)."
+  },
+  "verdictDisputedNotice": "Noted. Flagged as disputed on this phone.",
+  "@verdictDisputedNotice": {
+    "description": "Shown after disputing. No consent prompt: nothing is uploaded (FR-031a/b)."
+  },
+  "verdictReadEditorialAction": "Read the full write-up",
+  "@verdictReadEditorialAction": {
+    "description": "Routes to the reveal screen — the editorial, gated on this assessment existing (FR-032)."
+  },
+  "verdictSolutionReleaseNotice": "This covers only the work before the solution was shown. Asking for it isn't held against you.",
+  "@verdictSolutionReleaseNotice": {
+    "description": "FR-033: shown when the session ended by a solution request. Never worded to penalise asking."
+  },
+  "revealScreenTitle": "The write-up",
+  "@revealScreenTitle": {
+    "description": "Reveal screen heading (prototype screen 7) — the only place the editorial appears (FR-032)."
+  },
+  "sessionClosedTitle": "This session is closed",
+  "@sessionClosedTitle": {
+    "description": "SessionClosed state heading — a stray turn or hint landed after the verdict (FR-034 scenario 4)."
+  },
+  "sessionClosedReviewAction": "Review the assessment",
+  "@sessionClosedReviewAction": {
+    "description": "SessionClosed's one affordance: show the verdict already held."
+  },
+  "streakScreenTitle": "Streak",
+  "@streakScreenTitle": {
+    "description": "Streak screen heading (prototype screen 8)."
+  },
+  "streakCountLabel": "{count, plural, =0{No streak yet} =1{1 day} other{{count} days}}",
+  "@streakCountLabel": {
+    "description": "The current streak length, mono (design-tokens.md — anything numeric).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "streakPerInstallNotice": "This streak lives on this phone. It won't follow you to another device or survive a reinstall.",
+  "@streakPerInstallNotice": {
+    "description": "Spec edge case, FR-039 — a plain statement the learner will see, not a warning."
+  },
+  "streakReviewTodayAction": "Review today",
+  "@streakReviewTodayAction": {
+    "description": "Routes to the current day's completed session — reachable in ≤3 taps (SC-013), no second problem offered."
+  },
+  "reviewDayScreenTitle": "Today",
+  "@reviewDayScreenTitle": {
+    "description": "Review-day screen heading — the current day's completed session and assessment only, never a second problem (FR-039)."
+  },
+  "shareCardInsightsLine": "{hit} of {total} key insights reached",
+  "@shareCardInsightsLine": {
+    "description": "Share card body line — never any part of the conversation itself (FR-039b).",
+    "placeholders": {
+      "hit": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "shareCardComplexityLine": "{time} time, {space} space",
+  "@shareCardComplexityLine": {
+    "description": "The learner’s own complexity on the share card, in place of a verdict on it.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "space": {
+        "type": "String"
+      }
+    }
+  },
+  "shareCardStreakLine": "{count, plural, =1{Day 1 of the streak} other{Day {count} of the streak}}",
+  "@shareCardStreakLine": {
+    "description": "Share card body line.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "shareCardAction": "Share",
+  "@shareCardAction": {
+    "description": "Invokes the platform share sheet with the text-only card (FR-039b)."
+  },
+  "composerUseMicLabel": "Use the mic instead",
+  "@composerUseMicLabel": {
+    "description": "Returns the composer to the mic from the inline keyboard field."
+  },
+  "recordingListeningLabel": "Listening · EN",
+  "@recordingListeningLabel": {
+    "description": "Compact label beside the live waveform in the chat composer. EN says the mic is English-only for now, in the least width; typing works in any language."
+  },
+  "recordingTranscribingLabel": "Transcribing…",
+  "@recordingTranscribingLabel": {
+    "description": "Shown while the recogniser resolves the final transcript."
+  },
+  "reviewInlineTitle": "Check before sending",
+  "@reviewInlineTitle": {
+    "description": "Header on the inline review strip inside the chat screen."
+  },
+  "examplesActionLabel": "Example",
+  "@examplesActionLabel": {
+    "description": "Opens the worked examples for today’s problem."
+  },
+  "examplesSheetTitle": "Examples",
+  "@examplesSheetTitle": {
+    "description": "Title of the worked-examples sheet."
+  },
+  "exampleIndexLabel": "Example {index}",
+  "@exampleIndexLabel": {
+    "description": "Ordinal heading for one worked example.",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "exampleInputLabel": "Input",
+  "@exampleInputLabel": {
+    "description": "Label above an example’s input."
+  },
+  "exampleOutputLabel": "Output",
+  "@exampleOutputLabel": {
+    "description": "Label above an example’s expected output."
+  },
+  "exampleExplanationLabel": "Why",
+  "@exampleExplanationLabel": {
+    "description": "Label above an example’s explanation."
+  },
+  "backAction": "Back",
+  "@backAction": {
+    "description": "Generic back affordance where there is no navigation stack to pop."
+  },
+  "judgingNotice": "Working out how it went…",
+  "@judgingNotice": {
+    "description": "Shown on the daily screen while the judge request is in flight."
+  },
+  "assessmentReadyTitle": "Your assessment is ready",
+  "@assessmentReadyTitle": {
+    "description": "Shown on the daily screen once a verdict exists for today."
+  },
+  "assessmentReadyAction": "See how it went",
+  "@assessmentReadyAction": {
+    "description": "Reopens the verdict screen from the daily screen."
+  },
+  "exampleMessageLabel": "Example {index} of {count}",
+  "@exampleMessageLabel": {
+    "description": "Ordinal label on a revealed worked example in the conversation, the peer of hintMessageLabel.",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dailyEndSessionTooltip": "Finish and see how it went",
+  "@dailyEndSessionTooltip": {
+    "description": "App-bar action that closes the session and asks for the assessment (FR-023)."
+  },
+  "wrapUpFinishAction": "Finish and see how it went",
+  "@wrapUpFinishAction": {
+    "description": "Primary action inside the wrap-up card: ends the session and requests the assessment."
+  },
+  "endSessionExplainer": "Nothing ends it for you. Tap Finish and you get your assessment.",
+  "@endSessionExplainer": {
+    "description": "Says plainly that the assessment is learner-triggered, not automatic."
+  },
+  "verdictDisputeExplainer": "Flags it on this phone so you can find it again. Nothing is uploaded.",
+  "@verdictDisputeExplainer": {
+    "description": "FR-031a/b: what disputing actually does, said before the learner taps it."
+  },
+  "verdictDisputedAction": "Disputed",
+  "@verdictDisputedAction": {
+    "description": "The dispute control once it has been used."
+  },
+  "verdictComplexityYoursLabel": "You said",
+  "@verdictComplexityYoursLabel": {
+    "description": "Label for the complexity the learner claimed."
+  },
+  "verdictComplexityReferenceLabel": "Reference",
+  "@verdictComplexityReferenceLabel": {
+    "description": "Label for the reference approach’s complexity."
+  },
+  "verdictComplexityUnlistedNotice": "Your approach isn't one on file. It was judged on the insights you reached, not marked down for being unlisted.",
+  "@verdictComplexityUnlistedNotice": {
+    "description": "Shown when matched_approach is \"none\" — an unlisted approach is not thereby wrong."
+  },
+  "reminderPermissionNeededNotice": "Android needs permission to show notifications. Turn the reminder on and allow it when asked.",
+  "@reminderPermissionNeededNotice": {
+    "description": "Shown when POST_NOTIFICATIONS has not been granted."
+  },
+  "reminderPermissionDeniedNotice": "Notifications are blocked for this app. Turn them on in Android's app settings.",
+  "@reminderPermissionDeniedNotice": {
+    "description": "Shown when the runtime notification permission was refused."
+  },
+  "reminderScheduledNotice": "Armed. The next one lands at {time}.",
+  "@reminderScheduledNotice": {
+    "description": "Confirms the reminder is actually scheduled.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "reminderInexactNotice": "Android can hold this back up to an hour. Allow exact alarms and it lands on time.",
+  "@reminderInexactNotice": {
+    "description": "Shown when SCHEDULE_EXACT_ALARM is not granted — the reminder still arrives, just inside a window Android picks."
+  },
+  "reminderExactAlarmAction": "Allow exact alarms",
+  "@reminderExactAlarmAction": {
+    "description": "Opens Android’s “Alarms & reminders” page, the only place SCHEDULE_EXACT_ALARM can be granted."
+  },
+  "shareCardTitle": "Today’s result",
+  "@shareCardTitle": {
+    "description": "Heading on the shareable result card."
+  },
+  "shareCardApproachLabel": "Approach",
+  "@shareCardApproachLabel": {
+    "description": "Label above the approach class on the share card."
+  },
+  "shareCardInsightsLabel": "Insights",
+  "@shareCardInsightsLabel": {
+    "description": "Label above the insight tally on the share card."
+  },
+  "reminderOpenSettingsAction": "Open notification settings",
+  "@reminderOpenSettingsAction": {
+    "description": "Takes the learner to Android’s settings page for this app, the only place a refused notification permission can still be granted."
+  },
+  "welcomeSlide1Title": "Keep your own mind sharp",
+  "@welcomeSlide1Title": {
+    "description": "One slide of the welcome carousel: the premise — why reasoning is the thing worth practising."
+  },
+  "welcomeSlide1Body": "AI can write the code now. It can't sit in the interview for you, or explain why you chose this over that. Ten minutes a day keeps that muscle yours.",
+  "@welcomeSlide1Body": {
+    "description": "One slide of the welcome carousel: body."
+  },
+  "welcomeSlide2Title": "Say it out loud",
+  "@welcomeSlide2Title": {
+    "description": "One slide of the welcome carousel: the shape of the product."
+  },
+  "welcomeSlide2Body": "Tap the mic and talk through your idea the way you would to a colleague. Messy is fine. No code, no typing, no multiple choice.",
+  "@welcomeSlide2Body": {
+    "description": "One slide of the welcome carousel: body."
+  },
+  "welcomeSlide3Title": "One problem a day",
+  "@welcomeSlide3Title": {
+    "description": "One slide of the welcome carousel: why the tutor is Socratic."
+  },
+  "welcomeSlide3Body": "No feed. No backlog to fall behind on. One problem, a few minutes, done.",
+  "@welcomeSlide3Body": {
+    "description": "One slide of the welcome carousel: body."
+  },
+  "welcomeSlide4Title": "It asks. It never tells.",
+  "@welcomeSlide4Title": {
+    "description": "One slide of the welcome carousel: the assessment is learner-triggered."
+  },
+  "welcomeSlide4Body": "The tutor pushes back instead of answering. That's the point, and yes, it can feel stubborn. Stuck? Tap Hint or Example. Neither costs you a turn.",
+  "@welcomeSlide4Body": {
+    "description": "One slide of the welcome carousel: body."
+  },
+  "welcomeSlide5Title": "You say when you are done",
+  "@welcomeSlide5Title": {
+    "description": "One slide of the welcome carousel: the daily reminder, enabled inline."
+  },
+  "welcomeSlide5Body": "It'll keep asking forever if you let it. Tap Finish when you've said your piece. That's what gets you the write-up.",
+  "@welcomeSlide5Body": {
+    "description": "One slide of the welcome carousel: body."
+  },
+  "welcomeSlide6Title": "Make it a habit",
+  "@welcomeSlide6Title": {
+    "description": "One slide of the welcome carousel: the BYOK model."
+  },
+  "welcomeSlide6Body": "A new problem lands every day. Pick a time and we'll nudge you: one reminder, made on this phone. Miss a day and the streak just starts again.",
+  "@welcomeSlide6Body": {
+    "description": "One slide of the welcome carousel: body."
+  },
+  "welcomeSlide7Title": "Free to use",
+  "@welcomeSlide7Title": {
+    "description": "One slide of the welcome carousel: what the share card carries."
+  },
+  "welcomeSlide7Body": "Start with sessions on us. After that, paste a free API key. Groq and Google both give one away, no card. It stays on this phone.",
+  "@welcomeSlide7Body": {
+    "description": "One slide of the welcome carousel: body."
+  },
+  "welcomeNextAction": "Next",
+  "@welcomeNextAction": {
+    "description": "Advances the welcome carousel."
+  },
+  "welcomeSkipAction": "Skip",
+  "@welcomeSkipAction": {
+    "description": "Leaves the welcome carousel for the practice offer."
+  },
+  "welcomeEnableRemindersAction": "Turn the reminder on",
+  "@welcomeEnableRemindersAction": {
+    "description": "Requests notification permission from the welcome carousel."
+  },
+  "welcomeRemindersOnNotice": "On — you will get one each morning.",
+  "@welcomeRemindersOnNotice": {
+    "description": "Confirms the reminder was armed from onboarding."
+  },
+  "welcomeRemindersBlockedNotice": "Android has notifications blocked for this app. Turn them on later in Settings → Reminder.",
+  "@welcomeRemindersBlockedNotice": {
+    "description": "Shown when the permission request is refused during onboarding."
+  },
+  "welcomeTryAction": "Try a practice problem",
+  "@welcomeTryAction": {
+    "description": "Starts the scripted walkthrough."
+  },
+  "welcomeSkipPracticeAction": "Skip to today’s problem",
+  "@welcomeSkipPracticeAction": {
+    "description": "Leaves onboarding without the walkthrough."
+  },
+  "practiceTitle": "Practice run",
+  "@practiceTitle": {
+    "description": "The scripted practice walkthrough: screen title."
+  },
+  "practiceSkipAction": "Skip",
+  "@practiceSkipAction": {
+    "description": "Leaves the scripted practice walkthrough for today's real problem. Always available — the walkthrough is an offer, not a gate."
+  },
+  "practiceProblemTitle": "Largest in the list",
+  "@practiceProblemTitle": {
+    "description": "The scripted practice walkthrough: the throwaway warm-up problem."
+  },
+  "practiceProblemStatement": "You are given a list of numbers. Find the largest one and return it.",
+  "@practiceProblemStatement": {
+    "description": "The scripted practice walkthrough: statement. Deliberately trivial and not from the real catalogue."
+  },
+  "practiceTypedNotice": "Nothing here is graded, and no turn is spent.",
+  "@practiceTypedNotice": {
+    "description": "The scripted practice walkthrough: why this walkthrough has no microphone."
+  },
+  "practiceTutorOpener": "A warm-up, so you can see how this goes. How would you find the largest number in that list? Say it however it comes out, half-formed is fine.",
+  "@practiceTutorOpener": {
+    "description": "The scripted practice walkthrough: the tutor’s opening question."
+  },
+  "practiceTutorReply1": "Okay. Now the question you'll get asked a lot here: how much work does that do as the list gets longer?",
+  "@practiceTutorReply1": {
+    "description": "The scripted practice walkthrough: the tutor’s reply to the first turn."
+  },
+  "practiceTutorReply2": "That's the loop: you talk, it asks, you sharpen. Nothing here was graded, and no turn was spent.",
+  "@practiceTutorReply2": {
+    "description": "The scripted practice walkthrough: the tutor’s reply to the second turn."
+  },
+  "practiceHintText": "You don't need to sort anything. You only ever need the best one so far.",
+  "@practiceHintText": {
+    "description": "The scripted practice walkthrough: the one canned hint, so the affordance is learned before it matters."
+  },
+  "practiceDoneTitle": "That is the whole app",
+  "@practiceDoneTitle": {
+    "description": "The scripted practice walkthrough: closing heading."
+  },
+  "practiceDoneBody": "Today's real problem is waiting. Talk it through and finish when you're ready.",
+  "@practiceDoneBody": {
+    "description": "The scripted practice walkthrough: closing body."
+  },
+  "practiceStartTodayAction": "Start today’s problem",
+  "@practiceStartTodayAction": {
+    "description": "The scripted practice walkthrough: leaves onboarding for the daily loop."
+  },
+  "shareCardOpener": "Still thinking for myself in the age of AI.",
+  "@shareCardOpener": {
+    "description": "First line of the shared text — the reason a friend would care, before any of the facts."
+  },
+  "shareCardStreakLabel": "Streak",
+  "@shareCardStreakLabel": {
+    "description": "Label above the streak count on the share card."
+  },
+  "finishActionLabel": "Finish",
+  "@finishActionLabel": {
+    "description": "The app-bar action that ends the session — labelled, not an icon, because a learner has to recognise it without tapping it."
+  },
+  "finishNudgeBody": "Said what you wanted? Tap Finish for your assessment. The tutor will keep asking otherwise.",
+  "@finishNudgeBody": {
+    "description": "One-time nudge in the conversation once the learner has been talking a while, so ending the session is not something they have to guess at."
+  },
+  "welcomeSlide8Title": "Then show it off",
+  "@welcomeSlide8Title": {
+    "description": "One slide of the welcome carousel: the share card."
+  },
+  "welcomeSlide8Body": "A card with the problem, how it went, and your streak. What you actually said stays on this phone.",
+  "@welcomeSlide8Body": {
+    "description": "One slide of the welcome carousel: body."
+  },
+  "practiceMicHint": "Tap the mic and talk, or type instead.",
+  "@practiceMicHint": {
+    "description": "The practice walkthrough: how to answer."
+  },
+  "practiceRecognitionUnavailableNotice": "This phone will not do speech right now, so type your answer instead.",
+  "@practiceRecognitionUnavailableNotice": {
+    "description": "The practice walkthrough: shown when the recogniser is unavailable."
+  },
+  "shareCardInvite": "Think you can explain it? Try today’s problem.",
+  "@shareCardInvite": {
+    "description": "Closing line of the shared text: the reason for the person receiving it to open the app."
+  },
+  "notificationNudgeTitle": "Make it a daily habit",
+  "@notificationNudgeTitle": {
+    "description": "Popup raised once, after the first daily verdict, when notifications are off."
+  },
+  "notificationNudgeBody": "Turn on notifications and we'll remind you of each day's problem at a time you pick.",
+  "@notificationNudgeBody": {
+    "description": "Why the popup asks: the daily reminder cannot reach a phone with notifications blocked."
+  },
+  "notificationNudgeAction": "Turn on",
+  "@notificationNudgeAction": {
+    "description": "Asks for the permission, opens Android's notification settings if it was already refused, then shows the reminder screen to pick a time."
+  },
+  "notificationNudgeDismiss": "Not now",
+  "@notificationNudgeDismiss": {
+    "description": "Closes the popup. It is not shown again."
+  },
+  "messageCopyAction": "Copy",
+  "@messageCopyAction": {
+    "description": "Long-press menu item on a chat message. Copies its text."
+  },
+  "messageCopiedNotice": "Copied",
+  "@messageCopiedNotice": {
+    "description": "Snackbar after a message is copied."
+  }
+}

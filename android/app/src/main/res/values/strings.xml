@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The launcher and every system dialog (the microphone permission
+         prompt above all) render this before a line of Dart has run, so it
+         cannot read lib/core/config/brand.dart the way everything else does.
+         It is the one unavoidable duplicate of AppBrand.name — keep the two
+         in step by hand when renaming the product. -->
+    <string name="app_name">Dry Run</string>
+</resources>

@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/config.schema.json",
+  "title": "Runtime configuration — the only remote-control surface",
+  "description": "Served verbatim by GET /v1/config from the single row of D1 `runtime_config`. Every value here is changeable with one `wrangler d1 execute` and no app release (FR-033, Constitution X.3). Keep the payload small: it gates app launch.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["min_supported_version", "killed_problem_ids", "content_manifest_url", "chat", "model", "provider", "trim", "trial"],
+  "properties": {
+    "min_supported_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Force-update gate. The client MUST fail open if this endpoint is unreachable.",
+      "default": "1.0.0"
+    },
+    "update_url": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://",
+      "description": "Where the app's Update required button sends the learner: the store listing the app is currently distributed through. Optional; absent means the landing site."
+    },
+    "killed_problem_ids": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^vp-\\d{4}$" },
+      "description": "A problem found wrong in the wild is killed here, same day, no release. The daily falls back to another.",
+      "default": []
+    },
+    "ads": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled"],
+      "description": "The ad kill switch. `enabled: false` takes both ad surfaces \u2014 the rewarded hint video and the assessment interstitial \u2014 off every install on its next launch, no release, no store review. This is the ONLY thing deciding whether ads run \u2014 there is no compile-time switch behind it. Absent means off, as does a relay the app has not reached yet.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "false takes both ad surfaces off everywhere.",
+          "default": false
+        }
+      }
+    },
+    "rotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start_problem_id", "anchor_date"],
+      "description": "The global daily pointer. Present means every install \u2014 new or long-standing \u2014 is handed the SAME problem on a given day: index(start_problem_id) + whole days since anchor_date, wrapped around the id-sorted evergreen pool. Absent means each install walks its own un-attempted problems (the pre-pointer behaviour). Restart everyone at problem one by setting start_problem_id to the first id and anchor_date to today \u2014 one D1 write, no release. A problem authored for exactly today still wins over the pointer, and a start_problem_id that is withdrawn or missing degrades to the first problem in the pool rather than stranding the day.",
+      "properties": {
+        "start_problem_id": {
+          "type": "string",
+          "pattern": "^vp-\\d{4}$",
+          "description": "The problem served on anchor_date itself."
+        },
+        "anchor_date": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "description": "UTC calendar day the pointer sits on start_problem_id. Days before it clamp to the anchor rather than walking backwards."
+        }
+      }
+    },
+    "content_manifest_url": {
+      "type": "string",
+      "format": "uri",
+      "default": "https://api.example.com/v1/content/manifest.json"
+    },
+    "chat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["turn_cap", "wrap_up_at_turn", "min_turn_chars"],
+      "properties": {
+        "turn_cap": {
+          "type": "integer", "minimum": 1, "maximum": 40, "default": 15,
+          "description": "Enforced server-side from the D1 counter, never from the payload (FR-008). THIS IS THE PRIMARY QUOTA LEVER — see research.md R-007."
+        },
+        "wrap_up_at_turn": { "type": "integer", "minimum": 1, "default": 12, "description": "From this turn index onward routes/chat.ts substitutes the {{WRAP_UP}} block into the tutor prompt so the learner is steered toward a close rather than cut off at the cap (FR-008a, O2)." },
+        "min_turn_chars": { "type": "integer", "minimum": 1, "default": 1, "description": "Below this an EMPTY_TURN is returned before the provider is called, so it costs the learner nothing." }
+      }
+    },
+    "model": { "type": "string", "default": "openai/gpt-oss-120b", "description": "Not a constant. Free-tier catalogues churn." },
+    "provider": { "type": "string", "enum": ["groq", "openrouter", "gemini"], "default": "groq", "description": "Default for a learner-keyed request that names no provider. NOT the only provider: the learner picks by picking which key to paste (FR-008b), and `X-Provider` on /v1/chat and /v1/judge selects among `keyed_providers`." },
+    "keyed_providers": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["groq", "openrouter", "gemini"] },
+      "minItems": 1,
+      "description": "Which providers a learner may bring a key for, in the order key entry should offer them. Served verbatim by GET /v1/config so the app's provider list changes with no release. An `X-Provider` value outside this list is BAD_REQUEST — a provider the operator has not offered is refused, not silently redirected. Absent means the single `provider` value, which is the pre-per-key-routing behaviour.",
+      "default": ["groq"]
+    },
+    "providers": {
+      "type": "object",
+      "description": "Per-provider overrides for the LEARNER-KEYED path only. A provider with no entry here falls back to the top-level `model` and `trim.condense_model`. CARRIES NO base_url BY DESIGN: the keyed path resolves its host from a table compiled into the Worker, because a remote-controlled base_url here would let one config write redirect every learner's own API key to an arbitrary host. `trial.pool[].base_url` is configurable precisely because those are the operator's own credentials, not a learner's.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "model": { "type": "string" },
+          "condense_model": { "type": "string" },
+          "repair_model": { "type": "string" }
+        }
+      },
+      "default": {}
+    },
+    "repair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "model", "min_chars", "max_input_chars", "timeout_ms", "max_output_ratio", "min_word_overlap"],
+      "description": "Transcript repair (feature 004). Absent means repair is off, which is the pre-feature behaviour. THE MODEL NAME HERE IS A FREE-TIER CATALOGUE ENTRY AND WILL CHURN — that is why it is a D1 value and not a constant.",
+      "properties": {
+        "enabled": { "type": "boolean", "default": true, "description": "FR-010's kill switch. False means the app never calls and never holds the review step." },
+        "model": { "type": "string", "default": "llama-3.1-8b-instant", "description": "Overridden per provider by providers[id].repair_model." },
+        "min_chars": { "type": "integer", "minimum": 1, "default": 40, "description": "FR-011. Non-whitespace characters. Below this, no round trip. THIS IS THE PRIMARY LEVER IF SC-005's 5% TOKEN BUDGET IS BREACHED." },
+        "max_input_chars": { "type": "integer", "minimum": 1, "default": 2000, "description": "Bounded input. Sized above a full 90-second recording (~1400 chars)." },
+        "timeout_ms": { "type": "integer", "minimum": 100, "maximum": 5000, "default": 1500, "description": "The Worker's provider timeout AND the app's review-step hold window. One number, two places. Bounded by SC-004's 2 seconds." },
+        "max_output_ratio": { "type": "number", "minimum": 1.0, "maximum": 3.0, "default": 1.5, "description": "Guard 1, applied in both directions." },
+        "min_word_overlap": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.6, "description": "Guard 3. The guard that catches a model answering the problem instead of correcting the transcript." }
+      }
+    },
+    "trial": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The trial profile. Deliberately NOT the keyed profile: a trial is paid for out of a fixed operator allowance shared by every new install, while a keyed session is paid for by one learner and competes with nobody (FR-031a, research.md R-011).",
+      "required": ["turn_cap", "ground_truth_tier", "condense", "pool"],
+      "properties": {
+        "turn_cap": {
+          "type": "integer", "minimum": 1, "maximum": 40, "default": 6,
+          "description": "Trial turn cap. Enforced from the SAME D1 turn_counter as keyed turns (FR-032a), against THIS value rather than chat.turn_cap. Six turns is what the demonstration needs — the tutor pushing back and withholding lands in the first three."
+        },
+        "ground_truth_tier": {
+          "type": "string", "enum": ["A", "AB"], "default": "A",
+          "description": "\"A\" sends Tier A only, skipping Tier B narrowing (data-model.md §B3). A six-turn session barely reaches trim.narrow_after_turn anyway, so Tier B buys almost nothing and costs ~550 tokens per turn."
+        },
+        "condense": {
+          "type": "boolean", "default": false,
+          "description": "False at turn_cap <= trim.verbatim_turns, where no turn ever falls out of the verbatim window and a condensation call would be pure waste. Must be revisited if turn_cap is raised above verbatim_turns."
+        },
+        "daily_session_cap": {
+          "type": "integer", "minimum": 0, "default": 0,
+          "description": "Optional hard ceiling on trial sessions started per day across all installs, independent of tokens. 0 disables it and lets the token budgets bind. A blunt second guard for the day a link goes wide."
+        },
+        "pool": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Ordered trial provider pool (FR-031b). Capacity is the SUM of several free tiers. TWO RULES, both hard: (1) one account per provider, and only DISTINCT providers — several accounts at one provider is rate-limit evasion, violates provider terms, and is prohibited regardless of the capacity it would buy; (2) every member MUST be a free tier requiring no payment method, so Constitution X.2 holds for the operator as it does for the learner. Selection order and leg eligibility: data-model.md §B8.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "secret_binding", "base_url", "model", "daily_token_budget", "structured_output", "enabled"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,15}$", "description": "Stable key. Used as the trial_budget primary key and written to usage.provider — so per-member spend is queryable without a schema change." },
+              "secret_binding": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,31}$", "description": "Name of the Worker secret holding this member's credential. The credential itself NEVER appears here, in source, or in a build artifact (FR-025). This field is the NAME of a binding, not a value." },
+              "base_url": { "type": "string", "format": "uri", "description": "OpenAI-compatible chat-completions base. Members that are not OpenAI-compatible need a provider implementation and must stay enabled:false until it exists." },
+              "model": { "type": "string" },
+              "daily_token_budget": { "type": "integer", "minimum": 0, "description": "Input+output tokens this member may spend per UTC day on the trial path. Set BELOW the provider's published daily allowance, never equal to it — the last call before the ceiling must be one we declined, not one they refused." },
+              "structured_output": { "type": "boolean", "description": "True only if this member genuinely supports strict json_schema decoding. THE JUDGE LEG IS ELIGIBLE ONLY ON TRUE (O3). Do not set true on a claim of 'JSON mode'; that is not the same guarantee, and FR-014's structural impossibility rests on this being strict." },
+              "enabled": { "type": "boolean", "default": false, "description": "FAILS CLOSED. A member stays false until three things are verified: its free tier requires no payment method, its published RPM/TPD are known, and — for structured_output:true — strict json_schema decoding is confirmed." },
+              "cooldown_ms": { "type": "integer", "minimum": 1000, "default": 60000, "description": "How long a member is skipped after it returns a rate limit. A 429 on the trial path routes to the next member; it never reaches the caller (FR-031c)." }
+            }
+          },
+          "default": [
+            {
+              "id": "groq",
+              "secret_binding": "TRIAL_KEY_GROQ",
+              "base_url": "https://api.groq.com/openai/v1",
+              "model": "openai/gpt-oss-120b",
+              "daily_token_budget": 180000,
+              "structured_output": true,
+              "enabled": true,
+              "cooldown_ms": 60000
+            }
+          ]
+        }
+      }
+    },
+    "trim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verbatim_turns", "narrow_after_turn", "narrow_margin", "condense_model"],
+      "properties": {
+        "verbatim_turns": { "type": "integer", "minimum": 2, "maximum": 20, "default": 6, "description": "K in data-model.md §B6. Second quota lever after turn_cap." },
+        "narrow_after_turn": { "type": "integer", "minimum": 1, "default": 3 },
+        "narrow_margin": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.15 },
+        "condense_model": { "type": "string", "default": "openai/gpt-oss-120b" }
+      }
+    },
+    "web": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The landing site's live demo and notify form (feature 007). Optional: absent means webConfig() falls back to these same defaults. Never sent by GET /v1/config.",
+      "properties": {
+        "enabled": { "type": "boolean", "default": true, "description": "Kill switch for the live demo. False falls every visitor back to the scripted demo." },
+        "demo_turn_cap": { "type": "integer", "minimum": 1, "maximum": 10, "default": 5, "description": "Turns a live web demo gets before it ends." },
+        "daily_demo_cap": { "type": "integer", "minimum": 0, "maximum": 1000, "default": 10, "description": "Live demos started per UTC day across all visitors." },
+        "max_pool_share": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.4, "description": "Share of the trial pool's daily token budget the web demo may spend before it refuses (Constitution X.3)." },
+        "allowed_origins": { "type": "array", "items": { "type": "string", "format": "uri" }, "default": [], "description": "Exact-match CORS allowlist for the web-only routes (web-cors.ts). Never '*'." },
+        "notify_enabled": { "type": "boolean", "default": true, "description": "Kill switch for /v1/notify." }
+      }
+    }
+  }
+}
