@@ -60,8 +60,6 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true
-  # Unflagged flutter run/build installs app.dryrun.dev beside the prod app. Prod needs --flavor prod.
-  default-flavor: dev
 
 dependency_overrides:
   # permission_handler_android 14.0.0's own android/build.gradle.kts uses

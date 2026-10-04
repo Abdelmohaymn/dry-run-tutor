@@ -60,12 +60,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsWipeLabel => 'Delete all data';
 
   @override
-  String get settingsBackendDevApi => 'DEV API';
-
-  @override
-  String get settingsBackendProdApi => 'PROD API';
-
-  @override
   String get keyManagementTitle => 'Provider key';
 
   @override

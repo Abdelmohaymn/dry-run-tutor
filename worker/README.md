@@ -107,7 +107,7 @@ npx wrangler d1 execute dry-run-prod --remote \
 
 Back on: `json('true')`. Installs pick it up on their next launch.
 
-- **This row is the only thing that decides.** There is no compile-time ads switch any more: no `ADS_ENABLED` dart-define, nothing in `config/dev.json` or `config/prod.json`. One place to look, and it is reachable without a release.
+- **This row is the only thing that decides.** There is no compile-time ads switch any more: no `ADS_ENABLED` dart-define, no app-side config file. One place to look, and it is reachable without a release.
 - **Off is the default.** Omit `ads`, serve a config written before this key existed, or fail to reach the relay on a first launch, and the answer is no ads. Absent means off, not "ask someone else".
 - **It takes a launch to turn ads ON.** `AdsService.initialize()` only starts the SDKs once the config says yes, so a fresh install with ads enabled picks them up after `/seeding` has fetched the config. Turning them OFF needs no init at all and takes effect on the next check.
 - **Switching ads off never costs a learner anything.** The hint still arrives when the rewarded video is skipped (FR-004); the assessment opens without the interstitial (FR-009).

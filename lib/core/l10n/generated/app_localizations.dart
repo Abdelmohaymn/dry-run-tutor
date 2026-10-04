@@ -184,18 +184,6 @@ abstract class AppLocalizations {
   /// **'Delete all data'**
   String get settingsWipeLabel;
 
-  /// Settings app-bar badge: this build talks to the dev relay (config/dev.json).
-  ///
-  /// In en, this message translates to:
-  /// **'DEV API'**
-  String get settingsBackendDevApi;
-
-  /// Settings app-bar badge in a dev-app build talking to the prod relay. Hidden in the prod app on prod.
-  ///
-  /// In en, this message translates to:
-  /// **'PROD API'**
-  String get settingsBackendProdApi;
-
   /// /settings/key heading (FR-006).
   ///
   /// In en, this message translates to:

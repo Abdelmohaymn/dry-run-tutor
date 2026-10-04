@@ -39,7 +39,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "app.dryrun"
+        applicationId = "app.dryrun.tutor"
         // minSdk 24 (Android 7.0) is the highest any plugin needs (flutter_local_notifications,
         // flutter_secure_storage, shared_preferences, url_launcher). It was 31 while voice relied
         // on the on-device recognizer, which needs API 31; the app now binds the default
@@ -48,6 +48,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["deepLinkScheme"] = "dryruntutor"
     }
 
     signingConfigs {
@@ -61,55 +62,12 @@ android {
         }
     }
 
-    // Two installable apps from one codebase. `prod` is the published
-    // identity and must never change. `dev` installs beside it. Which
-    // relay a build talks to is NOT decided here; that is
-    // --dart-define-from-file=config/{dev,prod}.json (lib/core/config/flavor.dart).
-    flavorDimensions += "app"
-    productFlavors {
-        create("dev") {
-            dimension = "app"
-            applicationIdSuffix = ".dev"
-            manifestPlaceholders["deepLinkScheme"] = "dryrun-dev"
-            // Every dev build type, release included, is debug-signed, so
-            // the upload key can never sign an app.dryrun.dev APK.
-            signingConfig = signingConfigs.getByName("debug")
-        }
-        create("prod") {
-            dimension = "app"
-            manifestPlaceholders["deepLinkScheme"] = "dryrun"
-            // Build-type signingConfig wins over the flavor's, and the
-            // debug build type keeps debug signing, so only prodRelease
-            // uses this.
-            signingConfig = signingConfigs.getByName("release")
-        }
-    }
-
     buildTypes {
         release {
-            // Release signing is set on the `prod` flavor above, not here: a
-            // build-type signingConfig would also sign devRelease with the upload
-            // key. The gradle.taskGraph.whenReady guard below fails prodRelease
-            // without android/key.properties (FR-023).
+            // Upload-key signing when android/key.properties exists; otherwise
+            // the debug key, so a release APK builds on any machine.
+            signingConfig = signingConfigs.getByName(if (hasKeyProperties) "release" else "debug")
         }
-    }
-}
-
-gradle.taskGraph.whenReady {
-    // Match the tasks that build or package prodRelease, not every task whose
-    // name contains "ProdRelease": AGP's lifecycle task preProdReleaseBuild is
-    // in the graph of every release build, devRelease included.
-    val buildsProdRelease = allTasks.any {
-        it.name.endsWith("ProdRelease") &&
-            (it.name.startsWith("assemble") || it.name.startsWith("bundle") || it.name.startsWith("package"))
-    }
-    if (!hasKeyProperties && buildsProdRelease) {
-        throw GradleException(
-            "prod release build requires android/key.properties (storeFile, storePassword, keyAlias, " +
-                "keyPassword) — FR-023. Generate a keystore and create that file (SHIP.md §3/§8); " +
-                "a release build must never silently fall back to debug signing. " +
-                "(dev release builds are debug-signed and need no keystore.)"
-        )
     }
 }
 

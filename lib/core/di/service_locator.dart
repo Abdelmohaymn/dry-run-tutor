@@ -28,8 +28,6 @@ import '../../features/voice/domain/mic_rationale_repository.dart';
 import '../../features/voice/domain/recognition_service.dart';
 import '../../features/voice/domain/spoken_language_repository.dart';
 import '../analytics/analytics_client.dart';
-import '../config/brand.dart';
-import '../config/flavor.dart';
 import '../config/remote_config_repository.dart';
 import '../db/app_database.dart';
 import '../errors/result.dart';
@@ -61,7 +59,9 @@ Future<void> setupLocator() async {
   sl.registerSingletonAsync<SharedPreferences>(SharedPreferences.getInstance);
   sl.registerSingletonAsync<AppDatabase>(() async => AppDatabase());
 
-  sl.registerLazySingleton<TrustedTimePlatform>(() => MethodChannelTrustedTimePlatform());
+  sl.registerLazySingleton<TrustedTimePlatform>(
+    () => MethodChannelTrustedTimePlatform(),
+  );
   sl.registerLazySingleton<TrustedTimeAnchorStore>(
     () => SharedPreferencesTrustedTimeAnchorStore(sl<SharedPreferences>()),
   );
@@ -74,13 +74,13 @@ Future<void> setupLocator() async {
       anchorStore: sl<TrustedTimeAnchorStore>(),
     ),
   );
-  sl.registerLazySingleton<TrustedTimeSource>(() => sl<TrustedTimeSourceImpl>());
+  sl.registerLazySingleton<TrustedTimeSource>(
+    () => sl<TrustedTimeSourceImpl>(),
+  );
 
   sl.registerLazySingleton<Dio>(
-    () => buildDioClient(
-      flavor: currentFlavor,
-      onServerDate: sl<TrustedTimeSourceImpl>().onServerDate,
-    ),
+    () =>
+        buildDioClient(onServerDate: sl<TrustedTimeSourceImpl>().onServerDate),
   );
   sl.registerLazySingleton<RelayClient>(() => RelayClient(sl<Dio>()));
 
@@ -117,20 +117,20 @@ Future<void> setupLocator() async {
     ),
   );
   sl.registerLazySingleton<AnalyticsClient>(
-    () => shouldSendAnalytics(isDevApp: AppBrand.isDevApp, backend: currentFlavor)
-        ? AnalyticsClientImpl(
-            eventDao: sl<AppDatabase>().eventDao,
-            timeSource: sl<TrustedTimeSource>(),
-            relayClient: sl<RelayClient>(),
-            resolveInstallId: () async {
-              final result = await sl<InstallRepository>().ensureIdentity();
-              return switch (result) {
-                Ok(:final value) => value.installId,
-                Err() => throw StateError('no install identity to drain analytics with'),
-              };
-            },
-          )
-        : const NoopAnalyticsClient(),
+    () => AnalyticsClientImpl(
+      eventDao: sl<AppDatabase>().eventDao,
+      timeSource: sl<TrustedTimeSource>(),
+      relayClient: sl<RelayClient>(),
+      resolveInstallId: () async {
+        final result = await sl<InstallRepository>().ensureIdentity();
+        return switch (result) {
+          Ok(:final value) => value.installId,
+          Err() => throw StateError(
+            'no install identity to drain analytics with',
+          ),
+        };
+      },
+    ),
   );
   sl.registerLazySingleton<DailyRepository>(
     () => DailyRepositoryImpl(
@@ -141,10 +141,16 @@ Future<void> setupLocator() async {
     ),
   );
   sl.registerLazySingleton<StreakRepository>(
-    () => StreakRepositoryImpl(streakDao: sl<AppDatabase>().streakDao, timeSource: sl<TrustedTimeSource>()),
+    () => StreakRepositoryImpl(
+      streakDao: sl<AppDatabase>().streakDao,
+      timeSource: sl<TrustedTimeSource>(),
+    ),
   );
   sl.registerLazySingleton<OutboxRepository>(
-    () => OutboxRepositoryImpl(outboxDao: sl<AppDatabase>().outboxDao, timeSource: sl<TrustedTimeSource>()),
+    () => OutboxRepositoryImpl(
+      outboxDao: sl<AppDatabase>().outboxDao,
+      timeSource: sl<TrustedTimeSource>(),
+    ),
   );
   // Eager, not lazy: `allReady()` initializes only eagerly-registered async
   // singletons, so a lazy one is still unready when `OutboxDrainBloc` and
@@ -219,7 +225,9 @@ Future<void> setupLocator() async {
         final result = await sl<InstallRepository>().ensureIdentity();
         return switch (result) {
           Ok(:final value) => value.installId,
-          Err() => throw StateError('no install identity to drain the outbox with'),
+          Err() => throw StateError(
+            'no install identity to drain the outbox with',
+          ),
         };
       },
       resolveKeyedHeaders: (session) async {

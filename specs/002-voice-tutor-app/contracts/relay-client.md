@@ -7,9 +7,8 @@ and changes nothing about it. Where the app has a choice, the choice is recorded
 the requirement is cited.
 
 **One host, and that is enforced.** `HostAllowlistInterceptor` rejects any request whose host is not
-the configured relay before it reaches the socket (FR-004, Principle VI). Base URL by flavor:
-`https://dry-run-tutor-dev.example.workers.dev` (dev),
-`https://api.example.com` (prod).
+the configured relay before it reaches the socket (FR-004, Principle VI). Base URL:
+`https://dry-run-tutor.example.workers.dev` (`lib/core/config/relay.dart`).
 
 ---
 

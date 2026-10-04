@@ -27,19 +27,18 @@ after the first is new work.
 | `worker/` | The Cloudflare Worker relay — seven endpoints, frozen wire contract (feature 001) |
 | `content/problems/` | Sample problems, `public`/`private` split; the private half never leaves the server |
 | `specs/` | Wire and design contracts the code and tests read |
-| `config/` | `dev.json` / `prod.json` — the relay URL per environment (placeholders) |
 
 ## Running it
 
 ```bash
 flutter pub get
-flutter run --flavor dev --dart-define-from-file=config/dev.json
+flutter run
 ```
 
-`--flavor` picks the app: `dev` is "Dry Run Dev" (`app.dryrun.dev`), which installs beside the
-store app; `prod` is `app.dryrun`. `--dart-define-from-file` picks the relay (`config/dev.json`
-or `config/prod.json`), so either app can talk to either API. `lib/core/config/brand.dart` holds the product name and every
-identifier derived from it.
+One app (`app.dryrun.tutor`), one relay: `lib/core/config/relay.dart` holds the deployed worker URL.
+Pass `--dart-define=RELAY_BASE_URL=https://...` to point a build at another worker.
+`lib/core/config/brand.dart` holds the product name and every identifier derived from it.
+Release builds use `android/key.properties` if present, otherwise the debug key.
 
 ## Tests
 

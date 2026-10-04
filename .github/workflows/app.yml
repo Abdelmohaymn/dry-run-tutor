@@ -56,6 +56,6 @@ jobs:
           SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
           mkdir -p "$SDK_ROOT/platforms"
           ln -sfn android-37.0 "$SDK_ROOT/platforms/android-37"
-      - run: flutter build apk --flavor dev --debug --dart-define-from-file=config/dev.json
-      # No key.properties on the runner: this must stay green (dev is debug-signed for every build type).
-      - run: flutter build apk --flavor dev --release --dart-define-from-file=config/dev.json
+      - run: flutter build apk --debug
+      # No key.properties on the runner: release falls back to debug signing.
+      - run: flutter build apk --release

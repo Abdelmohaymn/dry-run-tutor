@@ -7,7 +7,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' show AppLifecycleListener, AppLifecycleState, WidgetsBinding;
 import 'package:uuid/uuid.dart';
 
-import '../config/flavor.dart';
 import '../db/app_database.dart';
 import '../db/dao/event_dao.dart';
 import '../network/dto/event_dto.dart';
@@ -217,18 +216,3 @@ class AnalyticsClientImpl implements AnalyticsClient {
     _lifecycleListener?.dispose();
   }
 }
-
-/// Bound instead of [AnalyticsClientImpl] when a dev-app build talks to
-/// the prod relay, so developer sessions never land in prod's events
-/// table. Buffers nothing and sends nothing.
-class NoopAnalyticsClient implements AnalyticsClient {
-  const NoopAnalyticsClient();
-
-  @override
-  void emit(EventName name, {Map<String, Object>? props}) {}
-}
-
-/// False only for the dev app on the prod relay. The prod app always
-/// reports; the dev app reports to the dev relay.
-bool shouldSendAnalytics({required bool isDevApp, required Flavor backend}) =>
-    !(isDevApp && backend == Flavor.prod);

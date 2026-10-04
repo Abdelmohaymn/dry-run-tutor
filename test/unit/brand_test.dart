@@ -5,19 +5,12 @@
 // misses one of those does not fail to compile — it ships a wrong launcher
 // label, or a deep link that silently resolves to nothing.
 //
-// The Android side now has two flavors, `dev` and `prod`. `dev` adds an
-// applicationId suffix, its own launcher label ("<name> Dev") and its own
-// deep-link scheme, so the two can be installed side by side. The prod values
-// live in `defaultConfig`/`main`; the dev overrides live in the `dev`
-// productFlavor and `android/app/src/dev`. Both sets are asserted here.
-//
 // This is the structural peer of `no_answer_format_test.dart` (T166) and
 // `cubit_actions_reachable_test.dart` (T169): assert across the boundary the
 // type system cannot see.
 import 'dart:io';
 
 import 'package:dry_run/core/config/brand.dart';
-import 'package:flutter/services.dart' show appFlavor;
 import 'package:flutter_test/flutter_test.dart';
 
 String _read(String path) {
@@ -37,28 +30,12 @@ void main() {
     );
   });
 
-  test('dev strings.xml app_name is "<name> Dev"', () {
-    final String xml = _read('android/app/src/dev/res/values/strings.xml');
-    expect(
-      xml,
-      contains('<string name="app_name">${AppBrand.name} Dev</string>'),
-      reason: 'The dev flavor overrides the launcher label so both apps can be told apart.',
-    );
-  });
-
   test('build.gradle.kts identity matches AppBrand', () {
     final String gradle = _read('android/app/build.gradle.kts');
-    expect(gradle, contains('applicationId = "${AppBrand.prodPackageId}"'));
+    expect(gradle, contains('applicationId = "${AppBrand.packageId}"'));
     expect(gradle, contains('namespace = "${AppBrand.androidNamespace}"'));
-    expect(gradle, contains('applicationIdSuffix = "${AppBrand.devApplicationIdSuffix}"'));
-    expect(
-      gradle,
-      contains('manifestPlaceholders["deepLinkScheme"] = "${AppBrand.devDeepLinkScheme}"'),
-    );
-    expect(
-      gradle,
-      contains('manifestPlaceholders["deepLinkScheme"] = "${AppBrand.prodDeepLinkScheme}"'),
-    );
+    expect(gradle, contains('manifestPlaceholders["deepLinkScheme"] = "${AppBrand.deepLinkScheme}"'));
+    expect(gradle, isNot(contains('productFlavors')), reason: 'The app has one identity; no flavors.');
   });
 
   test('the Kotlin sources declare AppBrand.androidNamespace as their package', () {
@@ -98,7 +75,7 @@ void main() {
     }
   });
 
-  test('AndroidManifest takes the deep-link scheme from the flavor placeholder', () {
+  test('AndroidManifest takes the deep-link scheme from the build.gradle.kts placeholder', () {
     final String manifest = _read('android/app/src/main/AndroidManifest.xml');
     expect(
       manifest,
@@ -108,20 +85,9 @@ void main() {
     );
   });
 
-  test('AppBrand identity follows the Android flavor', () {
-    // `flutter test` runs as `dev` (default-flavor); under `--flavor prod` the
-    // same assertions must hold, so nothing here hardcodes one flavor.
-    expect(AppBrand.isDevApp, appFlavor == 'dev');
-    expect(
-      AppBrand.packageId,
-      AppBrand.isDevApp ? AppBrand.devPackageId : AppBrand.prodPackageId,
-    );
-    expect(
-      AppBrand.deepLinkScheme,
-      AppBrand.isDevApp ? AppBrand.devDeepLinkScheme : AppBrand.prodDeepLinkScheme,
-    );
-    expect(AppBrand.devPackageId, 'app.dryrun.dev');
-    expect(AppBrand.prodPackageId, 'app.dryrun');
+  test('AppBrand identity', () {
+    expect(AppBrand.packageId, 'app.dryrun.tutor');
+    expect(AppBrand.deepLinkScheme, 'dryruntutor');
     expect(AppBrand.channelPrefix, 'app.dryrun');
   });
 

@@ -4,7 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart';
 
-import '../config/flavor.dart';
+import '../config/relay.dart';
 import 'host_allowlist_interceptor.dart';
 import 'redacting_log_interceptor.dart';
 import 'server_date_interceptor.dart';
@@ -31,13 +31,12 @@ const String _captureProxy = String.fromEnvironment('CAPTURE_PROXY');
 /// R-003) without this file depending on `core/time` — the callback is
 /// supplied by whoever assembles the client at the composition root.
 Dio buildDioClient({
-  required Flavor flavor,
   required void Function(DateTime serverDate) onServerDate,
 }) {
-  final Uri base = Uri.parse(flavor.baseUrl);
+  final Uri base = Uri.parse(relayBaseUrl);
   final Dio dio = Dio(
     BaseOptions(
-      baseUrl: flavor.baseUrl,
+      baseUrl: relayBaseUrl,
       connectTimeout: const Duration(seconds: 10),
       // Deliberately longer than the relay's own per-provider timeout
       // (`worker/src/lib/provider-groq.ts`'s REQUEST_TIMEOUT_MS, 30s), and

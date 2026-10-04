@@ -11,9 +11,9 @@ void main() {
   late Dio dio;
 
   setUp(() {
-    dio = Dio(BaseOptions(baseUrl: 'https://dry-run-tutor-dev.example.workers.dev'));
+    dio = Dio(BaseOptions(baseUrl: 'https://dry-run-tutor.example.workers.dev'));
     dio.interceptors.add(
-      HostAllowlistInterceptor(allowedHost: 'dry-run-tutor-dev.example.workers.dev'),
+      HostAllowlistInterceptor(allowedHost: 'dry-run-tutor.example.workers.dev'),
     );
     // No transport is configured, so any request that gets past the
     // allowlist would fail on a real socket call rather than silently
@@ -46,7 +46,7 @@ void main() {
     );
   });
 
-  test('a request to api.example.com throws when dev is configured', () async {
+  test('a request to api.example.com throws', () async {
     await expectLater(
       dio.get<dynamic>('https://api.example.com/v1/config'),
       throwsA(isA<DioException>()),

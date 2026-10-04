@@ -257,7 +257,7 @@ GoRouter buildAppRouter({
         name: AppRoute.settingsWipe.path,
         builder: (_, _) => const WipeScreen(),
       ),
-      // T127: `dryrun://p/<problem_id>` always opens *today's*
+      // T127: `dryruntutor://p/<problem_id>` always opens *today's*
       // problem — deliberately not a way into a past day, so the id
       // itself is never read back out of the location. Handles the
       // cold-launch case (Flutter's engine parses the Intent data URI

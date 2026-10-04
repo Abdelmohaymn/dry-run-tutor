@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/l10n/generated/app_localizations.dart';
 import '../../../core/router/app_route.dart';
 import '../../../core/theme/app_theme.dart';
-import 'backend_badge.dart';
 
 /// `/settings` — three rows, each its own screen (FR-006, FR-048a,
 /// FR-039f). The prototype draws no settings screen at all (spec.md's
@@ -19,9 +18,6 @@ class SettingsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.settingsScreenTitle),
-        actions: const <Widget>[
-          Padding(padding: EdgeInsets.only(right: 16), child: Center(child: BackendBadge())),
-        ],
       ),
       body: SafeArea(
         child: ListView(

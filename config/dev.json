@@ -1,7 +1,0 @@
-{
-  "_comment": "Dev environment. Switch with: flutter run --flavor dev --dart-define-from-file=config/dev.json",
-  "_relay": "RELAY_BASE_URL must be a bare https origin — no path, no query. lib/core/config/flavor.dart falls back to its own compiled-in default if this is missing or malformed, and dio_client.dart pins HostAllowlistInterceptor to whichever host wins, so the app still dials exactly one host (FR-004).",
-  "_placeholder": "Set RELAY_BASE_URL to your own dev worker origin.",
-  "FLAVOR": "dev",
-  "RELAY_BASE_URL": "https://dry-run-tutor-dev.example.workers.dev"
-}

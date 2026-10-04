@@ -13,8 +13,7 @@ import 'package:dio/dio.dart';
 class HostAllowlistInterceptor extends Interceptor {
   HostAllowlistInterceptor({required this.allowedHost});
 
-  /// The one host this dio instance may ever reach — the relay's host for
-  /// the current flavor.
+  /// The one host this dio instance may ever reach — the relay's host.
   final String allowedHost;
 
   @override

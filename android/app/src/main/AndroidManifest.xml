@@ -40,7 +40,7 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- dryrun:// in prod, dryrun-dev:// in dev; set per flavor in build.gradle.kts. -->
+            <!-- dryruntutor://; set in build.gradle.kts. -->
             <intent-filter android:autoVerify="false">
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
