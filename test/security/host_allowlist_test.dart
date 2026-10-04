@@ -11,9 +11,9 @@ void main() {
   late Dio dio;
 
   setUp(() {
-    dio = Dio(BaseOptions(baseUrl: 'https://dry-run-tutor.example.workers.dev'));
+    dio = Dio(BaseOptions(baseUrl: 'https://dry-run-tutor.dryrun-app.workers.dev'));
     dio.interceptors.add(
-      HostAllowlistInterceptor(allowedHost: 'dry-run-tutor.example.workers.dev'),
+      HostAllowlistInterceptor(allowedHost: 'dry-run-tutor.dryrun-app.workers.dev'),
     );
     // No transport is configured, so any request that gets past the
     // allowlist would fail on a real socket call rather than silently

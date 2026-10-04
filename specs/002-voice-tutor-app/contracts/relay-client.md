@@ -8,7 +8,7 @@ the requirement is cited.
 
 **One host, and that is enforced.** `HostAllowlistInterceptor` rejects any request whose host is not
 the configured relay before it reaches the socket (FR-004, Principle VI). Base URL:
-`https://dry-run-tutor.example.workers.dev` (`lib/core/config/relay.dart`).
+`https://dry-run-tutor.dryrun-app.workers.dev` (`lib/core/config/relay.dart`).
 
 ---
 

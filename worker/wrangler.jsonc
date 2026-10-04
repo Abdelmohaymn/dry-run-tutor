@@ -42,7 +42,7 @@
         {
           "binding": "DB",
           "database_name": "dry-run-tutor",
-          "database_id": "00000000-0000-0000-0000-000000000000",
+          "database_id": "32d250f0-a163-4051-b93d-b18f72904238",
           "migrations_dir": "migrations"
         }
       ],
