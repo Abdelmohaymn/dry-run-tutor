@@ -667,7 +667,7 @@ abstract class AppLocalizations {
   /// Explains the free-forever model without pressuring an immediate decision.
   ///
   /// In en, this message translates to:
-  /// **'Your free taster is done. Add your own key from a provider\'s free tier to keep going. {appName} never charges you.'**
+  /// **'Your free taster is done. Add your own Nebius key to keep going; new accounts get \$1 of free credit. {appName} never charges you.'**
   String wallBody(String appName);
 
   /// Routes to /keys/entry.
@@ -691,7 +691,7 @@ abstract class AppLocalizations {
   /// States where the key lives (FR-005d) before asking for it.
   ///
   /// In en, this message translates to:
-  /// **'Pick a provider and paste a key from its free tier. The key stays on this phone.'**
+  /// **'Paste a Nebius Token Factory API key. New accounts get \$1 of free credit. The key stays on this phone.'**
   String get keyEntryIntro;
 
   /// config.keyed_providers came back empty — a fail-open case, not a crash.
@@ -709,7 +709,7 @@ abstract class AppLocalizations {
   /// Link to the chosen provider's own key console.
   ///
   /// In en, this message translates to:
-  /// **'Get a free {provider} key'**
+  /// **'Get a {provider} key (\$1 free credit)'**
   String keyEntryGetFreeKey(String provider);
 
   /// The key input field. obscureText — never shown in the clear once pasted.
@@ -739,7 +739,7 @@ abstract class AppLocalizations {
   /// Explains why the key is being asked for, and that it cannot cost anything, before the form is offered.
   ///
   /// In en, this message translates to:
-  /// **'You\'ve used the one free session {appName} provides. Add a key from a provider\'s free tier to keep going. It stays on this phone, and {appName} never charges you.'**
+  /// **'You\'ve used the one free session {appName} provides. Add your own Nebius key to keep going; new accounts get \$1 of free credit. It stays on this phone, and {appName} never charges you.'**
   String keyPromptTrialBody(String appName);
 
   /// TRIAL_UNAVAILABLE prompt dialog heading — the shared taster is full for everyone today, not this learner's allowance.
@@ -751,7 +751,7 @@ abstract class AppLocalizations {
   /// Must never borrow QUOTA_EXHAUSTED copy — this is capacity, not an allowance the learner spent.
   ///
   /// In en, this message translates to:
-  /// **'Today\'s free taster is full, for everyone using {appName} today. Add a key from a provider\'s free tier and start now. It stays on this phone, and {appName} never charges you.'**
+  /// **'Today\'s free taster is full, for everyone using {appName} today. Add your own Nebius key and start now; new accounts get \$1 of free credit. It stays on this phone, and {appName} never charges you.'**
   String keyPromptTrialUnavailableBody(String appName);
 
   /// QUOTA_EXHAUSTED popup heading (FR-008d) — the learner's own key hit its provider limit.
@@ -763,7 +763,7 @@ abstract class AppLocalizations {
   /// Leads with the reset and the no-charge fact before offering the replace action (ErrorNextAction.waitOrReplaceKey).
   ///
   /// In en, this message translates to:
-  /// **'Your daily allowance with this provider is used up. It resets on its own, and nothing was charged. Wait for it, or add a key from another provider.'**
+  /// **'Your Nebius credit or rate limit is used up. Add credit in your Nebius account, or wait a bit and try again.'**
   String get keyPromptQuotaBody;
 
   /// Primary action on the trial prompts — pushes /keys/entry so the conversation is still behind it.

@@ -343,7 +343,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String wallBody(String appName) {
-    return 'Your free taster is done. Add your own key from a provider\'s free tier to keep going. $appName never charges you.';
+    return 'Your free taster is done. Add your own Nebius key to keep going; new accounts get \$1 of free credit. $appName never charges you.';
   }
 
   @override
@@ -357,7 +357,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get keyEntryIntro =>
-      'Pick a provider and paste a key from its free tier. The key stays on this phone.';
+      'Paste a Nebius Token Factory API key. New accounts get \$1 of free credit. The key stays on this phone.';
 
   @override
   String get keyEntryNoProviders =>
@@ -370,7 +370,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String keyEntryGetFreeKey(String provider) {
-    return 'Get a free $provider key';
+    return 'Get a $provider key (\$1 free credit)';
   }
 
   @override
@@ -388,7 +388,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String keyPromptTrialBody(String appName) {
-    return 'You\'ve used the one free session $appName provides. Add a key from a provider\'s free tier to keep going. It stays on this phone, and $appName never charges you.';
+    return 'You\'ve used the one free session $appName provides. Add your own Nebius key to keep going; new accounts get \$1 of free credit. It stays on this phone, and $appName never charges you.';
   }
 
   @override
@@ -396,7 +396,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String keyPromptTrialUnavailableBody(String appName) {
-    return 'Today\'s free taster is full, for everyone using $appName today. Add a key from a provider\'s free tier and start now. It stays on this phone, and $appName never charges you.';
+    return 'Today\'s free taster is full, for everyone using $appName today. Add your own Nebius key and start now; new accounts get \$1 of free credit. It stays on this phone, and $appName never charges you.';
   }
 
   @override
@@ -404,7 +404,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get keyPromptQuotaBody =>
-      'Your daily allowance with this provider is used up. It resets on its own, and nothing was charged. Wait for it, or add a key from another provider.';
+      'Your Nebius credit or rate limit is used up. Add credit in your Nebius account, or wait a bit and try again.';
 
   @override
   String get keyPromptAddAction => 'Add your key';

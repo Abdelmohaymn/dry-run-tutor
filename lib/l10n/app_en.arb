@@ -410,7 +410,7 @@
   "@wallCannotBeCharged": {
     "description": "The wall's lead line (prototype screen 10) — the one fact most likely to matter first (FR-005a)."
   },
-  "wallBody": "Your free taster is done. Add your own key from a provider's free tier to keep going. {appName} never charges you.",
+  "wallBody": "Your free taster is done. Add your own Nebius key to keep going; new accounts get $1 of free credit. {appName} never charges you.",
   "@wallBody": {
     "description": "Explains the free-forever model without pressuring an immediate decision.",
     "placeholders": {
@@ -431,7 +431,7 @@
   "@keyEntryTitle": {
     "description": "Key entry screen heading (prototype screen 11)."
   },
-  "keyEntryIntro": "Pick a provider and paste a key from its free tier. The key stays on this phone.",
+  "keyEntryIntro": "Paste a Nebius Token Factory API key. New accounts get $1 of free credit. The key stays on this phone.",
   "@keyEntryIntro": {
     "description": "States where the key lives (FR-005d) before asking for it."
   },
@@ -448,7 +448,7 @@
       }
     }
   },
-  "keyEntryGetFreeKey": "Get a free {provider} key",
+  "keyEntryGetFreeKey": "Get a {provider} key ($1 free credit)",
   "@keyEntryGetFreeKey": {
     "description": "Link to the chosen provider's own key console.",
     "placeholders": {
@@ -473,7 +473,7 @@
   "@keyPromptTrialTitle": {
     "description": "TRIAL_CONSUMED prompt dialog heading (FR-007). Shown over the conversation instead of dropping the learner on the key form unannounced."
   },
-  "keyPromptTrialBody": "You've used the one free session {appName} provides. Add a key from a provider's free tier to keep going. It stays on this phone, and {appName} never charges you.",
+  "keyPromptTrialBody": "You've used the one free session {appName} provides. Add your own Nebius key to keep going; new accounts get $1 of free credit. It stays on this phone, and {appName} never charges you.",
   "@keyPromptTrialBody": {
     "description": "Explains why the key is being asked for, and that it cannot cost anything, before the form is offered.",
     "placeholders": {
@@ -486,7 +486,7 @@
   "@keyPromptTrialUnavailableTitle": {
     "description": "TRIAL_UNAVAILABLE prompt dialog heading — the shared taster is full for everyone today, not this learner's allowance."
   },
-  "keyPromptTrialUnavailableBody": "Today's free taster is full, for everyone using {appName} today. Add a key from a provider's free tier and start now. It stays on this phone, and {appName} never charges you.",
+  "keyPromptTrialUnavailableBody": "Today's free taster is full, for everyone using {appName} today. Add your own Nebius key and start now; new accounts get $1 of free credit. It stays on this phone, and {appName} never charges you.",
   "@keyPromptTrialUnavailableBody": {
     "description": "Must never borrow QUOTA_EXHAUSTED copy — this is capacity, not an allowance the learner spent.",
     "placeholders": {
@@ -499,7 +499,7 @@
   "@keyPromptQuotaTitle": {
     "description": "QUOTA_EXHAUSTED popup heading (FR-008d) — the learner's own key hit its provider limit."
   },
-  "keyPromptQuotaBody": "Your daily allowance with this provider is used up. It resets on its own, and nothing was charged. Wait for it, or add a key from another provider.",
+  "keyPromptQuotaBody": "Your Nebius credit or rate limit is used up. Add credit in your Nebius account, or wait a bit and try again.",
   "@keyPromptQuotaBody": {
     "description": "Leads with the reset and the no-charge fact before offering the replace action (ErrorNextAction.waitOrReplaceKey)."
   },

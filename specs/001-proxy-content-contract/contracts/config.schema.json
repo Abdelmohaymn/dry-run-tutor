@@ -75,10 +75,10 @@
       }
     },
     "model": { "type": "string", "default": "openai/gpt-oss-120b", "description": "Not a constant. Free-tier catalogues churn." },
-    "provider": { "type": "string", "enum": ["groq", "openrouter", "gemini"], "default": "groq", "description": "Default for a learner-keyed request that names no provider. NOT the only provider: the learner picks by picking which key to paste (FR-008b), and `X-Provider` on /v1/chat and /v1/judge selects among `keyed_providers`." },
+    "provider": { "type": "string", "enum": ["groq", "openrouter", "gemini", "nebius"], "default": "groq", "description": "Default for a learner-keyed request that names no provider. NOT the only provider: the learner picks by picking which key to paste (FR-008b), and `X-Provider` on /v1/chat and /v1/judge selects among `keyed_providers`." },
     "keyed_providers": {
       "type": "array",
-      "items": { "type": "string", "enum": ["groq", "openrouter", "gemini"] },
+      "items": { "type": "string", "enum": ["groq", "openrouter", "gemini", "nebius"] },
       "minItems": 1,
       "description": "Which providers a learner may bring a key for, in the order key entry should offer them. Served verbatim by GET /v1/config so the app's provider list changes with no release. An `X-Provider` value outside this list is BAD_REQUEST — a provider the operator has not offered is refused, not silently redirected. Absent means the single `provider` value, which is the pre-per-key-routing behaviour.",
       "default": ["groq"]

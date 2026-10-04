@@ -21,11 +21,13 @@ import 'key_entry_state.dart';
 const Map<String, String> _freeKeyUrls = <String, String>{
   'groq': 'https://console.groq.com/keys',
   'gemini': 'https://aistudio.google.com/apikey',
+  'nebius': 'https://tokenfactory.nebius.com',
 };
 
 const Map<String, String> providerDisplayNames = <String, String>{
   'groq': 'Groq',
   'gemini': 'Gemini',
+  'nebius': 'Nebius',
 };
 
 /// The provider picker, disclosure, free-key link and key field shared by

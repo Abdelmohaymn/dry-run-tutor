@@ -73,4 +73,5 @@ export const KEYED_PROVIDER_BASE_URLS: Record<string, string> = {
   groq: "https://api.groq.com/openai/v1",
   openrouter: "https://openrouter.ai/api/v1",
   gemini: "https://generativelanguage.googleapis.com/v1beta/openai",
+  nebius: "https://api.tokenfactory.nebius.com/v1",
 };

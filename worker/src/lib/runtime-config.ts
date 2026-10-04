@@ -78,14 +78,14 @@ export const runtimeConfigSchema = z
       })
       .strict(),
     model: z.string(),
-    provider: z.enum(["groq", "openrouter", "gemini"]),
+    provider: z.enum(["groq", "openrouter", "gemini", "nebius"]),
     /**
      * Which providers a learner may bring a key for, in the order the app
      * should offer them (FR-008a). Served verbatim by GET /v1/config so key
      * entry can list them without an app release. Defaults to the single
      * `provider` value, which is the pre-per-key-routing behaviour.
      */
-    keyed_providers: z.array(z.enum(["groq", "openrouter", "gemini"])).min(1).optional(),
+    keyed_providers: z.array(z.enum(["groq", "openrouter", "gemini", "nebius"])).min(1).optional(),
     providers: z.record(z.string(), keyedProviderSchema).optional(),
     repair: repairSchema.optional(),
     /**
