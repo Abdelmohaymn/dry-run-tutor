@@ -2,7 +2,7 @@ name: dry_run
 description: "Dry Run — talk through one coding-interview problem a day with a Socratic tutor that already knows the answer and will not hand it over."
 publish_to: 'none'
 
-version: 1.0.3+4
+version: 1.0.0+1
 
 environment:
   sdk: ^3.11.1

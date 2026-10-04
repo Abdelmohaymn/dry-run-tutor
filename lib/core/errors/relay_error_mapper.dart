@@ -55,6 +55,7 @@ RelayError mapErrorEnvelope(
       ),
     'EMPTY_TURN' => const RelayError.emptyTurn(),
     'TRIAL_UNAVAILABLE' => const RelayError.trialUnavailable(),
+    'TRIAL_IP_LIMIT' => const RelayError.trialIpLimited(),
     'PROBLEM_KILLED' => RelayError.problemKilled(problemId: requestProblemId),
     'BAD_REQUEST' => const RelayError.badRequest(),
     // The catalogue is closed at eleven codes; an unrecognised one is a

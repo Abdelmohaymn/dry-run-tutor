@@ -230,6 +230,23 @@ void main() {
     );
   });
 
+  testWidgets('the per-network daily cap offers key entry with its own copy', (
+    WidgetTester tester,
+  ) async {
+    final DailySessionCubit cubit = _cubit();
+    addTearDown(cubit.close);
+
+    final GoRouter router = await _pump(tester, cubit);
+    cubit.emit(DailySessionState.failure(_session(), const RelayError.trialIpLimited()));
+    await tester.pumpAndSettle();
+
+    final AppLocalizations l10n = _l10n(tester);
+    expect(find.text(l10n.keyPromptTrialIpLimitedTitle), findsOneWidget);
+    expect(find.text(l10n.keyPromptAddAction), findsOneWidget);
+    expect(find.text(l10n.keyPromptTrialUnavailableTitle), findsNothing);
+    expect(_location(router), AppRoute.daily.path);
+  });
+
   testWidgets('the dialog is raised once per reason — dismissing it keeps it dismissed', (
     WidgetTester tester,
   ) async {

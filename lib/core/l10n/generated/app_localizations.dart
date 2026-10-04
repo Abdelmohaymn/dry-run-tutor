@@ -352,6 +352,12 @@ abstract class AppLocalizations {
   /// **'Code: {code}'**
   String errorCodeLabel(String code);
 
+  /// TRIAL_IP_LIMIT. This network hit its daily free-session cap; not an outage.
+  ///
+  /// In en, this message translates to:
+  /// **'Free sessions from this network are used up for today. Add your own Nebius key to keep going.'**
+  String get errTrialIpLimited;
+
   /// TRIAL_UNAVAILABLE. Capacity, never an outage or a fault of the learner's (FR-007 scenario 4).
   ///
   /// In en, this message translates to:
@@ -753,6 +759,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Today\'s free taster is full, for everyone using {appName} today. Add your own Nebius key and start now; new accounts get \$1 of free credit. It stays on this phone, and {appName} never charges you.'**
   String keyPromptTrialUnavailableBody(String appName);
+
+  /// TRIAL_IP_LIMIT prompt dialog heading — this network started its daily allowance of free sessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s free sessions are used up'**
+  String get keyPromptTrialIpLimitedTitle;
+
+  /// TRIAL_IP_LIMIT prompt body. Not capacity for everyone, and not the learner's own key allowance.
+  ///
+  /// In en, this message translates to:
+  /// **'Free sessions from this network are used up for today. Add your own Nebius key to keep going; new accounts get \$1 of free credit. It stays on this phone, and {appName} never charges you.'**
+  String keyPromptTrialIpLimitedBody(String appName);
 
   /// QUOTA_EXHAUSTED popup heading (FR-008d) — the learner's own key hit its provider limit.
   ///

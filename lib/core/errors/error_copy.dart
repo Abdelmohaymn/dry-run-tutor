@@ -121,6 +121,10 @@ ErrorCopy resolveErrorCopy(AppLocalizations l10n, RelayError error) {
         l10n.errTrialUnavailable,
         ErrorNextAction.goToKeyEntry,
       ),
+    TrialIpLimited() => (
+        l10n.errTrialIpLimited,
+        ErrorNextAction.goToKeyEntry,
+      ),
     ProblemKilled() => (
         l10n.errProblemKilled,
         ErrorNextAction.problemSwapped,

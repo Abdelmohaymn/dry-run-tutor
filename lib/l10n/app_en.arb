@@ -192,6 +192,10 @@
       }
     }
   },
+  "errTrialIpLimited": "Free sessions from this network are used up for today. Add your own Nebius key to keep going.",
+  "@errTrialIpLimited": {
+    "description": "TRIAL_IP_LIMIT. This network hit its daily free-session cap; not an outage."
+  },
   "errTrialUnavailable": "The free taster is full today. Add your key and start now. You can't be charged.",
   "@errTrialUnavailable": {
     "description": "TRIAL_UNAVAILABLE. Capacity, never an outage or a fault of the learner's (FR-007 scenario 4)."
@@ -489,6 +493,19 @@
   "keyPromptTrialUnavailableBody": "Today's free taster is full, for everyone using {appName} today. Add your own Nebius key and start now; new accounts get $1 of free credit. It stays on this phone, and {appName} never charges you.",
   "@keyPromptTrialUnavailableBody": {
     "description": "Must never borrow QUOTA_EXHAUSTED copy — this is capacity, not an allowance the learner spent.",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "keyPromptTrialIpLimitedTitle": "Today's free sessions are used up",
+  "@keyPromptTrialIpLimitedTitle": {
+    "description": "TRIAL_IP_LIMIT prompt dialog heading — this network started its daily allowance of free sessions."
+  },
+  "keyPromptTrialIpLimitedBody": "Free sessions from this network are used up for today. Add your own Nebius key to keep going; new accounts get $1 of free credit. It stays on this phone, and {appName} never charges you.",
+  "@keyPromptTrialIpLimitedBody": {
+    "description": "TRIAL_IP_LIMIT prompt body. Not capacity for everyone, and not the learner's own key allowance.",
     "placeholders": {
       "appName": {
         "type": "String"

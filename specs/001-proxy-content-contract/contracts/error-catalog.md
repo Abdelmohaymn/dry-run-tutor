@@ -2,7 +2,7 @@
 
 **Feature**: 001-proxy-content-contract | **Date**: 2026-08-20
 
-Eleven codes. **This list is closed.** `worker/src/lib/errors.ts` exports exactly these and nothing else; a test asserts the exported union has eleven members. No provider error body, status line, or stack trace ever reaches the caller (FR-039, SC-011).
+Thirteen codes. **This list is closed.** `worker/src/lib/errors.ts` exports exactly these and nothing else; a test asserts the exported union has thirteen members. No provider error body, status line, or stack trace ever reaches the caller (FR-039, SC-011).
 
 ## Envelope
 
@@ -27,6 +27,7 @@ Every non-2xx response from every route, without exception:
 | `SESSION_ALREADY_JUDGED` | 409 | **false** | `turn_counter.judged_at` is already set for this `(install_id, problem_id, date)`. Raised by `/v1/judge` on a repeat assessment **and** by `/v1/chat` on any further turn or hint pull — a scored session is closed. | Show the assessment the client already has. Not an error the learner should see — a double-tap guard and an end-of-session guard. Claimed **before** the provider call, so neither a repeat assessment nor a post-verdict turn can spend anything against the learner's allowance. | FR-013a, FR-013b, X.1 |
 | `EMPTY_TURN` | 400 | **false** | Learner turn is empty or under 3 non-whitespace characters | Re-record. **Rejected before the provider is called**, so it does not spend the learner's allowance. | Edge case |
 | `TRIAL_UNAVAILABLE` | 503 | **false** | Every eligible member of the trial provider pool is out of daily budget or on rate-limit cooldown (`data-model.md` §B8). Raised **only** on `/v1/trial`, and only after every eligible member has been tried. | Show *"the free taster is at capacity today — add your key and start now"* and route **straight into key entry**. This is not a retry and not an apology: the product still works, it just needs a key today. **Never** use `QUOTA_EXHAUSTED` here — its copy says the learner's own allowance is spent, which is false — and never `UNCLEAR_RETRY`, which reads as the product being broken on the one screen that decides whether the install survives. | FR-031c, **SC-010b** |
+| `TRIAL_IP_LIMIT` | 429 | **false** | A NEW trial session from a network (keyed hash of `CF-Connecting-IP`) that has already started `trial.ip_daily_session_cap` sessions this UTC day. The app offers key entry, as for `TRIAL_CONSUMED`. |
 | `PROBLEM_KILLED` | 409 | **false** | `problem_id` is in `config.killed_problem_ids` | Fall back to another daily problem. | FR-033 |
 | `BAD_REQUEST` | 400 | **false** | Zod validation failure, bad/missing `X-Install-Id`, bad HMAC, unknown `problem_id` | A client bug. Message is generic; the specific field is **not** echoed, because echoing request fields is one of the ways a key ends up in a response body. | FR-024 |
 

@@ -15,6 +15,7 @@ export const ERROR_CODES = [
   "EMPTY_TURN",
   "PROBLEM_KILLED",
   "TRIAL_UNAVAILABLE",
+  "TRIAL_IP_LIMIT",
   "BAD_REQUEST",
   "INVALID_EMAIL",
 ] as const;
@@ -79,6 +80,11 @@ const ERROR_TABLE: Record<ErrorCode, ErrorSpec> = {
     status: 503,
     retryable: false,
     message: "The free taster is at capacity today — add your key and start now.",
+  },
+  TRIAL_IP_LIMIT: {
+    status: 429,
+    retryable: false,
+    message: "Free sessions from this network are used up for today. Add your own key to keep going.",
   },
   BAD_REQUEST: {
     status: 400,

@@ -31,6 +31,7 @@ void main() {
     RelayError.sessionAlreadyJudged(ctx: JudgedContext.turnAfterVerdict),
     const RelayError.emptyTurn(),
     const RelayError.trialUnavailable(),
+    const RelayError.trialIpLimited(),
     RelayError.problemKilled(problemId: 'vp-0001'),
     const RelayError.badRequest(),
     const RelayError.transport(),

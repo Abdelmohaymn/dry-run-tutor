@@ -1,4 +1,4 @@
-import { SELF } from "cloudflare:test";
+import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
 describe("POST /v1/install", () => {
@@ -31,5 +31,22 @@ describe("POST /v1/install", () => {
       body: JSON.stringify({}),
     });
     expect(res.status).toBe(400);
+  });
+
+  it("429 RATE_LIMITED when INSTALL_RL refuses this IP", async () => {
+    const original = env.INSTALL_RL.limit;
+    env.INSTALL_RL.limit = async () => ({ success: false });
+    try {
+      const res = await SELF.fetch("https://worker.test/v1/install", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ install_uuid: "3f1c2a4e-5b6d-4e7f-89ab-1234567890ab" }),
+      });
+      expect(res.status).toBe(429);
+      const body = (await res.json()) as { error: { code: string } };
+      expect(body.error.code).toBe("RATE_LIMITED");
+    } finally {
+      env.INSTALL_RL.limit = original;
+    }
   });
 });

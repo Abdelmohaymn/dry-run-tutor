@@ -909,6 +909,11 @@ class DailySessionCubit extends Cubit<DailySessionState> {
             EventName.keyPromptShown,
             props: const <String, Object>{'trigger': 'trial_unavailable'},
           );
+        case TrialIpLimited():
+          _analyticsClient.emit(
+            EventName.keyPromptShown,
+            props: const <String, Object>{'trigger': 'trial_ip_limit'},
+          );
         default:
           break;
       }

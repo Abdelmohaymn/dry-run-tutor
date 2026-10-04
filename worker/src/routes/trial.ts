@@ -23,6 +23,8 @@ import {
   markTrialStarted,
   releaseTrialStart,
   newSessionGateOk,
+  hashIp,
+  ipSessionGateOk,
   runLeg,
   selectMember,
   settleTrialBudget,
@@ -50,6 +52,7 @@ trialRoute.post("/", async (c) => {
   const date = utcDate();
   const now = new Date();
   const db = c.env.DB;
+  const ipHash = await hashIp(c.req.header("CF-Connecting-IP") ?? "unknown", c.env.INSTALL_HMAC_SECRET);
 
   // data-model.md §A5: killed_problem_ids is read by chat.ts, judge.ts and
   // trial.ts alike — a killed problem is refused before the provider on
@@ -143,6 +146,11 @@ trialRoute.post("/", async (c) => {
     if (!(await newSessionGateOk(cfg, db, now))) {
       throw new AppError("TRIAL_UNAVAILABLE");
     }
+    // Reinstalls mint fresh install ids, so the per-install rule alone does
+    // not bound one network; this does (trial.ip_daily_session_cap).
+    if (!(await ipSessionGateOk(cfg, db, ipHash, date))) {
+      throw new AppError("TRIAL_IP_LIMIT");
+    }
   }
 
   if (body.mode === "chat") {
@@ -199,7 +207,7 @@ trialRoute.post("/", async (c) => {
           return { baseUrl: m.base_url, apiKey: secretFor(m.secret_binding), model: m.model };
         },
         onBeforeProviderCall: async () => {
-          await markTrialStarted(db, installId, trialStartedAt, body.problem_id, date);
+          await markTrialStarted(db, installId, trialStartedAt, body.problem_id, date, ipHash);
         },
         onProviderCallUnanswered: async () => {
           await releaseTrialStart(db, installId, trialStartedAt);
@@ -211,7 +219,7 @@ trialRoute.post("/", async (c) => {
 
   // mode === "judge"
   const trialStartedAt = nowIso();
-  await markTrialStarted(db, installId, trialStartedAt, body.problem_id, date);
+  await markTrialStarted(db, installId, trialStartedAt, body.problem_id, date, ipHash);
   let assessment;
   try {
     assessment = await runJudge(

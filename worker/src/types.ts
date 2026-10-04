@@ -11,6 +11,8 @@ export interface Env {
   // trial-pool.test.ts / trial.test.ts, not part of the shipped default pool.
   TRIAL_KEY_TEST2?: string;
   ENVIRONMENT?: string;
+  // POST /v1/install, per IP.
+  INSTALL_RL: RateLimit;
   // Feature 007, web-only routes.
   WEB_EVENT_RL: RateLimit;
   TURNSTILE_SECRET: string;

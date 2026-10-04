@@ -53,6 +53,11 @@ sealed class RelayError with _$RelayError {
   /// borrow `QUOTA_EXHAUSTED` or `UNCLEAR_RETRY` copy.
   const factory RelayError.trialUnavailable() = TrialUnavailable;
 
+  /// This network has started its daily allowance of free sessions
+  /// (`trial.ip_daily_session_cap`). Like `TRIAL_CONSUMED`, routes into
+  /// key entry; unlike `TRIAL_UNAVAILABLE`, it is not about everyone.
+  const factory RelayError.trialIpLimited() = TrialIpLimited;
+
   /// Today's problem has been withdrawn server-side. A different problem
   /// is presented in its place (FR-040).
   const factory RelayError.problemKilled({required String problemId}) = ProblemKilled;
@@ -95,6 +100,7 @@ extension RelayErrorCode on RelayError {
         SessionAlreadyJudged() => 'SESSION_ALREADY_JUDGED',
         EmptyTurn() => 'EMPTY_TURN',
         TrialUnavailable() => 'TRIAL_UNAVAILABLE',
+        TrialIpLimited() => 'TRIAL_IP_LIMIT',
         ProblemKilled() => 'PROBLEM_KILLED',
         BadRequest() => 'BAD_REQUEST',
         TransportFailure() => 'NETWORK',

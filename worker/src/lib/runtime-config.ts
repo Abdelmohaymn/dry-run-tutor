@@ -155,6 +155,8 @@ export const runtimeConfigSchema = z
         ground_truth_tier: z.enum(["A", "AB"]),
         condense: z.boolean(),
         daily_session_cap: z.number().int().min(0).default(0),
+        /** New trial sessions per network (hashed IP) per UTC day. 0 disables it. */
+        ip_daily_session_cap: z.number().int().min(0).default(15),
         pool: z.array(trialPoolMemberSchema).min(1),
       })
       .strict(),

@@ -161,6 +161,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get errTrialIpLimited =>
+      'Free sessions from this network are used up for today. Add your own Nebius key to keep going.';
+
+  @override
   String get errTrialUnavailable =>
       'The free taster is full today. Add your key and start now. You can\'t be charged.';
 
@@ -397,6 +401,15 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String keyPromptTrialUnavailableBody(String appName) {
     return 'Today\'s free taster is full, for everyone using $appName today. Add your own Nebius key and start now; new accounts get \$1 of free credit. It stays on this phone, and $appName never charges you.';
+  }
+
+  @override
+  String get keyPromptTrialIpLimitedTitle =>
+      'Today\'s free sessions are used up';
+
+  @override
+  String keyPromptTrialIpLimitedBody(String appName) {
+    return 'Free sessions from this network are used up for today. Add your own Nebius key to keep going; new accounts get \$1 of free credit. It stays on this phone, and $appName never charges you.';
   }
 
   @override

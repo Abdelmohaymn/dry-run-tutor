@@ -330,6 +330,7 @@ export async function markTrialStarted(
   startedAt: string,
   problemId: string,
   date: string,
+  ipHash: string,
 ): Promise<void> {
   await db
     .prepare(
@@ -337,14 +338,48 @@ export async function markTrialStarted(
       // walkthrough may have created it (0003) with problem_id/date NULL.
       // The WHERE is what preserves 0002's guarantee — a row that already
       // names a problem is never re-pointed at a different one.
-      `INSERT INTO trial_consumed (install_id, started_at, problem_id, date)
-       VALUES (?1, ?2, ?3, ?4)
+      `INSERT INTO trial_consumed (install_id, started_at, problem_id, date, ip_hash)
+       VALUES (?1, ?2, ?3, ?4, ?5)
        ON CONFLICT(install_id) DO UPDATE
-         SET started_at = ?2, problem_id = ?3, date = ?4
+         SET started_at = ?2, problem_id = ?3, date = ?4, ip_hash = ?5
          WHERE trial_consumed.problem_id IS NULL AND trial_consumed.completed_at IS NULL`,
     )
-    .bind(installId, startedAt, problemId, date)
+    .bind(installId, startedAt, problemId, date, ipHash)
     .run();
+}
+
+/**
+ * Keyed hash of the caller's IP, so `trial_consumed` can count sessions per
+ * network without ever storing an address. Keyed with the install secret, so
+ * the stored value cannot be reversed by hashing the IPv4 space.
+ */
+export async function hashIp(ip: string, secret: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`ip:${ip}`));
+  return [...new Uint8Array(mac)]
+    .slice(0, 16)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/**
+ * False once this network has started `trial.ip_daily_session_cap` trial
+ * sessions today. 0 disables the cap. Only consulted for a NEW session.
+ */
+export async function ipSessionGateOk(cfg: RuntimeConfig, db: D1Database, ipHash: string, date: string): Promise<boolean> {
+  const cap = cfg.trial.ip_daily_session_cap;
+  if (cap <= 0) return true;
+  const row = await db
+    .prepare("SELECT COUNT(*) AS n FROM trial_consumed WHERE ip_hash = ?1 AND date = ?2")
+    .bind(ipHash, date)
+    .first<{ n: number }>();
+  return (row?.n ?? 0) < cap;
 }
 
 /**

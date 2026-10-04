@@ -24,7 +24,7 @@ is the client's.
 | `app_open` | Every launch | `is_first_launch` |
 | `onboarding_started` | Age gate shown | — |
 | `onboarding_done` | Age confirmed, first problem reached | — |
-| `key_prompt_shown` | The wall is shown — **only after a completed session** (FR-005a) | `trigger` (`trial_spent` \| `trial_unavailable` \| `settings`) |
+| `key_prompt_shown` | The wall is shown — **only after a completed session** (FR-005a) | `trigger` (`trial_spent` \| `trial_unavailable` \| `trial_ip_limit` \| `settings`) |
 | `key_entry_started` | Learner opens key entry | `provider` |
 | `key_saved` | Probe validation succeeded and the key is in Keystore | `provider` |
 | `trial_session_started` | First `/v1/trial` chat call accepted | — |

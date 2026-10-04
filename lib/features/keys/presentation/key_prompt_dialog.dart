@@ -22,6 +22,9 @@ enum KeyPromptReason {
   /// learner's allowance.
   trialUnavailable,
 
+  /// `TRIAL_IP_LIMIT`: this network has used today's free sessions.
+  trialIpLimited,
+
   /// `QUOTA_EXHAUSTED`: the learner's own key hit its provider limit.
   /// FR-008d.
   quotaExhausted,
@@ -36,6 +39,7 @@ enum KeyPromptReason {
 KeyPromptReason? keyPromptReasonFor(RelayError error) => switch (error) {
       TrialConsumed() => KeyPromptReason.trialConsumed,
       TrialUnavailable() => KeyPromptReason.trialUnavailable,
+      TrialIpLimited() => KeyPromptReason.trialIpLimited,
       QuotaExhausted() => KeyPromptReason.quotaExhausted,
       // Everything else is either automatic, inline, or has a screen of
       // its own. `InvalidKey` is deliberately not here: FR-005c asks for
@@ -83,23 +87,31 @@ Future<bool> showKeyPrompt(BuildContext context, KeyPromptReason reason) async {
 String _title(AppLocalizations l10n, KeyPromptReason reason) => switch (reason) {
       KeyPromptReason.trialConsumed => l10n.keyPromptTrialTitle,
       KeyPromptReason.trialUnavailable => l10n.keyPromptTrialUnavailableTitle,
+      KeyPromptReason.trialIpLimited => l10n.keyPromptTrialIpLimitedTitle,
       KeyPromptReason.quotaExhausted => l10n.keyPromptQuotaTitle,
     };
 
 String _body(AppLocalizations l10n, KeyPromptReason reason) => switch (reason) {
       KeyPromptReason.trialConsumed => l10n.keyPromptTrialBody(AppBrand.name),
       KeyPromptReason.trialUnavailable => l10n.keyPromptTrialUnavailableBody(AppBrand.name),
+      KeyPromptReason.trialIpLimited => l10n.keyPromptTrialIpLimitedBody(AppBrand.name),
       KeyPromptReason.quotaExhausted => l10n.keyPromptQuotaBody,
     };
 
 String _primaryLabel(AppLocalizations l10n, KeyPromptReason reason) => switch (reason) {
-      KeyPromptReason.trialConsumed || KeyPromptReason.trialUnavailable => l10n.keyPromptAddAction,
+      KeyPromptReason.trialConsumed ||
+      KeyPromptReason.trialUnavailable ||
+      KeyPromptReason.trialIpLimited =>
+        l10n.keyPromptAddAction,
       // The learner already has a key; the only thing that continues
       // today is a different one (ErrorNextAction.waitOrReplaceKey).
       KeyPromptReason.quotaExhausted => l10n.keyPromptReplaceAction,
     };
 
 String _dismissLabel(AppLocalizations l10n, KeyPromptReason reason) => switch (reason) {
-      KeyPromptReason.trialConsumed || KeyPromptReason.trialUnavailable => l10n.keyPromptDismissAction,
+      KeyPromptReason.trialConsumed ||
+      KeyPromptReason.trialUnavailable ||
+      KeyPromptReason.trialIpLimited =>
+        l10n.keyPromptDismissAction,
       KeyPromptReason.quotaExhausted => l10n.keyPromptQuotaDismissAction,
     };

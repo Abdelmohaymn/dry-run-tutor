@@ -12,6 +12,7 @@ declare module "cloudflare:test" {
     EXPECTED_PROMPTS: { tutor: string; judge: string; condense: string; repair: string };
     /** worker/src/**\/*.ts, path -> content, injected at config-build time (T095). */
     WORKER_SOURCE: Record<string, string>;
+    INSTALL_HMAC_SECRET: string;
     TRIAL_KEY_GROQ: string;
     TRIAL_KEY_TEST2?: string;
     /** harness project only — a real learner key, injected from process.env.GROQ_API_KEY at config-build time. */
@@ -19,6 +20,7 @@ declare module "cloudflare:test" {
     /** harness project only — optional provider/model override for a harness run, see live-client.ts applyProviderOverride(). */
     HARNESS_PROVIDER?: string;
     HARNESS_MODEL?: string;
+    INSTALL_RL: RateLimit;
     // Feature 007, web-only routes.
     WEB_EVENT_RL: RateLimit;
     TURNSTILE_SECRET: string;
@@ -26,3 +28,8 @@ declare module "cloudflare:test" {
 }
 
 await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
+
+// Every contract test mints installs from the same (absent) client IP, so the
+// real per-IP limiter would trip across unrelated cases. install.test.ts
+// overrides this to exercise the 429.
+env.INSTALL_RL.limit = async () => ({ success: true });

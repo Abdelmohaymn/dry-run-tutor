@@ -55,7 +55,7 @@ extension RelayErrorPatterns on RelayError {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( RateLimited value)?  rateLimited,TResult Function( InvalidKey value)?  invalidKey,TResult Function( QuotaExhausted value)?  quotaExhausted,TResult Function( UnclearRetry value)?  unclearRetry,TResult Function( TurnCapReached value)?  turnCapReached,TResult Function( TrialConsumed value)?  trialConsumed,TResult Function( SessionAlreadyJudged value)?  sessionAlreadyJudged,TResult Function( EmptyTurn value)?  emptyTurn,TResult Function( TrialUnavailable value)?  trialUnavailable,TResult Function( ProblemKilled value)?  problemKilled,TResult Function( BadRequest value)?  badRequest,TResult Function( TransportFailure value)?  transport,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( RateLimited value)?  rateLimited,TResult Function( InvalidKey value)?  invalidKey,TResult Function( QuotaExhausted value)?  quotaExhausted,TResult Function( UnclearRetry value)?  unclearRetry,TResult Function( TurnCapReached value)?  turnCapReached,TResult Function( TrialConsumed value)?  trialConsumed,TResult Function( SessionAlreadyJudged value)?  sessionAlreadyJudged,TResult Function( EmptyTurn value)?  emptyTurn,TResult Function( TrialUnavailable value)?  trialUnavailable,TResult Function( TrialIpLimited value)?  trialIpLimited,TResult Function( ProblemKilled value)?  problemKilled,TResult Function( BadRequest value)?  badRequest,TResult Function( TransportFailure value)?  transport,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case RateLimited() when rateLimited != null:
@@ -67,7 +67,8 @@ return turnCapReached(_that);case TrialConsumed() when trialConsumed != null:
 return trialConsumed(_that);case SessionAlreadyJudged() when sessionAlreadyJudged != null:
 return sessionAlreadyJudged(_that);case EmptyTurn() when emptyTurn != null:
 return emptyTurn(_that);case TrialUnavailable() when trialUnavailable != null:
-return trialUnavailable(_that);case ProblemKilled() when problemKilled != null:
+return trialUnavailable(_that);case TrialIpLimited() when trialIpLimited != null:
+return trialIpLimited(_that);case ProblemKilled() when problemKilled != null:
 return problemKilled(_that);case BadRequest() when badRequest != null:
 return badRequest(_that);case TransportFailure() when transport != null:
 return transport(_that);case _:
@@ -88,7 +89,7 @@ return transport(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( RateLimited value)  rateLimited,required TResult Function( InvalidKey value)  invalidKey,required TResult Function( QuotaExhausted value)  quotaExhausted,required TResult Function( UnclearRetry value)  unclearRetry,required TResult Function( TurnCapReached value)  turnCapReached,required TResult Function( TrialConsumed value)  trialConsumed,required TResult Function( SessionAlreadyJudged value)  sessionAlreadyJudged,required TResult Function( EmptyTurn value)  emptyTurn,required TResult Function( TrialUnavailable value)  trialUnavailable,required TResult Function( ProblemKilled value)  problemKilled,required TResult Function( BadRequest value)  badRequest,required TResult Function( TransportFailure value)  transport,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( RateLimited value)  rateLimited,required TResult Function( InvalidKey value)  invalidKey,required TResult Function( QuotaExhausted value)  quotaExhausted,required TResult Function( UnclearRetry value)  unclearRetry,required TResult Function( TurnCapReached value)  turnCapReached,required TResult Function( TrialConsumed value)  trialConsumed,required TResult Function( SessionAlreadyJudged value)  sessionAlreadyJudged,required TResult Function( EmptyTurn value)  emptyTurn,required TResult Function( TrialUnavailable value)  trialUnavailable,required TResult Function( TrialIpLimited value)  trialIpLimited,required TResult Function( ProblemKilled value)  problemKilled,required TResult Function( BadRequest value)  badRequest,required TResult Function( TransportFailure value)  transport,}){
 final _that = this;
 switch (_that) {
 case RateLimited():
@@ -100,7 +101,8 @@ return turnCapReached(_that);case TrialConsumed():
 return trialConsumed(_that);case SessionAlreadyJudged():
 return sessionAlreadyJudged(_that);case EmptyTurn():
 return emptyTurn(_that);case TrialUnavailable():
-return trialUnavailable(_that);case ProblemKilled():
+return trialUnavailable(_that);case TrialIpLimited():
+return trialIpLimited(_that);case ProblemKilled():
 return problemKilled(_that);case BadRequest():
 return badRequest(_that);case TransportFailure():
 return transport(_that);}
@@ -117,7 +119,7 @@ return transport(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( RateLimited value)?  rateLimited,TResult? Function( InvalidKey value)?  invalidKey,TResult? Function( QuotaExhausted value)?  quotaExhausted,TResult? Function( UnclearRetry value)?  unclearRetry,TResult? Function( TurnCapReached value)?  turnCapReached,TResult? Function( TrialConsumed value)?  trialConsumed,TResult? Function( SessionAlreadyJudged value)?  sessionAlreadyJudged,TResult? Function( EmptyTurn value)?  emptyTurn,TResult? Function( TrialUnavailable value)?  trialUnavailable,TResult? Function( ProblemKilled value)?  problemKilled,TResult? Function( BadRequest value)?  badRequest,TResult? Function( TransportFailure value)?  transport,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( RateLimited value)?  rateLimited,TResult? Function( InvalidKey value)?  invalidKey,TResult? Function( QuotaExhausted value)?  quotaExhausted,TResult? Function( UnclearRetry value)?  unclearRetry,TResult? Function( TurnCapReached value)?  turnCapReached,TResult? Function( TrialConsumed value)?  trialConsumed,TResult? Function( SessionAlreadyJudged value)?  sessionAlreadyJudged,TResult? Function( EmptyTurn value)?  emptyTurn,TResult? Function( TrialUnavailable value)?  trialUnavailable,TResult? Function( TrialIpLimited value)?  trialIpLimited,TResult? Function( ProblemKilled value)?  problemKilled,TResult? Function( BadRequest value)?  badRequest,TResult? Function( TransportFailure value)?  transport,}){
 final _that = this;
 switch (_that) {
 case RateLimited() when rateLimited != null:
@@ -129,7 +131,8 @@ return turnCapReached(_that);case TrialConsumed() when trialConsumed != null:
 return trialConsumed(_that);case SessionAlreadyJudged() when sessionAlreadyJudged != null:
 return sessionAlreadyJudged(_that);case EmptyTurn() when emptyTurn != null:
 return emptyTurn(_that);case TrialUnavailable() when trialUnavailable != null:
-return trialUnavailable(_that);case ProblemKilled() when problemKilled != null:
+return trialUnavailable(_that);case TrialIpLimited() when trialIpLimited != null:
+return trialIpLimited(_that);case ProblemKilled() when problemKilled != null:
 return problemKilled(_that);case BadRequest() when badRequest != null:
 return badRequest(_that);case TransportFailure() when transport != null:
 return transport(_that);case _:
@@ -149,7 +152,7 @@ return transport(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( Duration retryAfter)?  rateLimited,TResult Function()?  invalidKey,TResult Function()?  quotaExhausted,TResult Function()?  unclearRetry,TResult Function()?  turnCapReached,TResult Function()?  trialConsumed,TResult Function( JudgedContext ctx)?  sessionAlreadyJudged,TResult Function()?  emptyTurn,TResult Function()?  trialUnavailable,TResult Function( String problemId)?  problemKilled,TResult Function()?  badRequest,TResult Function()?  transport,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( Duration retryAfter)?  rateLimited,TResult Function()?  invalidKey,TResult Function()?  quotaExhausted,TResult Function()?  unclearRetry,TResult Function()?  turnCapReached,TResult Function()?  trialConsumed,TResult Function( JudgedContext ctx)?  sessionAlreadyJudged,TResult Function()?  emptyTurn,TResult Function()?  trialUnavailable,TResult Function()?  trialIpLimited,TResult Function( String problemId)?  problemKilled,TResult Function()?  badRequest,TResult Function()?  transport,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case RateLimited() when rateLimited != null:
 return rateLimited(_that.retryAfter);case InvalidKey() when invalidKey != null:
@@ -160,7 +163,8 @@ return turnCapReached();case TrialConsumed() when trialConsumed != null:
 return trialConsumed();case SessionAlreadyJudged() when sessionAlreadyJudged != null:
 return sessionAlreadyJudged(_that.ctx);case EmptyTurn() when emptyTurn != null:
 return emptyTurn();case TrialUnavailable() when trialUnavailable != null:
-return trialUnavailable();case ProblemKilled() when problemKilled != null:
+return trialUnavailable();case TrialIpLimited() when trialIpLimited != null:
+return trialIpLimited();case ProblemKilled() when problemKilled != null:
 return problemKilled(_that.problemId);case BadRequest() when badRequest != null:
 return badRequest();case TransportFailure() when transport != null:
 return transport();case _:
@@ -181,7 +185,7 @@ return transport();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( Duration retryAfter)  rateLimited,required TResult Function()  invalidKey,required TResult Function()  quotaExhausted,required TResult Function()  unclearRetry,required TResult Function()  turnCapReached,required TResult Function()  trialConsumed,required TResult Function( JudgedContext ctx)  sessionAlreadyJudged,required TResult Function()  emptyTurn,required TResult Function()  trialUnavailable,required TResult Function( String problemId)  problemKilled,required TResult Function()  badRequest,required TResult Function()  transport,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( Duration retryAfter)  rateLimited,required TResult Function()  invalidKey,required TResult Function()  quotaExhausted,required TResult Function()  unclearRetry,required TResult Function()  turnCapReached,required TResult Function()  trialConsumed,required TResult Function( JudgedContext ctx)  sessionAlreadyJudged,required TResult Function()  emptyTurn,required TResult Function()  trialUnavailable,required TResult Function()  trialIpLimited,required TResult Function( String problemId)  problemKilled,required TResult Function()  badRequest,required TResult Function()  transport,}) {final _that = this;
 switch (_that) {
 case RateLimited():
 return rateLimited(_that.retryAfter);case InvalidKey():
@@ -192,7 +196,8 @@ return turnCapReached();case TrialConsumed():
 return trialConsumed();case SessionAlreadyJudged():
 return sessionAlreadyJudged(_that.ctx);case EmptyTurn():
 return emptyTurn();case TrialUnavailable():
-return trialUnavailable();case ProblemKilled():
+return trialUnavailable();case TrialIpLimited():
+return trialIpLimited();case ProblemKilled():
 return problemKilled(_that.problemId);case BadRequest():
 return badRequest();case TransportFailure():
 return transport();}
@@ -209,7 +214,7 @@ return transport();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( Duration retryAfter)?  rateLimited,TResult? Function()?  invalidKey,TResult? Function()?  quotaExhausted,TResult? Function()?  unclearRetry,TResult? Function()?  turnCapReached,TResult? Function()?  trialConsumed,TResult? Function( JudgedContext ctx)?  sessionAlreadyJudged,TResult? Function()?  emptyTurn,TResult? Function()?  trialUnavailable,TResult? Function( String problemId)?  problemKilled,TResult? Function()?  badRequest,TResult? Function()?  transport,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( Duration retryAfter)?  rateLimited,TResult? Function()?  invalidKey,TResult? Function()?  quotaExhausted,TResult? Function()?  unclearRetry,TResult? Function()?  turnCapReached,TResult? Function()?  trialConsumed,TResult? Function( JudgedContext ctx)?  sessionAlreadyJudged,TResult? Function()?  emptyTurn,TResult? Function()?  trialUnavailable,TResult? Function()?  trialIpLimited,TResult? Function( String problemId)?  problemKilled,TResult? Function()?  badRequest,TResult? Function()?  transport,}) {final _that = this;
 switch (_that) {
 case RateLimited() when rateLimited != null:
 return rateLimited(_that.retryAfter);case InvalidKey() when invalidKey != null:
@@ -220,7 +225,8 @@ return turnCapReached();case TrialConsumed() when trialConsumed != null:
 return trialConsumed();case SessionAlreadyJudged() when sessionAlreadyJudged != null:
 return sessionAlreadyJudged(_that.ctx);case EmptyTurn() when emptyTurn != null:
 return emptyTurn();case TrialUnavailable() when trialUnavailable != null:
-return trialUnavailable();case ProblemKilled() when problemKilled != null:
+return trialUnavailable();case TrialIpLimited() when trialIpLimited != null:
+return trialIpLimited();case ProblemKilled() when problemKilled != null:
 return problemKilled(_that.problemId);case BadRequest() when badRequest != null:
 return badRequest();case TransportFailure() when transport != null:
 return transport();case _:
@@ -579,6 +585,38 @@ int get hashCode => runtimeType.hashCode;
 @override
 String toString() {
   return 'RelayError.trialUnavailable()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class TrialIpLimited implements RelayError {
+  const TrialIpLimited();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrialIpLimited);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'RelayError.trialIpLimited()';
 }
 
 

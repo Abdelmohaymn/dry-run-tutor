@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { AppError, ERROR_CODES, retryableFor, statusFor, toResponse } from "../../src/lib/errors";
 
-// contracts/error-catalog.md — the closed set. Twelve codes (eleven plus
-// feature 007's INVALID_EMAIL), no more, and
+// contracts/error-catalog.md — the closed set. Thirteen codes (eleven plus
+// feature 007's INVALID_EMAIL and the per-network TRIAL_IP_LIMIT), no more, and
 // status/retryable must match the catalog row for row.
 
 describe("error code set", () => {
-  it("is closed at exactly twelve codes", () => {
-    expect(ERROR_CODES.length).toBe(12);
-    expect(new Set(ERROR_CODES).size).toBe(12);
+  it("is closed at exactly thirteen codes", () => {
+    expect(ERROR_CODES.length).toBe(13);
+    expect(new Set(ERROR_CODES).size).toBe(13);
   });
 
-  it("contains exactly the twelve named codes", () => {
+  it("contains exactly the thirteen named codes", () => {
     expect([...ERROR_CODES].sort()).toEqual(
       [
         "RATE_LIMITED",
@@ -24,6 +24,7 @@ describe("error code set", () => {
         "EMPTY_TURN",
         "PROBLEM_KILLED",
         "TRIAL_UNAVAILABLE",
+        "TRIAL_IP_LIMIT",
         "BAD_REQUEST",
         "INVALID_EMAIL",
       ].sort(),
@@ -43,6 +44,7 @@ describe("status and retryable, row for row against error-catalog.md", () => {
     ["EMPTY_TURN", 400, false],
     ["PROBLEM_KILLED", 409, false],
     ["TRIAL_UNAVAILABLE", 503, false],
+    ["TRIAL_IP_LIMIT", 429, false],
     ["BAD_REQUEST", 400, false],
     ["INVALID_EMAIL", 400, false],
   ];

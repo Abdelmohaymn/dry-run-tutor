@@ -134,6 +134,10 @@
           "type": "integer", "minimum": 0, "default": 0,
           "description": "Optional hard ceiling on trial sessions started per day across all installs, independent of tokens. 0 disables it and lets the token budgets bind. A blunt second guard for the day a link goes wide."
         },
+        "ip_daily_session_cap": {
+          "type": "integer", "minimum": 0, "default": 15,
+          "description": "New trial sessions per network (keyed hash of the caller's IP, never the IP) per UTC day. 0 disables it. Over the cap the relay answers TRIAL_IP_LIMIT and the app offers key entry."
+        },
         "pool": {
           "type": "array",
           "minItems": 1,

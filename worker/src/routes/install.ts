@@ -13,6 +13,14 @@ const installRequestSchema = z
 export const installRoute = new Hono<{ Bindings: Env }>();
 
 installRoute.post("/", async (c) => {
+  // Each install id is a fresh claim on the trial, so minting them in bulk
+  // is the first step of draining the pool. A real install calls this once.
+  const ip = c.req.header("CF-Connecting-IP") ?? "unknown";
+  const { success } = await c.env.INSTALL_RL.limit({ key: ip });
+  if (!success) {
+    return toResponse(new AppError("RATE_LIMITED"));
+  }
+
   const raw = await c.req.json().catch(() => null);
   const parsed = installRequestSchema.safeParse(raw);
   if (!parsed.success) {
