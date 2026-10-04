@@ -28,6 +28,9 @@ const chatRequestObject = z
     // Key check on save: see runKeyCheck() in chat-core.ts. /v1/chat only;
     // the trial schema omits it.
     key_check: z.boolean().default(false),
+    // Feature 005: the learner chose Keep going, so no finish check runs
+    // for the rest of the session.
+    finish_offer_dismissed: z.boolean().default(false),
   })
   .strict();
 
@@ -119,6 +122,9 @@ export const EVENT_NAMES = [
   "tutor_leak_blocked",
   "config_fetch_failed",
   "offline_queue_drained",
+  "finish_offer_shown",
+  "finish_offer_accepted",
+  "finish_offer_dismissed",
 ] as const;
 
 const eventPropsSchema = z

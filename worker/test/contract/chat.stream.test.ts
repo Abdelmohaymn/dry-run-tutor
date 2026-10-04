@@ -63,6 +63,7 @@ describe("POST /v1/chat — SSE frame order and MetaFrame shape", () => {
       "summary_covers",
       "session_ended",
       "leak_blocked",
+      "ready_to_finish",
     ]);
     for (const k of Object.keys(meta)) {
       expect(allowedKeys.has(k), `unexpected MetaFrame key '${k}'`).toBe(true);

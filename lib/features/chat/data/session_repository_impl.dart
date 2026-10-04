@@ -180,6 +180,7 @@ class SessionRepositoryImpl implements SessionRepository {
     InputMode mode, {
     int? solutionRequestCount,
     String? retryMessageId,
+    bool finishOfferDismissed = false,
   }) async* {
     final String installId = await _resolvedInstallId();
     final String userMessageId = retryMessageId ?? _uuid.v4();
@@ -214,6 +215,7 @@ class SessionRepositoryImpl implements SessionRepository {
       (request, replayedIds) = await _buildChatRequest(
         session,
         solutionRequestCount: solutionRequestCount,
+        finishOfferDismissed: finishOfferDismissed,
       );
       final (String? userKey, String? providerId) = await _keyedHeaders(session);
 
@@ -484,6 +486,7 @@ class SessionRepositoryImpl implements SessionRepository {
     Session session, {
     int? solutionRequestCount,
     bool? hintRequested,
+    bool finishOfferDismissed = false,
   }) async {
     final List<MessageRow> uncovered = await _messageDao.uncoveredForSession(session.id);
     final List<MessageRow> capped = uncovered.length > _maxReplayedMessages
@@ -503,6 +506,7 @@ class SessionRepositoryImpl implements SessionRepository {
           : earlier.sublist(earlier.length > _maxReplayedMessages ? earlier.length - _maxReplayedMessages : 0),
       hintRequested: hintRequested,
       solutionRequestCount: solutionRequestCount,
+      finishOfferDismissed: finishOfferDismissed ? true : null,
     );
     return (request, capped.map((MessageRow m) => m.id).toList());
   }

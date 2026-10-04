@@ -37,6 +37,7 @@ export default defineWorkersConfig(async () => {
   // 001's (tasks.md READ THIS BEFORE T001 §3) — a second resolved path,
   // not a moved file.
   const repairContractsDir = path.resolve(__dirname, "../specs/004-transcript-repair/contracts");
+  const finishContractsDir = path.resolve(__dirname, "../specs/005-finish-offer/contracts");
   const expectedPrompts = {
     tutor: extractPromptBlock(readFileSync(path.join(contractsDir, "tutor-system-prompt.md"), "utf-8")),
     judge: extractPromptBlock(readFileSync(path.join(contractsDir, "judge-system-prompt.md"), "utf-8")),
@@ -45,6 +46,9 @@ export default defineWorkersConfig(async () => {
     ),
     repair: extractPromptBlock(
       readFileSync(path.join(repairContractsDir, "repair-system-prompt.md"), "utf-8"),
+    ),
+    finishCheck: extractPromptBlock(
+      readFileSync(path.join(finishContractsDir, "finish-check-system-prompt.md"), "utf-8"),
     ),
   };
 

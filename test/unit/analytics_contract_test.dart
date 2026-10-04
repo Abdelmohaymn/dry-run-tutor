@@ -31,11 +31,14 @@ const Set<String> _schemaNames = <String>{
   'tutor_leak_blocked',
   'config_fetch_failed',
   'offline_queue_drained',
+  'finish_offer_shown',
+  'finish_offer_accepted',
+  'finish_offer_dismissed',
 };
 
 void main() {
-  test('EventName has exactly 23 members', () {
-    expect(EventName.values, hasLength(23));
+  test('EventName has exactly 26 members', () {
+    expect(EventName.values, hasLength(26));
   });
 
   test('EventName.wireName matches the closed schema set exactly', () {

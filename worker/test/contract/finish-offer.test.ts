@@ -1,0 +1,147 @@
+import { env, SELF, fetchMock } from "cloudflare:test";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import {
+  GROQ_CHAT_PATH,
+  GROQ_ORIGIN,
+  groqCompletionBody,
+  groqStreamBody,
+  mintInstallId,
+  readChatSSE,
+} from "./helpers";
+
+beforeAll(() => {
+  fetchMock.activate();
+  fetchMock.disableNetConnect();
+});
+
+afterEach(() => {
+  fetchMock.assertNoPendingInterceptors();
+});
+
+// Feature 005. The finish check runs alongside the tutor reply and reports
+// on the meta frame; it never fails or delays the turn beyond its timeout.
+
+async function setFinishOffer(overrides: Partial<{ enabled: boolean; min_turn: number; timeout_ms: number }> = {}) {
+  const row = await env.DB.prepare("SELECT payload FROM runtime_config WHERE id = 1").first<{ payload: string }>();
+  const cfg = JSON.parse(row!.payload);
+  cfg.finish_offer = { enabled: true, min_turn: 1, timeout_ms: 8000, ...overrides };
+  await env.DB.prepare("UPDATE runtime_config SET payload = ? WHERE id = 1").bind(JSON.stringify(cfg)).run();
+}
+
+const isStream = (body: string) => JSON.parse(body).stream === true;
+
+function mockTutor(text = "What would you look up?") {
+  fetchMock
+    .get(GROQ_ORIGIN)
+    .intercept({ path: GROQ_CHAT_PATH, method: "POST", body: isStream })
+    .reply(200, groqStreamBody(text), { headers: { "content-type": "text/event-stream" } });
+}
+
+/** Captures the finish-check request body and replies with [reply]. */
+function mockFinishCheck(reply: { status: number; body: unknown }, seen: { body?: any } = {}) {
+  fetchMock
+    .get(GROQ_ORIGIN)
+    .intercept({ path: GROQ_CHAT_PATH, method: "POST", body: (b: string) => !isStream(b) })
+    .reply((opts) => {
+      seen.body = JSON.parse(opts.body as string);
+      return { statusCode: reply.status, data: JSON.stringify(reply.body), responseOptions: { headers: { "content-type": "application/json" } } };
+    });
+  return seen;
+}
+
+const LEARNER = "For each number I'd remember it with its index, and look up target minus the number to find its partner.";
+
+async function chat(extra: Record<string, unknown> = {}, messages = [{ role: "user", text: LEARNER }]) {
+  const res = await SELF.fetch("https://worker.test/v1/chat", {
+    method: "POST",
+    headers: { "X-Install-Id": await mintInstallId(), "X-User-Key": "gsk_test_learner_key", "content-type": "application/json" },
+    body: JSON.stringify({ problem_id: "vp-0001", messages, ...extra }),
+  });
+  expect(res.status).toBe(200);
+  const frames = await readChatSSE(res);
+  return frames.find((f) => f.event === "meta")!.data as Record<string, unknown>;
+}
+
+describe("finish offer — ready_to_finish on the meta frame", () => {
+  it("is true when the check answers ready", async () => {
+    await setFinishOffer();
+    mockTutor();
+    mockFinishCheck({ status: 200, body: groqCompletionBody('{"ready":true}') });
+    expect((await chat()).ready_to_finish).toBe(true);
+  });
+
+  it("is false when the check answers not ready", async () => {
+    await setFinishOffer();
+    mockTutor();
+    mockFinishCheck({ status: 200, body: groqCompletionBody('{"ready":false}') });
+    expect((await chat()).ready_to_finish).toBe(false);
+  });
+
+  it("is false, and the turn is still served, when the check fails", async () => {
+    await setFinishOffer();
+    mockTutor();
+    mockFinishCheck({ status: 500, body: { error: "boom" } });
+    const meta = await chat();
+    expect(meta.ready_to_finish).toBe(false);
+    expect(meta.turn_index).toBe(1);
+  });
+
+  it("sends the learner's turns only, never the tutor's, with a strict boolean schema", async () => {
+    await setFinishOffer();
+    mockTutor();
+    const seen = mockFinishCheck({ status: 200, body: groqCompletionBody('{"ready":false}') });
+    await chat({}, [
+      { role: "user", text: "Two loops over every pair?" },
+      { role: "tutor", text: "TUTOR_ONLY_PHRASE about a lookup" },
+      { role: "user", text: LEARNER },
+    ]);
+    const user = seen.body.messages.find((m: any) => m.role === "user").content as string;
+    expect(user).toContain(LEARNER);
+    expect(user).not.toContain("TUTOR_ONLY_PHRASE");
+    expect(seen.body.response_format.json_schema.schema.required).toEqual(["ready"]);
+  });
+
+  it.each([
+    ["disabled in config", { enabled: false }, {}],
+    ["before min_turn", { min_turn: 2 }, {}],
+    ["after Keep going", {}, { finish_offer_dismissed: true }],
+  ])("runs no check and leaves the field off when %s", async (_label, cfg, extra) => {
+    await setFinishOffer(cfg);
+    mockTutor();
+    const meta = await chat(extra);
+    expect(meta).not.toHaveProperty("ready_to_finish");
+  });
+
+  it("records finish-check usage under its own endpoint", async () => {
+    await setFinishOffer();
+    mockTutor();
+    mockFinishCheck({ status: 200, body: groqCompletionBody('{"ready":true}') });
+    await chat();
+    const row = await env.DB.prepare("SELECT COUNT(*) AS n FROM usage WHERE endpoint = 'finish_check'").first<{ n: number }>();
+    expect(row?.n).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("finish offer — trial path", () => {
+  it("runs on the operator pool, records trial_finish_check usage and spends the trial budget", async () => {
+    await setFinishOffer();
+    mockTutor();
+    mockFinishCheck({ status: 200, body: groqCompletionBody('{"ready":true}', { prompt_tokens: 300, completion_tokens: 40 }) });
+    const date = new Date().toISOString().slice(0, 10);
+    const before = await env.DB.prepare("SELECT COALESCE(SUM(tokens_spent),0) AS t FROM trial_budget WHERE date = ?1").bind(date).first<{ t: number }>();
+
+    const res = await SELF.fetch("https://worker.test/v1/trial", {
+      method: "POST",
+      headers: { "X-Install-Id": await mintInstallId(), "content-type": "application/json" },
+      body: JSON.stringify({ mode: "chat", problem_id: "vp-0001", messages: [{ role: "user", text: LEARNER }] }),
+    });
+    const meta = (await readChatSSE(res)).find((f) => f.event === "meta")!.data as Record<string, unknown>;
+    expect(meta.ready_to_finish).toBe(true);
+
+    const usage = await env.DB.prepare("SELECT COUNT(*) AS n FROM usage WHERE endpoint = 'trial_finish_check'").first<{ n: number }>();
+    expect(usage?.n).toBe(1);
+    const after = await env.DB.prepare("SELECT COALESCE(SUM(tokens_spent),0) AS t FROM trial_budget WHERE date = ?1").bind(date).first<{ t: number }>();
+    // tutor turn (550) + finish check (340)
+    expect(after!.t - before!.t).toBe(890);
+  });
+});

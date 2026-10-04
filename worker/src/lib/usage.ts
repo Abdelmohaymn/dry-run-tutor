@@ -4,7 +4,7 @@
 // content: only the columns below are ever written.
 import { nowIso } from "./time";
 
-export type UsageEndpoint = "chat" | "judge" | "condense" | "hint" | "trial_chat" | "trial_judge" | "repair" | "key_check";
+export type UsageEndpoint = "chat" | "judge" | "condense" | "hint" | "trial_chat" | "trial_judge" | "repair" | "key_check" | "finish_check" | "trial_finish_check";
 
 export interface UsageRecord {
   installId: string;

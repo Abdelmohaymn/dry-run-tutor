@@ -55,7 +55,7 @@ extension DailySessionStatePatterns on DailySessionState {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( Opening value)?  opening,TResult Function( ProblemUnavailable value)?  problemUnavailable,TResult Function( Reading value)?  reading,TResult Function( Composing value)?  composing,TResult Function( Recording value)?  recording,TResult Function( Recognising value)?  recognising,TResult Function( ReviewingTranscript value)?  reviewingTranscript,TResult Function( Sending value)?  sending,TResult Function( Streaming value)?  streaming,TResult Function( WrappingUp value)?  wrappingUp,TResult Function( PullingHint value)?  pullingHint,TResult Function( CapReached value)?  capReached,TResult Function( ConfirmSolutionRelease value)?  confirmSolutionRelease,TResult Function( Judging value)?  judging,TResult Function( Verdict value)?  verdict,TResult Function( Revealed value)?  revealed,TResult Function( SessionClosed value)?  sessionClosed,TResult Function( Failure value)?  failure,TResult Function( RecognitionUnavailable value)?  recognitionUnavailable,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( Opening value)?  opening,TResult Function( ProblemUnavailable value)?  problemUnavailable,TResult Function( Reading value)?  reading,TResult Function( Composing value)?  composing,TResult Function( Recording value)?  recording,TResult Function( Recognising value)?  recognising,TResult Function( ReviewingTranscript value)?  reviewingTranscript,TResult Function( Sending value)?  sending,TResult Function( Streaming value)?  streaming,TResult Function( WrappingUp value)?  wrappingUp,TResult Function( FinishOffered value)?  finishOffered,TResult Function( PullingHint value)?  pullingHint,TResult Function( CapReached value)?  capReached,TResult Function( ConfirmSolutionRelease value)?  confirmSolutionRelease,TResult Function( Judging value)?  judging,TResult Function( Verdict value)?  verdict,TResult Function( Revealed value)?  revealed,TResult Function( SessionClosed value)?  sessionClosed,TResult Function( Failure value)?  failure,TResult Function( RecognitionUnavailable value)?  recognitionUnavailable,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case Opening() when opening != null:
@@ -68,7 +68,8 @@ return recognising(_that);case ReviewingTranscript() when reviewingTranscript !=
 return reviewingTranscript(_that);case Sending() when sending != null:
 return sending(_that);case Streaming() when streaming != null:
 return streaming(_that);case WrappingUp() when wrappingUp != null:
-return wrappingUp(_that);case PullingHint() when pullingHint != null:
+return wrappingUp(_that);case FinishOffered() when finishOffered != null:
+return finishOffered(_that);case PullingHint() when pullingHint != null:
 return pullingHint(_that);case CapReached() when capReached != null:
 return capReached(_that);case ConfirmSolutionRelease() when confirmSolutionRelease != null:
 return confirmSolutionRelease(_that);case Judging() when judging != null:
@@ -95,7 +96,7 @@ return recognitionUnavailable(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( Opening value)  opening,required TResult Function( ProblemUnavailable value)  problemUnavailable,required TResult Function( Reading value)  reading,required TResult Function( Composing value)  composing,required TResult Function( Recording value)  recording,required TResult Function( Recognising value)  recognising,required TResult Function( ReviewingTranscript value)  reviewingTranscript,required TResult Function( Sending value)  sending,required TResult Function( Streaming value)  streaming,required TResult Function( WrappingUp value)  wrappingUp,required TResult Function( PullingHint value)  pullingHint,required TResult Function( CapReached value)  capReached,required TResult Function( ConfirmSolutionRelease value)  confirmSolutionRelease,required TResult Function( Judging value)  judging,required TResult Function( Verdict value)  verdict,required TResult Function( Revealed value)  revealed,required TResult Function( SessionClosed value)  sessionClosed,required TResult Function( Failure value)  failure,required TResult Function( RecognitionUnavailable value)  recognitionUnavailable,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( Opening value)  opening,required TResult Function( ProblemUnavailable value)  problemUnavailable,required TResult Function( Reading value)  reading,required TResult Function( Composing value)  composing,required TResult Function( Recording value)  recording,required TResult Function( Recognising value)  recognising,required TResult Function( ReviewingTranscript value)  reviewingTranscript,required TResult Function( Sending value)  sending,required TResult Function( Streaming value)  streaming,required TResult Function( WrappingUp value)  wrappingUp,required TResult Function( FinishOffered value)  finishOffered,required TResult Function( PullingHint value)  pullingHint,required TResult Function( CapReached value)  capReached,required TResult Function( ConfirmSolutionRelease value)  confirmSolutionRelease,required TResult Function( Judging value)  judging,required TResult Function( Verdict value)  verdict,required TResult Function( Revealed value)  revealed,required TResult Function( SessionClosed value)  sessionClosed,required TResult Function( Failure value)  failure,required TResult Function( RecognitionUnavailable value)  recognitionUnavailable,}){
 final _that = this;
 switch (_that) {
 case Opening():
@@ -108,7 +109,8 @@ return recognising(_that);case ReviewingTranscript():
 return reviewingTranscript(_that);case Sending():
 return sending(_that);case Streaming():
 return streaming(_that);case WrappingUp():
-return wrappingUp(_that);case PullingHint():
+return wrappingUp(_that);case FinishOffered():
+return finishOffered(_that);case PullingHint():
 return pullingHint(_that);case CapReached():
 return capReached(_that);case ConfirmSolutionRelease():
 return confirmSolutionRelease(_that);case Judging():
@@ -131,7 +133,7 @@ return recognitionUnavailable(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( Opening value)?  opening,TResult? Function( ProblemUnavailable value)?  problemUnavailable,TResult? Function( Reading value)?  reading,TResult? Function( Composing value)?  composing,TResult? Function( Recording value)?  recording,TResult? Function( Recognising value)?  recognising,TResult? Function( ReviewingTranscript value)?  reviewingTranscript,TResult? Function( Sending value)?  sending,TResult? Function( Streaming value)?  streaming,TResult? Function( WrappingUp value)?  wrappingUp,TResult? Function( PullingHint value)?  pullingHint,TResult? Function( CapReached value)?  capReached,TResult? Function( ConfirmSolutionRelease value)?  confirmSolutionRelease,TResult? Function( Judging value)?  judging,TResult? Function( Verdict value)?  verdict,TResult? Function( Revealed value)?  revealed,TResult? Function( SessionClosed value)?  sessionClosed,TResult? Function( Failure value)?  failure,TResult? Function( RecognitionUnavailable value)?  recognitionUnavailable,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( Opening value)?  opening,TResult? Function( ProblemUnavailable value)?  problemUnavailable,TResult? Function( Reading value)?  reading,TResult? Function( Composing value)?  composing,TResult? Function( Recording value)?  recording,TResult? Function( Recognising value)?  recognising,TResult? Function( ReviewingTranscript value)?  reviewingTranscript,TResult? Function( Sending value)?  sending,TResult? Function( Streaming value)?  streaming,TResult? Function( WrappingUp value)?  wrappingUp,TResult? Function( FinishOffered value)?  finishOffered,TResult? Function( PullingHint value)?  pullingHint,TResult? Function( CapReached value)?  capReached,TResult? Function( ConfirmSolutionRelease value)?  confirmSolutionRelease,TResult? Function( Judging value)?  judging,TResult? Function( Verdict value)?  verdict,TResult? Function( Revealed value)?  revealed,TResult? Function( SessionClosed value)?  sessionClosed,TResult? Function( Failure value)?  failure,TResult? Function( RecognitionUnavailable value)?  recognitionUnavailable,}){
 final _that = this;
 switch (_that) {
 case Opening() when opening != null:
@@ -144,7 +146,8 @@ return recognising(_that);case ReviewingTranscript() when reviewingTranscript !=
 return reviewingTranscript(_that);case Sending() when sending != null:
 return sending(_that);case Streaming() when streaming != null:
 return streaming(_that);case WrappingUp() when wrappingUp != null:
-return wrappingUp(_that);case PullingHint() when pullingHint != null:
+return wrappingUp(_that);case FinishOffered() when finishOffered != null:
+return finishOffered(_that);case PullingHint() when pullingHint != null:
 return pullingHint(_that);case CapReached() when capReached != null:
 return capReached(_that);case ConfirmSolutionRelease() when confirmSolutionRelease != null:
 return confirmSolutionRelease(_that);case Judging() when judging != null:
@@ -170,7 +173,7 @@ return recognitionUnavailable(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  opening,TResult Function()?  problemUnavailable,TResult Function( Session session)?  reading,TResult Function( Session session,  Draft? draft,  String? notice)?  composing,TResult Function( Session session,  Duration elapsed,  List<double> levels,  bool warned,  String partialText)?  recording,TResult Function( Session session)?  recognising,TResult Function( Session session,  Draft draft)?  reviewingTranscript,TResult Function( Session session,  String pendingText)?  sending,TResult Function( Session session,  String partialText)?  streaming,TResult Function( Session session)?  wrappingUp,TResult Function( Session session)?  pullingHint,TResult Function( Session session)?  capReached,TResult Function( Session session)?  confirmSolutionRelease,TResult Function( Session session)?  judging,TResult Function( Session session,  Assessment assessment)?  verdict,TResult Function( Session session,  Assessment assessment)?  revealed,TResult Function( Session session)?  sessionClosed,TResult Function( Session session,  RelayError error)?  failure,TResult Function( Session session,  RecognitionAvailability reason)?  recognitionUnavailable,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  opening,TResult Function()?  problemUnavailable,TResult Function( Session session)?  reading,TResult Function( Session session,  Draft? draft,  String? notice)?  composing,TResult Function( Session session,  Duration elapsed,  List<double> levels,  bool warned,  String partialText)?  recording,TResult Function( Session session)?  recognising,TResult Function( Session session,  Draft draft)?  reviewingTranscript,TResult Function( Session session,  String pendingText)?  sending,TResult Function( Session session,  String partialText)?  streaming,TResult Function( Session session)?  wrappingUp,TResult Function( Session session)?  finishOffered,TResult Function( Session session)?  pullingHint,TResult Function( Session session)?  capReached,TResult Function( Session session)?  confirmSolutionRelease,TResult Function( Session session)?  judging,TResult Function( Session session,  Assessment assessment)?  verdict,TResult Function( Session session,  Assessment assessment)?  revealed,TResult Function( Session session)?  sessionClosed,TResult Function( Session session,  RelayError error)?  failure,TResult Function( Session session,  RecognitionAvailability reason)?  recognitionUnavailable,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case Opening() when opening != null:
 return opening();case ProblemUnavailable() when problemUnavailable != null:
@@ -182,7 +185,8 @@ return recognising(_that.session);case ReviewingTranscript() when reviewingTrans
 return reviewingTranscript(_that.session,_that.draft);case Sending() when sending != null:
 return sending(_that.session,_that.pendingText);case Streaming() when streaming != null:
 return streaming(_that.session,_that.partialText);case WrappingUp() when wrappingUp != null:
-return wrappingUp(_that.session);case PullingHint() when pullingHint != null:
+return wrappingUp(_that.session);case FinishOffered() when finishOffered != null:
+return finishOffered(_that.session);case PullingHint() when pullingHint != null:
 return pullingHint(_that.session);case CapReached() when capReached != null:
 return capReached(_that.session);case ConfirmSolutionRelease() when confirmSolutionRelease != null:
 return confirmSolutionRelease(_that.session);case Judging() when judging != null:
@@ -209,7 +213,7 @@ return recognitionUnavailable(_that.session,_that.reason);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  opening,required TResult Function()  problemUnavailable,required TResult Function( Session session)  reading,required TResult Function( Session session,  Draft? draft,  String? notice)  composing,required TResult Function( Session session,  Duration elapsed,  List<double> levels,  bool warned,  String partialText)  recording,required TResult Function( Session session)  recognising,required TResult Function( Session session,  Draft draft)  reviewingTranscript,required TResult Function( Session session,  String pendingText)  sending,required TResult Function( Session session,  String partialText)  streaming,required TResult Function( Session session)  wrappingUp,required TResult Function( Session session)  pullingHint,required TResult Function( Session session)  capReached,required TResult Function( Session session)  confirmSolutionRelease,required TResult Function( Session session)  judging,required TResult Function( Session session,  Assessment assessment)  verdict,required TResult Function( Session session,  Assessment assessment)  revealed,required TResult Function( Session session)  sessionClosed,required TResult Function( Session session,  RelayError error)  failure,required TResult Function( Session session,  RecognitionAvailability reason)  recognitionUnavailable,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  opening,required TResult Function()  problemUnavailable,required TResult Function( Session session)  reading,required TResult Function( Session session,  Draft? draft,  String? notice)  composing,required TResult Function( Session session,  Duration elapsed,  List<double> levels,  bool warned,  String partialText)  recording,required TResult Function( Session session)  recognising,required TResult Function( Session session,  Draft draft)  reviewingTranscript,required TResult Function( Session session,  String pendingText)  sending,required TResult Function( Session session,  String partialText)  streaming,required TResult Function( Session session)  wrappingUp,required TResult Function( Session session)  finishOffered,required TResult Function( Session session)  pullingHint,required TResult Function( Session session)  capReached,required TResult Function( Session session)  confirmSolutionRelease,required TResult Function( Session session)  judging,required TResult Function( Session session,  Assessment assessment)  verdict,required TResult Function( Session session,  Assessment assessment)  revealed,required TResult Function( Session session)  sessionClosed,required TResult Function( Session session,  RelayError error)  failure,required TResult Function( Session session,  RecognitionAvailability reason)  recognitionUnavailable,}) {final _that = this;
 switch (_that) {
 case Opening():
 return opening();case ProblemUnavailable():
@@ -221,7 +225,8 @@ return recognising(_that.session);case ReviewingTranscript():
 return reviewingTranscript(_that.session,_that.draft);case Sending():
 return sending(_that.session,_that.pendingText);case Streaming():
 return streaming(_that.session,_that.partialText);case WrappingUp():
-return wrappingUp(_that.session);case PullingHint():
+return wrappingUp(_that.session);case FinishOffered():
+return finishOffered(_that.session);case PullingHint():
 return pullingHint(_that.session);case CapReached():
 return capReached(_that.session);case ConfirmSolutionRelease():
 return confirmSolutionRelease(_that.session);case Judging():
@@ -244,7 +249,7 @@ return recognitionUnavailable(_that.session,_that.reason);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  opening,TResult? Function()?  problemUnavailable,TResult? Function( Session session)?  reading,TResult? Function( Session session,  Draft? draft,  String? notice)?  composing,TResult? Function( Session session,  Duration elapsed,  List<double> levels,  bool warned,  String partialText)?  recording,TResult? Function( Session session)?  recognising,TResult? Function( Session session,  Draft draft)?  reviewingTranscript,TResult? Function( Session session,  String pendingText)?  sending,TResult? Function( Session session,  String partialText)?  streaming,TResult? Function( Session session)?  wrappingUp,TResult? Function( Session session)?  pullingHint,TResult? Function( Session session)?  capReached,TResult? Function( Session session)?  confirmSolutionRelease,TResult? Function( Session session)?  judging,TResult? Function( Session session,  Assessment assessment)?  verdict,TResult? Function( Session session,  Assessment assessment)?  revealed,TResult? Function( Session session)?  sessionClosed,TResult? Function( Session session,  RelayError error)?  failure,TResult? Function( Session session,  RecognitionAvailability reason)?  recognitionUnavailable,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  opening,TResult? Function()?  problemUnavailable,TResult? Function( Session session)?  reading,TResult? Function( Session session,  Draft? draft,  String? notice)?  composing,TResult? Function( Session session,  Duration elapsed,  List<double> levels,  bool warned,  String partialText)?  recording,TResult? Function( Session session)?  recognising,TResult? Function( Session session,  Draft draft)?  reviewingTranscript,TResult? Function( Session session,  String pendingText)?  sending,TResult? Function( Session session,  String partialText)?  streaming,TResult? Function( Session session)?  wrappingUp,TResult? Function( Session session)?  finishOffered,TResult? Function( Session session)?  pullingHint,TResult? Function( Session session)?  capReached,TResult? Function( Session session)?  confirmSolutionRelease,TResult? Function( Session session)?  judging,TResult? Function( Session session,  Assessment assessment)?  verdict,TResult? Function( Session session,  Assessment assessment)?  revealed,TResult? Function( Session session)?  sessionClosed,TResult? Function( Session session,  RelayError error)?  failure,TResult? Function( Session session,  RecognitionAvailability reason)?  recognitionUnavailable,}) {final _that = this;
 switch (_that) {
 case Opening() when opening != null:
 return opening();case ProblemUnavailable() when problemUnavailable != null:
@@ -256,7 +261,8 @@ return recognising(_that.session);case ReviewingTranscript() when reviewingTrans
 return reviewingTranscript(_that.session,_that.draft);case Sending() when sending != null:
 return sending(_that.session,_that.pendingText);case Streaming() when streaming != null:
 return streaming(_that.session,_that.partialText);case WrappingUp() when wrappingUp != null:
-return wrappingUp(_that.session);case PullingHint() when pullingHint != null:
+return wrappingUp(_that.session);case FinishOffered() when finishOffered != null:
+return finishOffered(_that.session);case PullingHint() when pullingHint != null:
 return pullingHint(_that.session);case CapReached() when capReached != null:
 return capReached(_that.session);case ConfirmSolutionRelease() when confirmSolutionRelease != null:
 return confirmSolutionRelease(_that.session);case Judging() when judging != null:
@@ -881,6 +887,72 @@ class _$WrappingUpCopyWithImpl<$Res>
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') $Res call({Object? session = null,}) {
   return _then(WrappingUp(
+null == session ? _self.session : session // ignore: cast_nullable_to_non_nullable
+as Session,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class FinishOffered implements DailySessionState {
+  const FinishOffered(this.session);
+  
+
+ final  Session session;
+
+/// Create a copy of DailySessionState
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$FinishOfferedCopyWith<FinishOffered> get copyWith => _$FinishOfferedCopyWithImpl<FinishOffered>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FinishOffered&&(identical(other.session, session) || other.session == session));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,session);
+
+@override
+String toString() {
+  return 'DailySessionState.finishOffered(session: $session)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $FinishOfferedCopyWith<$Res> implements $DailySessionStateCopyWith<$Res> {
+  factory $FinishOfferedCopyWith(FinishOffered value, $Res Function(FinishOffered) _then) = _$FinishOfferedCopyWithImpl;
+@useResult
+$Res call({
+ Session session
+});
+
+
+
+
+}
+/// @nodoc
+class _$FinishOfferedCopyWithImpl<$Res>
+    implements $FinishOfferedCopyWith<$Res> {
+  _$FinishOfferedCopyWithImpl(this._self, this._then);
+
+  final FinishOffered _self;
+  final $Res Function(FinishOffered) _then;
+
+/// Create a copy of DailySessionState
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? session = null,}) {
+  return _then(FinishOffered(
 null == session ? _self.session : session // ignore: cast_nullable_to_non_nullable
 as Session,
   ));

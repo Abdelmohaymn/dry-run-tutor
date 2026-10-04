@@ -160,6 +160,17 @@ export const runtimeConfigSchema = z
         pool: z.array(trialPoolMemberSchema).min(1),
       })
       .strict(),
+    /** Feature 005. Optional so a config written before it still parses. */
+    finish_offer: z
+      .object({
+        enabled: z.boolean(),
+        /** First turn index the check may run on. */
+        min_turn: z.number().int().min(1).max(40),
+        /** How long the turn's meta frame waits for the check. */
+        timeout_ms: z.number().int().min(500).max(30000),
+      })
+      .strict()
+      .default({ enabled: false, min_turn: 2, timeout_ms: 8000 }),
     trim: z
       .object({
         verbatim_turns: z.number().int().min(2).max(20),

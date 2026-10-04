@@ -586,6 +586,30 @@ abstract class AppLocalizations {
   /// **'{count, plural, =0{No turns left today} =1{1 turn left today} other{{count} turns left today}}'**
   String turnGaugeLabel(int count);
 
+  /// Finish-offer card heading (feature 005): the finish check says every required key idea has been explained.
+  ///
+  /// In en, this message translates to:
+  /// **'Sounds like you\'ve got it'**
+  String get finishOfferTitle;
+
+  /// Finish-offer card body. An offer, never a verdict; the assessment still decides.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve explained the key idea. Finish now and see how you did, or keep going to dig deeper.'**
+  String get finishOfferBody;
+
+  /// Finish-offer card primary action: ends the session and starts the assessment.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish'**
+  String get finishOfferFinish;
+
+  /// Finish-offer card secondary action: hides the card for the rest of the session.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep going'**
+  String get finishOfferKeepGoing;
+
   /// Entered at config.chat.wrap_up_at_turn — the conversation winds down rather than stopping dead (FR-022).
   ///
   /// In en, this message translates to:

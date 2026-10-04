@@ -133,6 +133,12 @@ components:
             The never_say filter aborted the stream and the fallback line was
             emitted instead (data-model.md §B1). The offending sentence is
             never logged and never returned.
+        ready_to_finish:
+          type: boolean
+          description: >
+            Feature 005. Present only when a finish check ran this turn: true
+            when the learner has explained every required key insight, so the
+            app may offer to finish. Never ends the session by itself.
 
     Turn:
       type: object
@@ -199,6 +205,12 @@ components:
             §B3); never sent to the provider. Grants nothing a learner could
             not get by typing the same words in `messages`. Without it, a word
             said before the last summary was blocked again (2026-09-25).
+        finish_offer_dismissed:
+          type: boolean
+          default: false
+          description: >
+            Feature 005. The learner chose Keep going on the finish offer, so
+            the service runs no finish check for the rest of the session.
         hint_requested:
           type: boolean
           default: false

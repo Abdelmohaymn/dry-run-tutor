@@ -109,6 +109,11 @@ class DailySessionCubit extends Cubit<DailySessionState> {
   String? _pendingSendText;
   InputMode? _pendingSendMode;
 
+  /// The session whose finish offer the learner turned down with Keep
+  /// going (feature 005). Holds for the rest of that session only, and is
+  /// sent with every later turn so the relay stops running the check.
+  String? _finishOfferDismissedFor;
+
   /// Whether the draft being sent had a non-null `Draft.repaired` at the
   /// moment `send()` captured it — the draft itself is deleted before the
   /// `meta` frame comes back, so this is the only place `chat_turn_sent`
@@ -353,7 +358,7 @@ class DailySessionCubit extends Cubit<DailySessionState> {
   /// confirm, and a too-short one is declined locally.
   Future<void> sendTyped(String text) async {
     final DailySessionState current = state;
-    if (current is! Composing && current is! WrappingUp) {
+    if (current is! Composing && current is! WrappingUp && current is! FinishOffered) {
       return;
     }
     _usedChipThisReview = false;
@@ -587,6 +592,7 @@ class DailySessionCubit extends Cubit<DailySessionState> {
     final Session? session = switch (state) {
       Composing(:final Session session) => session,
       WrappingUp(:final Session session) => session,
+      FinishOffered(:final Session session) => session,
       CapReached(:final Session session) => session,
       _ => null,
     };
@@ -800,9 +806,45 @@ class DailySessionCubit extends Cubit<DailySessionState> {
   DailySessionState _reattachSession(DailySessionState previous, Session session) => switch (previous) {
         Composing(:final draft) => DailySessionState.composing(session, draft),
         WrappingUp() => DailySessionState.wrappingUp(session),
+        FinishOffered() => DailySessionState.finishOffered(session),
         CapReached() => DailySessionState.capReached(session),
         _ => DailySessionState.composing(session, null),
       };
+
+  /// Finish on the finish-offer card (feature 005): the same end as the
+  /// app-bar control, with the offer credited in analytics.
+  Future<void> acceptFinishOffer() async {
+    final DailySessionState current = state;
+    if (current is! FinishOffered) {
+      return;
+    }
+    _analyticsClient.emit(
+      EventName.finishOfferAccepted,
+      props: <String, Object>{'turn_index': current.session.counters.turnIndex},
+    );
+    await endSessionUser();
+  }
+
+  /// Keep going on the finish-offer card. Hides the offer for the rest of
+  /// this session and returns to wherever the turn count puts the learner.
+  void dismissFinishOffer() {
+    final DailySessionState current = state;
+    if (current is! FinishOffered) {
+      return;
+    }
+    final Session session = current.session;
+    _finishOfferDismissedFor = session.id;
+    _analyticsClient.emit(
+      EventName.finishOfferDismissed,
+      props: <String, Object>{'turn_index': session.counters.turnIndex},
+    );
+    final RuntimeConfig? config = _configOrNull;
+    emit(
+      config != null && session.counters.turnIndex >= config.chat.wrapUpAtTurn
+          ? DailySessionState.wrappingUp(session)
+          : DailySessionState.composing(session, null),
+    );
+  }
 
   @override
   Future<void> close() {
@@ -827,6 +869,7 @@ class DailySessionCubit extends Cubit<DailySessionState> {
         Streaming(:final session) => session,
         PullingHint(:final session) => session,
         WrappingUp(:final session) => session,
+        FinishOffered(:final session) => session,
         CapReached(:final session) => session,
         ConfirmSolutionRelease(:final session) => session,
         Judging(:final session) => session,
@@ -873,6 +916,7 @@ class DailySessionCubit extends Cubit<DailySessionState> {
         mode,
         solutionRequestCount: solutionRequestCount,
         retryMessageId: retryMessageId,
+        finishOfferDismissed: _finishOfferDismissedFor == session.id,
       )) {
         switch (event) {
           case TurnEventToken(:final text):
@@ -990,6 +1034,16 @@ class DailySessionCubit extends Cubit<DailySessionState> {
         );
       }
       emit(DailySessionState.capReached(updated));
+      return;
+    }
+    // The finish offer outranks the wrap-up nudge: both offer Finish, and
+    // this one says why (feature 005).
+    if (counters.readyToFinish && _finishOfferDismissedFor != session.id) {
+      _analyticsClient.emit(
+        EventName.finishOfferShown,
+        props: <String, Object>{'turn_index': counters.turnIndex},
+      );
+      emit(DailySessionState.finishOffered(updated));
       return;
     }
     final RuntimeConfig? config = _configOrNull;

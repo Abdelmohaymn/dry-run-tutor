@@ -30,6 +30,7 @@ import 'widgets/message_list.dart';
 import 'widgets/rate_limit_dialog.dart';
 import 'widgets/turn_gauge.dart';
 import 'widgets/typing_indicator.dart';
+import 'widgets/finish_offer_card.dart';
 import 'widgets/wrap_up_banner.dart';
 
 /// The daily loop (prototype screen 1): opens straight onto the problem,
@@ -210,6 +211,18 @@ class _DailyScreenState extends State<DailyScreen> {
                     onSubmit: cubit.sendTyped,
                   ),
                 ),
+              FinishOffered(:final session) => _DailyBody(
+                  session: session,
+                  banner: FinishOfferCard(
+                    onFinish: cubit.acceptFinishOffer,
+                    onKeepGoing: cubit.dismissFinishOffer,
+                  ),
+                  showControls: true,
+                  footer: Composer(
+                    onMicTap: () => _onMicTap(context),
+                    onSubmit: cubit.sendTyped,
+                  ),
+                ),
               CapReached(:final session) =>
                 _DailyBody(session: session, footer: _CapReachedNotice(session: session)),
               SessionClosed(:final session) =>
@@ -268,6 +281,7 @@ class _DailyScreenState extends State<DailyScreen> {
   static bool _canEndSession(DailySessionState state) => switch (state) {
         Composing(:final session) ||
         WrappingUp(:final session) ||
+        FinishOffered(:final session) ||
         CapReached(:final session) =>
           session.counters.turnIndex > 0,
         _ => false,

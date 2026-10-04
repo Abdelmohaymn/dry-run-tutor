@@ -96,6 +96,12 @@ sealed class DailySessionState with _$DailySessionState {
   /// winds down rather than stopping dead.
   const factory DailySessionState.wrappingUp(Session session) = WrappingUp;
 
+  /// The relay's finish check says the learner has explained every
+  /// required key insight (`meta.ready_to_finish`, feature 005). Offers
+  /// Finish and Keep going; the conversation stays open either way and
+  /// nothing is submitted without the learner's tap.
+  const factory DailySessionState.finishOffered(Session session) = FinishOffered;
+
   /// A hint is paid for and on the wire. Its own state rather than a flag
   /// because the wait is visible: the rewarded video closes, and the rung
   /// still has to come back from `/v1/hint`. Without this the screen sat

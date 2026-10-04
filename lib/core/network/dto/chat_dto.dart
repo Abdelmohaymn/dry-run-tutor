@@ -19,6 +19,7 @@ class ChatRequestDto {
     this.hintRequested,
     this.solutionRequestCount,
     this.keyCheck,
+    this.finishOfferDismissed,
   });
 
   factory ChatRequestDto.fromJson(Map<String, dynamic> json) => _$ChatRequestDtoFromJson(json);
@@ -44,6 +45,10 @@ class ChatRequestDto {
   /// provider call and spends no turn. `/v1/chat` only.
   final bool? keyCheck;
 
+  /// The learner chose Keep going on the finish offer; the relay runs no
+  /// finish check for the rest of the session (feature 005).
+  final bool? finishOfferDismissed;
+
   Map<String, dynamic> toJson() => _$ChatRequestDtoToJson(this);
 }
 
@@ -63,6 +68,7 @@ class MetaFrameDto {
     required this.leakBlocked,
     this.summary,
     this.summaryCovers,
+    this.readyToFinish,
   });
 
   factory MetaFrameDto.fromJson(Map<String, dynamic> json) => _$MetaFrameDtoFromJson(json);
@@ -92,6 +98,10 @@ class MetaFrameDto {
   /// `messages` the new summary covers. The rest must be sent again.
   /// Absent from a relay older than this field.
   final int? summaryCovers;
+
+  /// Feature 005. Present only when the relay ran a finish check this
+  /// turn: the learner has explained every required key insight.
+  final bool? readyToFinish;
 
   Map<String, dynamic> toJson() => _$MetaFrameDtoToJson(this);
 }

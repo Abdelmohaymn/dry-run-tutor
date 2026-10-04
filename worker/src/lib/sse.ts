@@ -15,6 +15,11 @@ export interface MetaFramePayload {
   hints_revealed: number;
   /** Zero means the next pull returns the fixed ladder-exhausted line (FR-003e). */
   hints_remaining: number;
+  /**
+   * Feature 005: the learner has explained every required key insight, so
+   * the app may offer to finish. Absent when no check ran this turn.
+   */
+  ready_to_finish?: boolean;
   /** Present only when this turn condensed history. */
   summary?: string | null;
   /**

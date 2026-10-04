@@ -358,6 +358,22 @@
       }
     }
   },
+  "finishOfferTitle": "Sounds like you've got it",
+  "@finishOfferTitle": {
+    "description": "Finish-offer card heading (feature 005): the finish check says every required key idea has been explained."
+  },
+  "finishOfferBody": "You've explained the key idea. Finish now and see how you did, or keep going to dig deeper.",
+  "@finishOfferBody": {
+    "description": "Finish-offer card body. An offer, never a verdict; the assessment still decides."
+  },
+  "finishOfferFinish": "Finish",
+  "@finishOfferFinish": {
+    "description": "Finish-offer card primary action: ends the session and starts the assessment."
+  },
+  "finishOfferKeepGoing": "Keep going",
+  "@finishOfferKeepGoing": {
+    "description": "Finish-offer card secondary action: hides the card for the rest of the session."
+  },
   "wrapUpBannerTitle": "Wrapping up",
   "@wrapUpBannerTitle": {
     "description": "Entered at config.chat.wrap_up_at_turn — the conversation winds down rather than stopping dead (FR-022)."

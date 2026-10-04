@@ -31,6 +31,7 @@ import {
 } from "../lib/trial-pool";
 import { groqProvider } from "../lib/provider-groq";
 import { utcDate, nowIso } from "../lib/time";
+import { FINISH_CHECK_MAX_TOKENS } from "../lib/finish-check";
 import type { Problem } from "../../../tools/problem-types";
 
 export const trialRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -206,6 +207,27 @@ trialRoute.post("/", async (c) => {
           if (!m) throw new AppError("TRIAL_UNAVAILABLE");
           return { baseUrl: m.base_url, apiKey: secretFor(m.secret_binding), model: m.model };
         },
+        finishCheck: async (systemPrompt, userContent, jsonSchema) => {
+          const { member, result } = await runLeg(
+            "judge",
+            cfg,
+            db,
+            now,
+            (opts) =>
+              groqProvider.structuredCompletion({
+                ...opts,
+                systemPrompt,
+                userContent,
+                maxTokens: FINISH_CHECK_MAX_TOKENS,
+                temperature: 0,
+                jsonSchema,
+              }),
+            secretFor,
+          );
+          await settleTrialBudget(db, now, member.id, "judge", result.usage.inputTokens + result.usage.outputTokens);
+          return { result, providerId: member.id, model: member.model };
+        },
+        finishCheckUsageEndpoint: "trial_finish_check",
         onBeforeProviderCall: async () => {
           await markTrialStarted(db, installId, trialStartedAt, body.problem_id, date, ipHash);
         },

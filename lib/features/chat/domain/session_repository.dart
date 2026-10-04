@@ -44,6 +44,7 @@ abstract interface class SessionRepository {
     InputMode mode, {
     int? solutionRequestCount,
     String? retryMessageId,
+    bool finishOfferDismissed = false,
   });
 
   /// A single `token` frame carrying the next authored rung. No provider

@@ -24,6 +24,7 @@ class FakeSessionRepository implements SessionRepository {
   /// `null` for an ordinary turn, so a solution-request test can assert
   /// the wire hint was actually sent (T110).
   final List<int?> sendTurnSolutionRequestCounts = <int?>[];
+  final List<bool> sendTurnFinishOfferDismissed = <bool>[];
 
   /// The `retryMessageId` each `sendTurn` call carried — `null` for a
   /// first attempt, the existing row's id for a retry (FR-042).
@@ -46,8 +47,10 @@ class FakeSessionRepository implements SessionRepository {
     InputMode mode, {
     int? solutionRequestCount,
     String? retryMessageId,
+    bool finishOfferDismissed = false,
   }) {
     retriedMessageIds.add(retryMessageId);
+    sendTurnFinishOfferDismissed.add(finishOfferDismissed);
     sendTurnSolutionRequestCounts.add(solutionRequestCount);
     final Stream<TurnEvent> Function(Session, String, InputMode)? handler = sendTurnHandler;
     if (handler == null) {

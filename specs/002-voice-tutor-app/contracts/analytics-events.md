@@ -44,6 +44,9 @@ is the client's.
 | `tutor_leak_blocked` | `meta.leak_blocked` was true | `turn_index` |
 | `config_fetch_failed` | `/v1/config` failed and cache was used (FR-047 scenario 5) | `reason` (`offline` \| `timeout` \| `http` \| `parse`) |
 | `offline_queue_drained` | Outbox emptied after reconnect | `items`, `kind` |
+| `finish_offer_shown` | The "you've got it" card appears after a turn (feature 005) | `turn_index` |
+| `finish_offer_accepted` | Finish tapped on that card | `turn_index` |
+| `finish_offer_dismissed` | Keep going tapped on that card | `turn_index` |
 
 ---
 

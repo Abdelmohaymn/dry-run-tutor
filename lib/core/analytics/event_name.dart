@@ -27,7 +27,10 @@ enum EventName {
   assessmentVerdictOverridden('assessment_verdict_overridden'),
   tutorLeakBlocked('tutor_leak_blocked'),
   configFetchFailed('config_fetch_failed'),
-  offlineQueueDrained('offline_queue_drained');
+  offlineQueueDrained('offline_queue_drained'),
+  finishOfferShown('finish_offer_shown'),
+  finishOfferAccepted('finish_offer_accepted'),
+  finishOfferDismissed('finish_offer_dismissed');
 
   const EventName(this.wireName);
 

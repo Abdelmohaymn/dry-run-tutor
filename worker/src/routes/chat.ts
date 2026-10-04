@@ -13,6 +13,7 @@ import { runConversationalTurn, runHintTurn, runKeyCheck } from "../lib/chat-cor
 import { PROVIDER_HEADER, resolveKeyedProvider } from "../lib/keyed-provider";
 import { groqProvider } from "../lib/provider-groq";
 import { utcDate } from "../lib/time";
+import { FINISH_CHECK_MAX_TOKENS } from "../lib/finish-check";
 import type { ProviderMessage } from "../lib/provider";
 import type { Problem } from "../../../tools/problem-types";
 
@@ -95,6 +96,21 @@ chatRoute.post("/", async (c) => {
       condenseUsageEndpoint: "condense",
       streamChat,
       condenseCallOptions: () => ({ baseUrl: keyed.baseUrl, apiKey: userKey, model: keyed.condenseModel }),
+      finishCheck: async (systemPrompt, userContent, jsonSchema) => ({
+        result: await groqProvider.structuredCompletion({
+          baseUrl: keyed.baseUrl,
+          model: keyed.model,
+          apiKey: userKey,
+          systemPrompt,
+          userContent,
+          maxTokens: FINISH_CHECK_MAX_TOKENS,
+          temperature: 0,
+          jsonSchema,
+        }),
+        providerId: keyed.id,
+        model: keyed.model,
+      }),
+      finishCheckUsageEndpoint: "finish_check",
     },
     problem,
   );

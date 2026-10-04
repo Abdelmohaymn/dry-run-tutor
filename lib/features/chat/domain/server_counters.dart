@@ -19,6 +19,7 @@ class ServerCounters extends Equatable {
     required this.hintsRemaining,
     required this.sessionEnded,
     required this.leakBlocked,
+    this.readyToFinish = false,
   });
 
   /// A session that has not sent a first turn yet.
@@ -45,6 +46,11 @@ class ServerCounters extends Equatable {
   /// never as a glitch.
   final bool leakBlocked;
 
+  /// The relay's finish check says the learner has explained every
+  /// required key insight (feature 005). Only ever offers; never ends the
+  /// session. `false` when no check ran.
+  final bool readyToFinish;
+
   @override
   List<Object?> get props => <Object?>[
         turnIndex,
@@ -53,5 +59,6 @@ class ServerCounters extends Equatable {
         hintsRemaining,
         sessionEnded,
         leakBlocked,
+        readyToFinish,
       ];
 }

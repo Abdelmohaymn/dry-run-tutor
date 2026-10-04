@@ -172,6 +172,17 @@
         }
       }
     },
+    "finish_offer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "min_turn", "timeout_ms"],
+      "description": "Feature 005 (specs/005-finish-offer). After each conversational turn from min_turn, a structured call decides whether the learner has explained every required key insight; the answer reaches the app as MetaFrame.ready_to_finish. Skipped once the learner sends finish_offer_dismissed. Absent = disabled.",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "min_turn": { "type": "integer", "minimum": 1, "maximum": 40, "default": 2 },
+        "timeout_ms": { "type": "integer", "minimum": 500, "maximum": 30000, "default": 8000, "description": "How long the meta frame waits for the check before reporting false." }
+      }
+    },
     "trim": {
       "type": "object",
       "additionalProperties": false,

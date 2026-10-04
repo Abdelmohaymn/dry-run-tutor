@@ -19,6 +19,7 @@ ChatRequestDto _$ChatRequestDtoFromJson(Map<String, dynamic> json) =>
       hintRequested: json['hint_requested'] as bool?,
       solutionRequestCount: (json['solution_request_count'] as num?)?.toInt(),
       keyCheck: json['key_check'] as bool?,
+      finishOfferDismissed: json['finish_offer_dismissed'] as bool?,
     );
 
 Map<String, dynamic> _$ChatRequestDtoToJson(ChatRequestDto instance) =>
@@ -30,6 +31,7 @@ Map<String, dynamic> _$ChatRequestDtoToJson(ChatRequestDto instance) =>
       'hint_requested': ?instance.hintRequested,
       'solution_request_count': ?instance.solutionRequestCount,
       'key_check': ?instance.keyCheck,
+      'finish_offer_dismissed': ?instance.finishOfferDismissed,
     };
 
 MetaFrameDto _$MetaFrameDtoFromJson(Map<String, dynamic> json) {
@@ -60,6 +62,7 @@ MetaFrameDto _$MetaFrameDtoFromJson(Map<String, dynamic> json) {
     leakBlocked: json['leak_blocked'] as bool,
     summary: json['summary'] as String?,
     summaryCovers: (json['summary_covers'] as num?)?.toInt(),
+    readyToFinish: json['ready_to_finish'] as bool?,
   );
 }
 
@@ -73,4 +76,5 @@ Map<String, dynamic> _$MetaFrameDtoToJson(MetaFrameDto instance) =>
       'leak_blocked': instance.leakBlocked,
       'summary': instance.summary,
       'summary_covers': instance.summaryCovers,
+      'ready_to_finish': instance.readyToFinish,
     };

@@ -19,6 +19,7 @@ import {
   type TurnCounterKey,
 } from "./turn-cap";
 import { learnerNamedTerms, reachedInsightKeys, renderGroundTruth, selectSlice } from "./ground-truth";
+import { runFinishCheck, withinMs, type FinishCheckCall } from "./finish-check";
 import { condense, type CondenseCallOptions } from "./condense";
 import { blockedTermsIn, buildBlockedTerms, cleanLead } from "./leak-filter";
 import { LADDER_EXHAUSTED, flatLadder, nextHint } from "./hint-ladder";
@@ -58,6 +59,12 @@ export interface ChatTurnDeps {
    * path, which claims nothing beyond the turn itself.
    */
   onProviderCallUnanswered?: () => Promise<void>;
+  /**
+   * Feature 005. Makes the finish-check call on this path's credential.
+   * Absent = no check, and `ready_to_finish` is left off the meta frame.
+   */
+  finishCheck?: FinishCheckCall;
+  finishCheckUsageEndpoint?: UsageEndpoint; // "finish_check" | "trial_finish_check"
 }
 
 /**
@@ -245,6 +252,28 @@ export async function runConversationalTurn(
         await deps.onBeforeProviderCall();
       }
 
+      // Started before the tutor call so the two run side by side; awaited
+      // only after the reply has gone out (feature 005).
+      const finishOffer = deps.cfg.finish_offer;
+      const finishCheck =
+        deps.finishCheck &&
+        finishOffer.enabled &&
+        !body.finish_offer_dismissed &&
+        sessionEnded === null &&
+        reserved.turnIndex >= finishOffer.min_turn
+          ? withinMs(
+              runFinishCheck(problem, learnerHistory, deps.finishCheck, {
+                db: deps.db,
+                installId: deps.installId,
+                problemId: deps.problemId,
+                date: deps.date,
+                turnIndex: reserved.turnIndex,
+                usageEndpoint: deps.finishCheckUsageEndpoint ?? "finish_check",
+              }),
+              finishOffer.timeout_ms,
+            )
+          : null;
+
       const reachedKeys = reachedInsightKeys(problem, learnerHistory, deps.cfg);
       const named = learnerNamedTerms(problem, learnerHistory);
       const blockedTerms = buildBlockedTerms(problem, reachedKeys, named, released ? "solution" : null);
@@ -316,6 +345,7 @@ export async function runConversationalTurn(
         summary_covers: condensed.called ? condensed.covered : undefined,
         session_ended: sessionEnded,
         leak_blocked: fallbackSent,
+        ready_to_finish: finishCheck ? await finishCheck : undefined,
       };
       await writeMeta(stream, meta);
       await writeDone(stream);

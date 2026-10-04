@@ -298,6 +298,19 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get finishOfferTitle => 'Sounds like you\'ve got it';
+
+  @override
+  String get finishOfferBody =>
+      'You\'ve explained the key idea. Finish now and see how you did, or keep going to dig deeper.';
+
+  @override
+  String get finishOfferFinish => 'Finish';
+
+  @override
+  String get finishOfferKeepGoing => 'Keep going';
+
+  @override
   String get wrapUpBannerTitle => 'Wrapping up';
 
   @override

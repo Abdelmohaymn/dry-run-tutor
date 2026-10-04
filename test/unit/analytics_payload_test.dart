@@ -64,6 +64,10 @@ final Map<EventName, Map<String, Object>?> _emissionSites = <EventName, Map<Stri
   EventName.configFetchFailed: <String, Object>{'reason': 'offline'},
   // lib/core/queue/outbox_drain_bloc.dart
   EventName.offlineQueueDrained: <String, Object>{'items': 2, 'kind': 'mixed'},
+  // lib/features/chat/presentation/daily_session_cubit.dart
+  EventName.finishOfferShown: <String, Object>{'turn_index': 3},
+  EventName.finishOfferAccepted: <String, Object>{'turn_index': 3},
+  EventName.finishOfferDismissed: <String, Object>{'turn_index': 3},
 };
 
 /// contracts/analytics-events.md's own prop key set for each event —
@@ -93,10 +97,13 @@ const Map<EventName, Set<String>> _contractPropKeys = <EventName, Set<String>>{
   EventName.tutorLeakBlocked: <String>{'turn_index'},
   EventName.configFetchFailed: <String>{'reason'},
   EventName.offlineQueueDrained: <String>{'items', 'kind'},
+  EventName.finishOfferShown: <String>{'turn_index'},
+  EventName.finishOfferAccepted: <String>{'turn_index'},
+  EventName.finishOfferDismissed: <String>{'turn_index'},
 };
 
 void main() {
-  test('_emissionSites and _contractPropKeys both cover exactly the 23 closed names', () {
+  test('_emissionSites and _contractPropKeys both cover exactly the 26 closed names', () {
     expect(_emissionSites.keys.toSet(), EventName.values.toSet());
     expect(_contractPropKeys.keys.toSet(), EventName.values.toSet());
   });

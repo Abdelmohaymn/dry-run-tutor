@@ -30,4 +30,5 @@ ServerCounters countersFromMetaDto(MetaFrameDto dto) => ServerCounters(
       hintsRemaining: dto.hintsRemaining,
       sessionEnded: dto.sessionEnded,
       leakBlocked: dto.leakBlocked,
+      readyToFinish: dto.readyToFinish ?? false,
     );

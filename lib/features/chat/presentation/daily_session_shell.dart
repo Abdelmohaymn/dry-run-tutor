@@ -105,6 +105,7 @@ class DailySessionShell extends StatelessWidget {
         // would be a navigation the learner never asked for.
         PullingHint() => AppRoute.daily.path,
         WrappingUp() => AppRoute.daily.path,
+        FinishOffered() => AppRoute.daily.path,
         // A trial-path cap is "a completed session" for FR-005a's wall
         // (T090) — the app has no judge-driven `endSession` yet
         // (Phase 6, T111), so the taster running out is the completion
