@@ -18,6 +18,8 @@ const trialPoolMemberSchema = z
     structured_output: z.boolean(),
     enabled: z.boolean(),
     cooldown_ms: z.number().int().min(1000).default(60000),
+    /** Extra body fields for this member's structured calls (provider.ts). */
+    structured_extra_body: z.record(z.string(), z.unknown()).optional(),
   })
   .strict();
 
@@ -38,6 +40,8 @@ const keyedProviderSchema = z
     model: z.string().optional(),
     condense_model: z.string().optional(),
     repair_model: z.string().optional(),
+    /** Extra body fields for this provider's structured calls (provider.ts). */
+    structured_extra_body: z.record(z.string(), z.unknown()).optional(),
   })
   .strict();
 

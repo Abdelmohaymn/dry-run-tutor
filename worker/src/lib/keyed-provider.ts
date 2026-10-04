@@ -23,6 +23,7 @@ export interface KeyedProvider {
   model: string;
   condenseModel: string;
   repairModel: string;
+  structuredExtraBody?: Record<string, unknown>;
 }
 
 /** Providers a learner may bring a key for, in the order key entry should offer them. */
@@ -51,5 +52,6 @@ export function resolveKeyedProvider(cfg: RuntimeConfig, header: string | undefi
     model: overrides?.model ?? cfg.model,
     condenseModel: overrides?.condense_model ?? cfg.trim.condense_model,
     repairModel: overrides?.repair_model ?? cfg.repair?.model ?? cfg.model,
+    structuredExtraBody: overrides?.structured_extra_body,
   };
 }

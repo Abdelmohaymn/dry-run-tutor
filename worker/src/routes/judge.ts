@@ -55,6 +55,7 @@ judgeRoute.post("/", async (c) => {
           baseUrl: keyed.baseUrl,
           model: keyed.model,
           apiKey: userKey,
+          structuredExtraBody: keyed.structuredExtraBody,
           systemPrompt,
           userContent,
           maxTokens: 2000,

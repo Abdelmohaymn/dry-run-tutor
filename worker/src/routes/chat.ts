@@ -101,6 +101,7 @@ chatRoute.post("/", async (c) => {
           baseUrl: keyed.baseUrl,
           model: keyed.model,
           apiKey: userKey,
+          structuredExtraBody: keyed.structuredExtraBody,
           systemPrompt,
           userContent,
           maxTokens: FINISH_CHECK_MAX_TOKENS,

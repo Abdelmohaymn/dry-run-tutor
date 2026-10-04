@@ -4,7 +4,7 @@ import type { JudgeRequest, Turn } from "./schemas";
 import { claimJudge, releaseJudgeClaim, type TurnCounterKey } from "./turn-cap";
 import { judgeSlice, renderJudgeGroundTruth } from "./ground-truth";
 import { buildJudgeSchema } from "./judge-schema";
-import { postprocessJudge, type Assessment } from "./judge-postprocess";
+import { isSelfContradictory, postprocessJudge, type Assessment } from "./judge-postprocess";
 import { JUDGE_PROMPT } from "../prompts/judge";
 import { writeUsage, type UsageEndpoint } from "./usage";
 import { writeEvent } from "./events";
@@ -12,6 +12,8 @@ import { nowIso } from "./time";
 import { AppError } from "./errors";
 import type { StructuredCompletionResult } from "./provider";
 import type { Problem } from "../../../tools/problem-types";
+
+export const JUDGE_CONVERSATION_PLACEHOLDER = "It is in the user message below, one turn per line.";
 
 function renderConversation(turns: Turn[]): string {
   return turns.map((t) => `${t.role}: ${t.text}`).join("\n");
@@ -45,20 +47,46 @@ export async function runJudge(deps: JudgeDeps, body: JudgeRequest, problem: Pro
 
   const slice = judgeSlice(problem);
   const groundTruthText = renderJudgeGroundTruth(slice);
+  // The conversation goes in the user message, not the system prompt:
+  // with it inlined there, Nemotron intermittently returned a hollow
+  // assessment for a plainly correct explanation (2026-10-04).
   const systemPrompt = JUDGE_PROMPT.replace("{{GROUND_TRUTH}}", groundTruthText).replace(
     "{{CONVERSATION}}",
-    renderConversation(conversation),
+    JUDGE_CONVERSATION_PLACEHOLDER,
   );
+  const userContent = `${renderConversation(conversation)}\n\nReturn the assessment now.`;
 
   const startedAt = Date.now();
-  let call: { result: StructuredCompletionResult; providerId: string; model: string };
-  let postprocessed: ReturnType<typeof postprocessJudge>;
-  try {
-    call = await deps.structuredCompletion(systemPrompt, "Return the assessment now.", {
+  const ask = () =>
+    deps.structuredCompletion(systemPrompt, userContent, {
       name: "assessment",
       schema: buildJudgeSchema(problem),
     });
+  let call: { result: StructuredCompletionResult; providerId: string; model: string };
+  let postprocessed: ReturnType<typeof postprocessJudge>;
+  let inputTokens = 0;
+  let outputTokens = 0;
+  try {
+    call = await ask();
     postprocessed = postprocessJudge(call.result.json, problem);
+    inputTokens += call.result.usage.inputTokens;
+    outputTokens += call.result.usage.outputTokens;
+    // One more ask when the answer contradicts itself. The first answer
+    // stands if the second fails or is no better.
+    if (isSelfContradictory(postprocessed.assessment, problem)) {
+      try {
+        const second = await ask();
+        inputTokens += second.result.usage.inputTokens;
+        outputTokens += second.result.usage.outputTokens;
+        const secondProcessed = postprocessJudge(second.result.json, problem);
+        if (!isSelfContradictory(secondProcessed.assessment, problem)) {
+          call = second;
+          postprocessed = secondProcessed;
+        }
+      } catch {
+        // Keep the first assessment.
+      }
+    }
   } catch (err) {
     // Nothing assessable came back. Hand the session's one assessment back
     // before surfacing the error, or the retry we are about to advise is a
@@ -78,8 +106,8 @@ export async function runJudge(deps: JudgeDeps, body: JudgeRequest, problem: Pro
     turnIndex: 0,
     model: call.model,
     provider: call.providerId,
-    inputTokens: call.result.usage.inputTokens,
-    outputTokens: call.result.usage.outputTokens,
+    inputTokens,
+    outputTokens,
     latencyMs,
     verdictOverridden,
   });

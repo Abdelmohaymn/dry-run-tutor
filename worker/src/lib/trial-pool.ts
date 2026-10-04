@@ -20,6 +20,7 @@ export interface TrialPoolMember {
   structured_output: boolean;
   enabled: boolean;
   cooldown_ms: number;
+  structured_extra_body?: Record<string, unknown>;
 }
 
 function estimateFor(leg: TrialLeg): number {
@@ -168,6 +169,7 @@ export async function runLeg<T>(
         baseUrl: member.base_url,
         model: member.model,
         apiKey: secretFor(member.secret_binding),
+        structuredExtraBody: member.structured_extra_body,
       });
       return { member, result };
     } catch (err) {

@@ -187,6 +187,8 @@ async function structuredCompletion(
       authorization: `Bearer ${params.apiKey}`,
     },
     body: JSON.stringify({
+      // First, so none of the fields below can be overridden by config.
+      ...(params.structuredExtraBody ?? {}),
       model: params.model,
       messages: [
         { role: "system", content: params.systemPrompt },

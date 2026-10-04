@@ -112,9 +112,14 @@ export function postprocessJudge(raw: unknown, problem: Problem): JudgePostproce
     if (!hit.has(key) && !missed.has(key)) missed.add(key);
   }
 
+  // The model's job is to recognise WHICH reference approach the learner
+  // described; how good that approach is, is authored. Nemotron named the
+  // one-pass hash map and still labelled it "suboptimal" (2026-10-04),
+  // which mapVerdict() turned into likely_tle for an optimal answer.
+  const authoredApproach = problem.private.reference_approaches.find((a) => a.key === out.matched_approach);
   const repaired: JudgeOutput = {
     matched_approach: out.matched_approach,
-    matched_verdict: out.matched_verdict,
+    matched_verdict: authoredApproach?.verdict ?? out.matched_verdict,
     insights_hit: [...hit],
     insights_missed: [...missed],
     wrong_turns_taken: out.wrong_turns_taken.filter((k) =>
@@ -139,7 +144,7 @@ export function postprocessJudge(raw: unknown, problem: Problem): JudgePostproce
   // Step 6: attach the reveal. The only path private content ever crosses.
   const assessment: Assessment = {
     matched_approach: repaired.matched_approach,
-    matched_verdict: out.matched_verdict,
+    matched_verdict: repaired.matched_verdict,
     insights_hit: repaired.insights_hit,
     insights_missed: repaired.insights_missed,
     wrong_turns_taken: repaired.wrong_turns_taken,
@@ -156,4 +161,20 @@ export function postprocessJudge(raw: unknown, problem: Problem): JudgePostproce
     from: verdictOverridden ? (out.verdict as Verdict) : undefined,
     to: verdictOverridden ? mapped : undefined,
   };
+}
+
+/**
+ * An assessment whose parts cannot all be true: a good reference approach
+ * recognised with not one key insight, or every required insight with a
+ * suboptimal or wrong approach. Nemotron produced the first intermittently
+ * for a plainly correct explanation (2026-10-04); judge-core.ts asks once
+ * more when it sees either.
+ */
+export function isSelfContradictory(assessment: Assessment, problem: Problem): boolean {
+  const approach = problem.private.reference_approaches.find((a) => a.key === assessment.matched_approach);
+  if (!approach) return false;
+  const required = problem.private.key_insights.filter((i) => i.required).map((i) => i.key);
+  const allRequiredHit = required.length > 0 && required.every((k) => assessment.insights_hit.includes(k));
+  const goodApproach = approach.verdict === "optimal" || approach.verdict === "acceptable";
+  return (goodApproach && assessment.insights_hit.length === 0) || (!goodApproach && allRequiredHit);
 }

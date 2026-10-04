@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getPrivate, getPublicManifest } from "../../src/lib/content";
-import { postprocessJudge } from "../../src/lib/judge-postprocess";
+import { isSelfContradictory, postprocessJudge } from "../../src/lib/judge-postprocess";
 import { AppError } from "../../src/lib/errors";
 import type { Problem } from "../../../tools/problem-types";
 
@@ -48,6 +48,17 @@ describe("postprocessJudge() — contracts/judge-system-prompt.md §Server-side 
     expect([...union].sort()).toEqual([...allInsightKeys].sort());
     const intersection = assessment.insights_hit.filter((k) => assessment.insights_missed.includes(k));
     expect(intersection).toEqual([]);
+  });
+
+  it("step 2: a named reference approach takes its authored verdict, whatever the model labelled it", () => {
+    const result = postprocessJudge(rawOutput({ matched_verdict: "suboptimal", verdict: "likely_tle" }), problem);
+    expect(result.assessment.matched_verdict).toBe("optimal");
+    expect(result.assessment.verdict).not.toBe("likely_tle");
+  });
+
+  it("step 2: matched_approach 'none' keeps the model's own matched_verdict", () => {
+    const result = postprocessJudge(rawOutput({ matched_approach: "none", matched_verdict: "none", insights_hit: [] }), problem);
+    expect(result.assessment.matched_verdict).toBe("none");
   });
 
   it("step 2: an unauthored key in either list is dropped", () => {
@@ -118,5 +129,22 @@ describe("postprocessJudge() — contracts/judge-system-prompt.md §Server-side 
   it("step 6: editorial is attached and was never part of the raw model output", () => {
     const { assessment } = postprocessJudge(rawOutput(), problem);
     expect(assessment.editorial).toBe(problem.private.editorial);
+  });
+});
+
+describe("isSelfContradictory()", () => {
+  const assess = (o: Record<string, unknown>) => postprocessJudge(rawOutput(o), problem).assessment;
+
+  it("flags the optimal approach with no insight recognised", () => {
+    expect(isSelfContradictory(assess({ insights_hit: [], insights_missed: [] }), problem)).toBe(true);
+  });
+
+  it("flags every required insight with the brute-force approach", () => {
+    expect(isSelfContradictory(assess({ matched_approach: "brute_force" }), problem)).toBe(true);
+  });
+
+  it("accepts a consistent assessment, and any assessment with no reference approach", () => {
+    expect(isSelfContradictory(assess({}), problem)).toBe(false);
+    expect(isSelfContradictory(assess({ matched_approach: "none", matched_verdict: "none", insights_hit: [] }), problem)).toBe(false);
   });
 });

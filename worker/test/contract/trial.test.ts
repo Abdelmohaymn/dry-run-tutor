@@ -137,10 +137,13 @@ describe("POST /v1/trial — one complete session, no learner key", () => {
     const body = (await secondChat.json()) as any;
     expect(body.error.code).toBe("TRIAL_CONSUMED");
 
+    // Still refused, but as a repeat of the verdict already delivered for
+    // this problem and day, so the app shows its saved copy rather than
+    // the key wall (2026-10-04). It spends nothing either way.
     const secondJudge = await sendTrialJudge(installId, [{ role: "user", text: "starting again" }]);
     expect(secondJudge.status).toBe(409);
     const judgeBody = (await secondJudge.json()) as any;
-    expect(judgeBody.error.code).toBe("TRIAL_CONSUMED");
+    expect(judgeBody.error.code).toBe("SESSION_ALREADY_JUDGED");
   });
 
   it("an abandoned trial stops at cfg.trial.turn_cap turns (default 6)", async () => {

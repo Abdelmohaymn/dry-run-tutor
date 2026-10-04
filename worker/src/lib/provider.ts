@@ -17,6 +17,14 @@ export interface ProviderCallOptions {
   baseUrl: string;
   model: string;
   apiKey: string;
+  /**
+   * Extra request-body fields for structured completions only (judge,
+   * finish check), from config. Nemotron on Nebius needs
+   * `chat_template_kwargs: { enable_thinking: false }` there: with thinking
+   * on, a strict-schema judge call intermittently came back hollow (empty
+   * insight lists, feedback "..."). Never applied to the tutor stream.
+   */
+  structuredExtraBody?: Record<string, unknown>;
 }
 
 export interface UsageInfo {

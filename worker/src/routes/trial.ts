@@ -137,6 +137,19 @@ trialRoute.post("/", async (c) => {
   }
 
   if (consumed && !isTasterUnclaimed(consumed)) {
+    // A judge call for the session this install already finished today is
+    // a retry of a verdict that was delivered (or lost on the way), not a
+    // second taster. TRIAL_CONSUMED here put the key wall in front of the
+    // learner's own assessment; SESSION_ALREADY_JUDGED lets the app show
+    // the copy it saved (2026-10-04).
+    if (
+      body.mode === "judge" &&
+      consumed.completedAt !== null &&
+      consumed.problemId === body.problem_id &&
+      consumed.date === date
+    ) {
+      throw new AppError("SESSION_ALREADY_JUDGED");
+    }
     if (!isSameTrialSession(consumed, body.problem_id, date)) {
       throw new AppError("TRIAL_CONSUMED");
     }
