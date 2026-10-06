@@ -16,7 +16,7 @@ the configured relay before it reaches the socket (FR-004, Principle VI). Base U
 
 | Header | Sent on | Rule |
 |---|---|---|
-| `X-Install-Id` | every call except `/v1/config` and the manifest | `<uuid>.<base64url HMAC>` from `/v1/install`, stored in Drift (§1) |
+| `X-Install-Id` | `/v1/chat`, `/v1/judge`, `/v1/repair`, `/v1/trial`, `/v1/daily` — not `/v1/config` or `/v1/practice` | `<device_hash>.<base64url HMAC>` (64 lowercase hex, a dot, the signature) from `/v1/install`, stored in Drift (§1) |
 | `X-User-Key` | `/v1/chat`, `/v1/judge` | Read from secure storage per request, never cached in a field, never logged. **Absent on `/v1/trial`** — that path spends the operator's credential |
 | `X-Provider` | `/v1/chat`, `/v1/judge` | The provider the stored key belongs to. Must be a member of `config.keyed_providers`. **Never sent on `/v1/trial`** — that path ignores it and pool selection is the pool's decision |
 | `Content-Type` | POST bodies | `application/json` |
@@ -38,21 +38,26 @@ prevent.
 Called exactly once, at first launch, before anything else.
 
 ```
-→ { "install_uuid": "<uuidv4>" }
-← { "install_id": "3f1c….Yk8sQ2p…" }
+→ { "platform": "android", "device_id": "<Settings.Secure.ANDROID_ID>" }
+← { "install_id": "<64 hex device hash>.Yk8sQ2p…" }
 ```
 
-- **On failure, first launch stays on the seeding screen and retries** (FR-047a/b). It does **not**
-  re-mint a uuid — an app that mints a fresh identity on every failure farms tasters.
-- Emits `app_open` with `is_first_launch`.
+- The `device_id` comes from the `app.dryrun/device_id` platform channel
+  (`DeviceIdPlatform.androidId()`). The relay stores only a keyed one-way hash of it and returns the
+  same `install_id` for the same device every time, so a reinstall recovers the same identity and
+  cannot farm a second taster. The raw id is **never** written to Drift, preferences, or a log.
+- A missing Android ID is `RelayError.badRequest()`; no request is made.
+- **On failure, first launch stays on the seeding screen and retries** (FR-047a/b). There is no
+  locally minted identifier to re-mint, so a retry is just the same call again.
+- `InstallIdentity.installUuid` is now the part of `install_id` before the dot.
 
 ## `GET /v1/config`
 
 Called at launch and on resume-after-a-while. **Fails open, always** (FR-046, Principle X.3).
 
 - Success → replace `CachedConfig` verbatim, keep the `ETag`.
-- Any failure (unreachable, timeout, non-200, unparseable) → use `CachedConfig`, emit
-  `config_fetch_failed`, continue to a usable state within 3s (SC-007).
+- Any failure (unreachable, timeout, non-200, unparseable) → use `CachedConfig` and continue to a
+  usable state within 3s (SC-007).
 - **No cached row and no network** → the only case that blocks, and it blocks on a *designed waiting
   screen* that retries as connectivity changes and enters the app the moment the seed lands
   (FR-047, FR-047a/b). Never an error dialog, never a blank screen, never a bare retry button.
@@ -62,14 +67,36 @@ Called at launch and on resume-after-a-while. **Fails open, always** (FR-046, Pr
 
 **Read from it, and compile none of it in:** `chat.turn_cap`, `chat.wrap_up_at_turn`,
 `chat.min_turn_chars`, `trial.turn_cap`, `keyed_providers`, `killed_problem_ids`,
-`content_manifest_url`, `min_supported_version`. `model`, `provider`, `providers`, `trim`, and
-`trial.pool` are server business and are **not** read — FR-008c forbids exposing model names or
+`min_supported_version`. `model`, `provider`, `providers`, `trim`, and
+`trial.pool` are server business and are **not** read; `rotation` is read by the Worker and never
+sent; `content_manifest_url` is legacy (the Worker still serves it only so pre-006 apps can parse
+`/v1/config`) and the app ignores it — FR-008c forbids exposing model names or
 routing state, and reading them would invite it.
 
-## `GET /v1/content/manifest.json`
+## `GET /v1/daily?date=YYYY-MM-DD`
 
-Prefetch, two weeks ahead (FR-035a). Public fields only; `PublicHalfDto` rejects unknown keys.
-A problem whose id is in `killed_problem_ids` is not stored and not selectable (FR-040).
+`RelayClient.daily(installId:, date:)`. Install-auth. The **server** picks the day's problem (an
+authored problem for exactly `date`, else the evergreen pool by `rotation` or `dayNumber % pool`);
+the app no longer prefetches a manifest or runs its own rotation.
+
+```
+← { "date": "2026-10-06", "problem": <PublicHalf> }
+```
+
+- `DailyResponseDto { date, problem: PublicHalfDto }`; `PublicHalfDto` still rejects unknown keys.
+- `cache-control: private, no-store`. `date` is the trusted local day; the server refuses a date
+  more than one day from its own UTC date with `BAD_REQUEST`.
+- `409 PROBLEM_KILLED` (every candidate withdrawn) → `RelayError.problemKilled`, surfaced as the
+  existing "no problem" state (FR-020, FR-040). Offline → `RelayError.transport()`.
+- The result is cached in `CachedProblems` with `manifestDate = date`, so a day already fetched is
+  served from the cache without a call.
+
+## `GET /v1/practice`
+
+`RelayClient.practice()`. No auth, no install header. Returns `{ "problem": <PublicHalf> }` — the
+warm-up — with `cache-control: public, max-age=3600`; `409 PROBLEM_KILLED` if it was withdrawn.
+Cached with `manifestDate = null`. Fetched at launch and by the seeding screen so the warm-up and
+the key-check probe work with nothing else cached.
 
 ## `POST /v1/chat` — the streamed turn
 
@@ -155,11 +182,6 @@ FR-007a/b, SC-020. When the taster's turns run out mid-conversation and the lear
 4. The allowance rises because the server compares the same counter against `chat.turn_cap` instead
    of `trial.turn_cap`.
 5. **The app says so** (FR-007b) — the learner is told the allowance grew, not silently given more.
-
-## `POST /v1/event`
-
-Batched, ≤100 per call, fire-and-forget. See [analytics-events.md](./analytics-events.md). An
-analytics failure changes nothing the learner sees (FR-051).
 
 ---
 

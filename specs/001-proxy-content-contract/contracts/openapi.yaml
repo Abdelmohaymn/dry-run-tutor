@@ -20,7 +20,10 @@ components:
       type: apiKey
       in: header
       name: X-Install-Id
-      description: '<uuidv4>.<base64url HMAC-SHA256>, minted by POST /v1/install.'
+      description: >
+        '<device_hash>.<sig>' — a 64-char lowercase hex device hash, a dot,
+        and the base64url HMAC-SHA256 of that hash. Minted by POST /v1/install.
+        A legacy '<uuidv4>.<sig>' token is refused with BAD_REQUEST.
     UserKey:
       type: apiKey
       in: header
@@ -29,13 +32,6 @@ components:
         The learner's own provider key. Used once for the relayed call and
         NEVER persisted — not to storage, a log, an error trace, or a usage
         record (FR-023). Absent on /v1/trial, which uses the operator key.
-    WebDemoToken:
-      type: apiKey
-      in: header
-      name: X-Web-Demo-Token
-      description: >
-        Feature 007. Signed token from /v1/web-demo/start. Valid for 15
-        minutes (data-model.md).
 
   parameters:
     ProviderHeader:
@@ -70,11 +66,6 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
-    WebDemoUnavailable:
-      description: Feature 007. WEB_DEMO_UNAVAILABLE. The client goes scripted.
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/WebDemoUnavailable' }
 
   schemas:
     MetaFrame:
@@ -169,7 +160,7 @@ components:
               enum: [RATE_LIMITED, INVALID_KEY, QUOTA_EXHAUSTED, UNCLEAR_RETRY,
                      TURN_CAP_REACHED, TRIAL_CONSUMED, SESSION_ALREADY_JUDGED,
                      EMPTY_TURN, PROBLEM_KILLED, TRIAL_UNAVAILABLE, BAD_REQUEST,
-                     WEB_DEMO_UNAVAILABLE, INVALID_EMAIL]
+                     INVALID_EMAIL]
             message: { type: string }
             retryable: { type: boolean }
             retry_after_ms: { type: integer, minimum: 0 }
@@ -331,33 +322,17 @@ components:
           type: boolean
           description: repaired !== transcript, computed server-side.
 
-    WebMessage:
-      description: >
-        Feature 007. Same shape as turnSchema in worker/src/lib/schemas.ts:6,
-        so chat-core and judge-core take it unchanged.
-      type: object
-      additionalProperties: false
-      required: [role, text]
-      properties:
-        role: { type: string, enum: [user, tutor] }
-        text: { type: string, minLength: 1, maxLength: 2000 }
-
-    WebDemoUnavailable:
-      description: >
-        Feature 007. Error envelope with code WEB_DEMO_UNAVAILABLE and
-        retryable false. The reason stays in the server logs and is not sent
-        to the client: disabled | daily_cap | rate_limited | turnstile_failed |
-        token_invalid | turn_cap | provider_unavailable.
-      allOf: [{ $ref: '#/components/schemas/Error' }]
-
 paths:
   /v1/install:
     post:
-      summary: Mint a signed anonymous install identity
+      summary: Mint a signed install identity for this device
       description: >
-        Called once at first launch. No accounts, no PII (FR-036). The signature
-        prevents impersonation of another install; it does NOT prevent trial
-        farming — see research.md R-009.
+        Called once at first launch. No accounts, no PII (FR-036). The server
+        derives `device_hash = hex(HMAC-SHA256(secret, "android:" + device_id))`,
+        records it in `devices` (INSERT OR IGNORE), and returns
+        `<device_hash>.<sig>`. The raw device id is never stored or logged. The
+        same device always gets the same install_id, so a reinstall cannot farm
+        a second free taster. Rate-limited per network.
       security: []
       requestBody:
         required: true
@@ -366,11 +341,14 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [install_uuid]
+              required: [platform, device_id]
               properties:
-                install_uuid:
+                platform: { type: string, const: android }
+                device_id:
                   type: string
-                  format: uuid
+                  minLength: 1
+                  maxLength: 128
+                  description: Android's per-app Settings.Secure.ANDROID_ID. Trimmed and lower-cased server-side.
       responses:
         '200':
           description: Signed identity
@@ -381,8 +359,73 @@ paths:
                 additionalProperties: false
                 required: [install_id]
                 properties:
-                  install_id: { type: string, example: '3f1c…-…-….Yk8sQ2p…' }
+                  install_id: { type: string, example: '9f2c4e1a7b3d5f60…(64 hex).Yk8sQ2p…' }
         '400': { $ref: '#/components/responses/Err' }
+        '429': { $ref: '#/components/responses/Err' }
+
+  /v1/daily:
+    get:
+      summary: The server-picked problem for a calendar day
+      description: >
+        The Worker picks the day's problem from the public manifest: a problem
+        authored for exactly `date` wins; otherwise the evergreen pool (not
+        killed, not the warm-up) is indexed by `config.rotation` when present,
+        else by dayNumber(date) % pool.length. `date` must be a real calendar
+        day within one day of the server's UTC date; anything else is
+        BAD_REQUEST. Records a per-device, per-day activity row.
+      security: [{ InstallId: [] }]
+      parameters:
+        - in: query
+          name: date
+          required: true
+          schema: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+      responses:
+        '200':
+          description: The day's public problem
+          headers:
+            Cache-Control: { schema: { type: string }, example: 'private, no-store' }
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [date, problem]
+                properties:
+                  date: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+                  problem: { $ref: './problem.schema.json#/$defs/PublicHalf' }
+        '400': { $ref: '#/components/responses/Err' }
+        '409':
+          description: PROBLEM_KILLED — every candidate problem is withdrawn.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /v1/practice:
+    get:
+      summary: The warm-up problem
+      description: >
+        The first (id-sorted) problem in the "practice" collection that is not
+        withdrawn. Public half only. No auth and no per-device state, so it is
+        shared-cacheable.
+      security: []
+      responses:
+        '200':
+          description: The warm-up problem
+          headers:
+            Cache-Control: { schema: { type: string }, example: 'public, max-age=3600' }
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [problem]
+                properties:
+                  problem: { $ref: './problem.schema.json#/$defs/PublicHalf' }
+        '409':
+          description: PROBLEM_KILLED — the warm-up is withdrawn.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 
   /v1/chat:
     post:
@@ -586,178 +629,6 @@ paths:
             application/json:
               schema: { $ref: './config.schema.json' }
 
-  /v1/event:
-    post:
-      summary: Batched anonymous analytics
-      description: >
-        No PII and no message content, ever (FR-034). A batch containing a
-        disallowed key or a nested value is rejected, not trimmed.
-      security: [{ InstallId: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: './event.schema.json' }
-      responses:
-        '202': { description: Accepted }
-        '400': { $ref: '#/components/responses/Err' }
-
-  /v1/content/manifest.json:
-    get:
-      summary: Dated public problem entries for prefetch
-      description: >
-        Contains ONLY public fields. No private field is reachable from this
-        response, asserted automatically on every content build (FR-028, SC-014).
-      security: []
-      responses:
-        '200':
-          description: The public manifest
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: false
-                required: [schema_version, generated, problems]
-                properties:
-                  schema_version: { const: 2 }
-                  generated: { type: string, format: date-time }
-                  problems:
-                    type: array
-                    items: { $ref: './problem.schema.json#/$defs/PublicHalf' }
-
-  # --- Feature 007: the landing site's own routes. No InstallId auth — the
-  # browser has no install ID. Guarded by CORS (runtime_config.web.allowed_origins),
-  # Turnstile, and rate-limit bindings instead (research.md R8). A request
-  # whose Origin is not allowed gets 403 with no CORS headers.
-  #
-  # FAIL-OPEN RULE (FR-014, SC-005): every refusal on /v1/web-demo/* is 503
-  # WEB_DEMO_UNAVAILABLE. The client MUST treat it as "switch to scripted
-  # replies" and show no error to the visitor.
-  /v1/web-demo/start:
-    post:
-      summary: Start one live demo on the warm-up problem
-      description: >
-        Verifies the Turnstile token (action "web_demo", hostname checked).
-        Applies WEB_DEMO_RL per CF-Connecting-IP and the daily cap
-        (web.daily_demo_cap) and the pool-share cap (web.max_pool_share,
-        research.md R9), and checks that web.enabled is true. It then
-        creates a web_demo_session row and returns a demo token. The problem is
-        always the warm-up (collection "practice"), so the client cannot choose
-        a problem. Only the public half is returned (Principle VI).
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required: [turnstile_token]
-              properties:
-                turnstile_token: { type: string, maxLength: 2048 }
-      responses:
-        '200':
-          description: Demo started
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: false
-                required: [demo_token, turn_cap, problem_id, expires_at]
-                properties:
-                  demo_token: { type: string }
-                  turn_cap: { type: integer, minimum: 1, maximum: 10 }
-                  problem_id: { type: string, example: vp-0000 }
-                  expires_at: { type: string, format: date-time }
-        '503': { $ref: '#/components/responses/WebDemoUnavailable' }
-        '400': { $ref: '#/components/responses/Err' }
-
-  /v1/web-demo/turn:
-    post:
-      summary: One live tutor turn, streamed
-      description: >
-        Same conversational core as /v1/trial mode=chat for the practice
-        problem: runConversationalTurn with the trial pool,
-        ground_truth_tier from config.trial, and condense off. The leak filter
-        and Principle III rules apply unchanged (FR-016). The client sends the
-        full history, and the server stores none of it. The turn is reserved
-        before the provider call and refunded if no reply arrives. WEB_TURN_RL
-        applies per demo_id. The caps in web.daily_demo_cap and
-        web.max_pool_share are checked only at /start: a demo that started
-        always runs to its end. The SSE event format is identical to /v1/trial
-        mode=chat, so the app's TurnEvent parser applies unchanged.
-      security: [{ WebDemoToken: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required: [messages, input_mode]
-              properties:
-                messages:
-                  type: array
-                  minItems: 1
-                  maxItems: 21
-                  items: { $ref: '#/components/schemas/WebMessage' }
-                input_mode: { type: string, enum: [voice, typed] }
-      responses:
-        '200':
-          description: text/event-stream, as /v1/trial mode=chat
-        '503': { $ref: '#/components/responses/WebDemoUnavailable' }
-        '400': { $ref: '#/components/responses/Err' }
-
-  /v1/web-demo/finish:
-    post:
-      summary: End the demo and get a hedged verdict
-      description: >
-        Runs runJudge (judge-core.ts) on the conversation against vp-0000's
-        reference_approaches, with installId "web:<demo_id>" (Principle II,
-        FR-020), then maps it with mapVerdict (verdict-map.ts:37). It returns
-        the verdict ENUM, not display text. The Flutter demo turns the enum
-        into the app's own hedged ARB copy (assessment_copy.dart), so the
-        wording is identical to the app (Principle IV). The session is marked
-        finished and verdict + matched_approach stored. If the judge fails, it
-        returns 200 with verdict null, never an error, and the page shows the
-        fixed close. A second call returns the stored result without judging
-        again. Requires vp-0000 judge corpus cases (research.md R7).
-      security: [{ WebDemoToken: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required: [messages]
-              properties:
-                messages:
-                  type: array
-                  minItems: 2
-                  maxItems: 21
-                  items: { $ref: '#/components/schemas/WebMessage' }
-      responses:
-        '200':
-          description: Finished
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: false
-                required: [verdict]
-                properties:
-                  verdict:
-                    oneOf:
-                      - type: 'null'
-                      - type: object
-                        additionalProperties: false
-                        required: [verdict, matched_approach]
-                        properties:
-                          verdict: { type: string, enum: [strong_pass, pass, borderline, likely_tle, incorrect, unclear] }
-                          matched_approach: { type: string, enum: [single_scan, sort_take_last, first_element, none] }
-        '503': { $ref: '#/components/responses/WebDemoUnavailable' }
-
   /v1/notify:
     post:
       summary: Ask to be emailed when the app reaches a store
@@ -786,58 +657,3 @@ paths:
         '403': { description: Turnstile failed }
         '429': { description: Rate limited }
         '503': { description: web.notify_enabled is false }
-
-  /v1/web-event:
-    post:
-      summary: Anonymous first-party page events
-      description: >
-        No auth, no cookie, no visitor ID, no IP stored (FR-027, R10). Rows go
-        to the events table with install_id "web". Uses a closed list of names,
-        separate from the app's EVENT_NAMES. A batch with an unknown name or prop
-        is rejected whole. WEB_EVENT_RL applies per IP. Sent with
-        navigator.sendBeacon, so a text/plain body is accepted too.
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required: [events]
-              properties:
-                events:
-                  type: array
-                  minItems: 1
-                  maxItems: 10
-                  items:
-                    oneOf:
-                      - { type: object, additionalProperties: false, required: [name, client_ts], properties: { name: { const: web_page_view }, client_ts: { type: string, format: date-time } } }
-                      - { type: object, additionalProperties: false, required: [name, client_ts], properties: { name: { const: web_try_seen }, client_ts: { type: string, format: date-time } } }
-                      - { type: object, additionalProperties: false, required: [name, client_ts], properties: { name: { const: web_try_tapped }, client_ts: { type: string, format: date-time } } }
-                      - type: object
-                        additionalProperties: false
-                        required: [name, client_ts, props]
-                        properties:
-                          name: { const: web_demo_finished }
-                          client_ts: { type: string, format: date-time }
-                          props: { type: object, additionalProperties: false, required: [live], properties: { live: { type: boolean } } }
-                      - type: object
-                        additionalProperties: false
-                        required: [name, client_ts, props]
-                        properties:
-                          name: { const: web_download_tapped }
-                          client_ts: { type: string, format: date-time }
-                          props:
-                            type: object
-                            additionalProperties: false
-                            required: [store, demo_done]
-                            properties:
-                              store: { type: string, enum: [uptodown, play, app_store] }
-                              demo_done: { type: boolean }
-      responses:
-        '202': { description: Accepted }
-        '400': { description: Invalid batch }
-        '429': { description: Rate limited }
-
-

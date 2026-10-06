@@ -92,7 +92,7 @@ export default defineWorkersConfig(async () => {
           ...poolOptions.workers.miniflare.bindings,
           GROQ_API_KEY: process.env.GROQ_API_KEY ?? "",
           // Optional: run the harness against a different configured
-          // provider/model than whatever's seeded in runtime_config,
+          // provider/model than whatever's seeded in config,
           // without editing the migration's seed row. Set both to switch;
           // leave unset and the seeded default (groq) is used as normal.
           HARNESS_PROVIDER: process.env.HARNESS_PROVIDER ?? "",
