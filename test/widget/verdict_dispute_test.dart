@@ -22,7 +22,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../fakes/fake_analytics_client.dart';
 import '../fakes/fake_assessment_repository.dart';
 import '../fakes/fake_streak_repository.dart';
 import '../fakes/fake_config_repository.dart';
@@ -91,12 +90,10 @@ Future<(DailySessionCubit, FakeAssessmentRepository)> _cubitAtVerdict() async {
       ..cachedValue = const RuntimeConfig(
         minSupportedVersion: '1.0.0',
         killedProblemIds: <String>[],
-        contentManifestUrl: '/v1/content/manifest.json',
         chat: ChatConfig(turnCap: 1, wrapUpAtTurn: 1, minTurnChars: 5),
         trial: TrialConfig(turnCap: 4),
         keyedProviders: <String>['groq'],
       ),
-    analyticsClient: FakeAnalyticsClient(),
     micRationaleRepository: FakeMicRationaleRepository(),
   );
   await cubit.open();

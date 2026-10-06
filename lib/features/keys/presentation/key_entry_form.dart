@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/analytics/analytics_client.dart';
 import '../../../core/config/remote_config_repository.dart';
 import '../../../core/di/service_locator.dart';
 import '../../../core/errors/error_copy.dart';
@@ -49,7 +48,6 @@ class KeyEntryForm extends StatelessWidget {
       create: (_) => KeyEntryCubit(
         keyRepository: sl<KeyRepository>(),
         providers: providers,
-        analyticsClient: sl<AnalyticsClient>(),
       ),
       child: _KeyEntryFormView(onSaved: onSaved),
     );

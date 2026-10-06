@@ -12,12 +12,12 @@ afterEach(() => {
 });
 
 async function killProblem(problemId: string): Promise<void> {
-  const row = await env.DB.prepare("SELECT payload FROM runtime_config WHERE id = 1").first<{
+  const row = await env.DB.prepare("SELECT payload FROM config WHERE id = 1").first<{
     payload: string;
   }>();
   const cfg = JSON.parse(row!.payload);
   cfg.killed_problem_ids = [problemId];
-  await env.DB.prepare("UPDATE runtime_config SET payload = ? WHERE id = 1")
+  await env.DB.prepare("UPDATE config SET payload = ? WHERE id = 1")
     .bind(JSON.stringify(cfg))
     .run();
 }

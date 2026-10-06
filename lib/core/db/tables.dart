@@ -211,16 +211,3 @@ class CachedConfig extends Table {
   @override
   Set<Column> get primaryKey => {id};
 }
-
-/// The analytics buffer. Batched up to 100 per `POST /v1/event`, retried,
-/// and never affects anything the learner sees (FR-051).
-class BufferedEvents extends Table {
-  TextColumn get id => text()();
-  TextColumn get name => text()();
-  TextColumn get clientTs => text()();
-  TextColumn get props => text().nullable()();
-  IntColumn get attempts => integer().withDefault(const Constant(0))();
-
-  @override
-  Set<Column> get primaryKey => {id};
-}

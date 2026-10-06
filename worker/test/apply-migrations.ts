@@ -1,5 +1,5 @@
 // Runs once per test file inside the Workers runtime, before any test.
-// Applies worker/migrations/*.sql (including the runtime_config seed row) to
+// Applies worker/migrations/*.sql (including the config seed row) to
 // the isolated-storage D1 instance so every unit and contract test starts
 // from the same schema `wrangler d1 migrations apply --local` would produce.
 import { applyD1Migrations, env } from "cloudflare:test";

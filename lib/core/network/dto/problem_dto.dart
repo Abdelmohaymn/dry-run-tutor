@@ -75,20 +75,28 @@ class PublicHalfDto {
   Map<String, dynamic> toJson() => _$PublicHalfDtoToJson(this);
 }
 
-/// `GET /v1/content/manifest.json` response.
+/// `GET /v1/daily?date=` response — the day's problem, picked by the relay.
 @JsonSerializable(fieldRename: FieldRename.snake)
-class ManifestDto {
-  ManifestDto({
-    required this.schemaVersion,
-    required this.generated,
-    required this.problems,
-  });
+class DailyResponseDto {
+  DailyResponseDto({required this.date, required this.problem});
 
-  factory ManifestDto.fromJson(Map<String, dynamic> json) => _$ManifestDtoFromJson(json);
+  factory DailyResponseDto.fromJson(Map<String, dynamic> json) => _$DailyResponseDtoFromJson(json);
 
-  final int schemaVersion;
-  final String generated;
-  final List<PublicHalfDto> problems;
+  final String date;
+  final PublicHalfDto problem;
 
-  Map<String, dynamic> toJson() => _$ManifestDtoToJson(this);
+  Map<String, dynamic> toJson() => _$DailyResponseDtoToJson(this);
+}
+
+/// `GET /v1/practice` response — the onboarding warm-up.
+@JsonSerializable(fieldRename: FieldRename.snake)
+class PracticeResponseDto {
+  PracticeResponseDto({required this.problem});
+
+  factory PracticeResponseDto.fromJson(Map<String, dynamic> json) =>
+      _$PracticeResponseDtoFromJson(json);
+
+  final PublicHalfDto problem;
+
+  Map<String, dynamic> toJson() => _$PracticeResponseDtoToJson(this);
 }

@@ -2,7 +2,7 @@ import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
 async function putAds(ads: unknown): Promise<void> {
-  const row = await env.DB.prepare("SELECT payload FROM runtime_config WHERE id = 1").first<{
+  const row = await env.DB.prepare("SELECT payload FROM config WHERE id = 1").first<{
     payload: string;
   }>();
   const cfg = JSON.parse(row!.payload);
@@ -11,7 +11,7 @@ async function putAds(ads: unknown): Promise<void> {
   } else {
     cfg.ads = ads;
   }
-  await env.DB.prepare("UPDATE runtime_config SET payload = ? WHERE id = 1")
+  await env.DB.prepare("UPDATE config SET payload = ? WHERE id = 1")
     .bind(JSON.stringify(cfg))
     .run();
 }
@@ -53,7 +53,7 @@ describe("GET /v1/config — the ad kill switch", () => {
   it("switching ads off is one write", async () => {
     await putAds({ enabled: true });
     await env.DB.prepare(
-      "UPDATE runtime_config SET payload = json_set(payload, '$.ads.enabled', json('false'))",
+      "UPDATE config SET payload = json_set(payload, '$.ads.enabled', json('false'))",
     ).run();
 
     expect((await served()).ads).toEqual({ enabled: false });

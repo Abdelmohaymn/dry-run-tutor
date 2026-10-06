@@ -16,7 +16,7 @@ import type { Env, Variables } from "../types";
 /// on a public page, so it is a deliberate choice rather than a default.
 const CONTACT_EMAIL = "contact@example.com";
 
-const LAST_UPDATED = "29 September 2026";
+const LAST_UPDATED = "6 October 2026";
 
 export const privacyRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -82,14 +82,9 @@ language before the microphone permission is ever requested.</p>
 <table>
   <tr><th>Data</th><th>Why</th><th>Where it goes</th></tr>
   <tr>
-    <td>An install identifier</td>
-    <td>Keeps your streak and session identity, and limits trial abuse</td>
-    <td>Our relay. Created fresh for each install; not a hardware identifier and not linked to you</td>
-  </tr>
-  <tr>
-    <td>App interaction events</td>
-    <td>Understanding which parts of the app work</td>
-    <td>Our relay. A fixed, closed list of events. No conversation text, no free-text fields, no key material</td>
+    <td>A hashed device identifier</td>
+    <td>Enforces the free limits — one free taster per phone, daily turn caps</td>
+    <td>Our relay. Only a one-way keyed hash of Android's per-app device ID is stored, never the ID itself; it is not linked to you</td>
   </tr>
   <tr>
     <td>Conversation and transcript text, when you supply your own API key</td>
@@ -115,8 +110,6 @@ language before the microphone permission is ever requested.</p>
 <p><strong>Launch emails.</strong> If you ask to be told when Dry Run reaches the App Store,
 we keep your email address. We use it once, to tell you. Then we delete it. Email <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a> to have it
 deleted sooner.</p>
-<p><strong>Counts.</strong> We count page visits and button taps without cookies and without
-identifying you.</p>
 
 <h2>Children</h2>
 <p>Dry Run is intended for people preparing for job interviews and is not directed at
@@ -124,8 +117,8 @@ children.</p>
 
 <h2>Keeping and deleting data</h2>
 <p>Your practice history, disputes, and settings live on your device. The app's settings
-screen can delete all of it, and uninstalling removes it. The install identifier and event
-records on our relay are not tied to your identity and cannot be traced back to you.</p>
+screen can delete all of it, and uninstalling removes it. The hashed device identifier and the
+per-day counters on our relay are not tied to your identity and cannot be traced back to you.</p>
 
 <h2>Changes</h2>
 <p>If this policy changes, the date at the top of this page changes with it.</p>

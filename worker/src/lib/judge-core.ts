@@ -6,9 +6,6 @@ import { judgeSlice, renderJudgeGroundTruth } from "./ground-truth";
 import { buildJudgeSchema } from "./judge-schema";
 import { isSelfContradictory, postprocessJudge, type Assessment } from "./judge-postprocess";
 import { JUDGE_PROMPT } from "../prompts/judge";
-import { writeUsage, type UsageEndpoint } from "./usage";
-import { writeEvent } from "./events";
-import { nowIso } from "./time";
 import { AppError } from "./errors";
 import type { StructuredCompletionResult } from "./provider";
 import type { Problem } from "../../../tools/problem-types";
@@ -24,7 +21,6 @@ export interface JudgeDeps {
   installId: string;
   problemId: string;
   date: string;
-  usageEndpoint: UsageEndpoint; // "judge" | "trial_judge"
   /** Resolves the credential and makes the structured-completion call. */
   structuredCompletion: (
     systemPrompt: string,
@@ -56,31 +52,20 @@ export async function runJudge(deps: JudgeDeps, body: JudgeRequest, problem: Pro
   );
   const userContent = `${renderConversation(conversation)}\n\nReturn the assessment now.`;
 
-  const startedAt = Date.now();
   const ask = () =>
     deps.structuredCompletion(systemPrompt, userContent, {
       name: "assessment",
       schema: buildJudgeSchema(problem),
     });
-  let call: { result: StructuredCompletionResult; providerId: string; model: string };
   let postprocessed: ReturnType<typeof postprocessJudge>;
-  let inputTokens = 0;
-  let outputTokens = 0;
   try {
-    call = await ask();
-    postprocessed = postprocessJudge(call.result.json, problem);
-    inputTokens += call.result.usage.inputTokens;
-    outputTokens += call.result.usage.outputTokens;
+    postprocessed = postprocessJudge((await ask()).result.json, problem);
     // One more ask when the answer contradicts itself. The first answer
     // stands if the second fails or is no better.
     if (isSelfContradictory(postprocessed.assessment, problem)) {
       try {
-        const second = await ask();
-        inputTokens += second.result.usage.inputTokens;
-        outputTokens += second.result.usage.outputTokens;
-        const secondProcessed = postprocessJudge(second.result.json, problem);
+        const secondProcessed = postprocessJudge((await ask()).result.json, problem);
         if (!isSelfContradictory(secondProcessed.assessment, problem)) {
-          call = second;
           postprocessed = secondProcessed;
         }
       } catch {
@@ -94,32 +79,6 @@ export async function runJudge(deps: JudgeDeps, body: JudgeRequest, problem: Pro
     await releaseJudgeClaim(deps.db, key, judgedAt);
     throw err instanceof AppError ? err : new AppError("UNCLEAR_RETRY");
   }
-  const latencyMs = Date.now() - startedAt;
 
-  const { assessment, verdictOverridden, from, to } = postprocessed;
-
-  await writeUsage(deps.db, {
-    installId: deps.installId,
-    date: deps.date,
-    endpoint: deps.usageEndpoint,
-    problemId: deps.problemId,
-    turnIndex: 0,
-    model: call.model,
-    provider: call.providerId,
-    inputTokens,
-    outputTokens,
-    latencyMs,
-    verdictOverridden,
-  });
-
-  if (verdictOverridden) {
-    await writeEvent(deps.db, {
-      installId: deps.installId,
-      name: "assessment_verdict_overridden",
-      props: { from: from ?? "unclear", to: to ?? "unclear", problem_id: deps.problemId },
-      clientTs: nowIso(),
-    });
-  }
-
-  return assessment;
+  return postprocessed.assessment;
 }

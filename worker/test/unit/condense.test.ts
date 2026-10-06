@@ -21,12 +21,6 @@ function makeMockProvider(replyText = "a condensed summary") {
   return { provider, calls };
 }
 
-let counter = 0;
-function freshKey() {
-  counter += 1;
-  return { installId: `install-condense-${counter}`, problemId: "vp-0001", date: "2026-08-20" };
-}
-
 describe("condense()", () => {
   it("does not call the provider when messages.length <= K, and passes the prior summary through unchanged", async () => {
     const cfg = await getRuntimeConfig(env.DB);
@@ -39,7 +33,6 @@ describe("condense()", () => {
       cfg,
       provider,
       { baseUrl: "https://example.test", apiKey: "k", model: "test-condense-model" },
-      { db: env.DB, ...freshKey(), turnIndex: 1 },
     );
 
     expect(result.called).toBe(false);
@@ -62,7 +55,6 @@ describe("condense()", () => {
       cfg,
       provider,
       { baseUrl: "https://example.test", apiKey: "k", model: "test-condense-model" },
-      { db: env.DB, ...freshKey(), turnIndex: 1 },
     );
 
     expect(result.called).toBe(true);
@@ -91,54 +83,10 @@ describe("condense()", () => {
       cfg,
       provider,
       { baseUrl: "https://example.test", apiKey: "k", model: "test-condense-model" },
-      { db: env.DB, ...freshKey(), turnIndex: 1 },
     );
 
     const sentText = calls[0].userContent;
     const occurrences = sentText.split(priorSummary).length - 1;
     expect(occurrences).toBe(1);
-  });
-
-  it("writes nothing to D1 when condensation is not triggered", async () => {
-    const cfg = await getRuntimeConfig(env.DB);
-    const { provider } = makeMockProvider();
-    const key = freshKey();
-    const messages = Array.from({ length: cfg.trim.verbatim_turns }, (_, i) => turn(i));
-
-    await condense(
-      undefined,
-      messages,
-      cfg,
-      provider,
-      { baseUrl: "https://example.test", apiKey: "k", model: "test-condense-model" },
-      { db: env.DB, ...key, turnIndex: 1 },
-    );
-
-    const usageRows = await env.DB.prepare("SELECT COUNT(*) as n FROM usage WHERE install_id = ?")
-      .bind(key.installId)
-      .first<{ n: number }>();
-    expect(usageRows!.n).toBe(0);
-  });
-
-  it("writes exactly one `condense` usage row when it is triggered", async () => {
-    const cfg = await getRuntimeConfig(env.DB);
-    const K = cfg.trim.verbatim_turns;
-    const { provider } = makeMockProvider();
-    const key = freshKey();
-    const messages = Array.from({ length: K + 3 }, (_, i) => turn(i));
-
-    await condense(
-      undefined,
-      messages,
-      cfg,
-      provider,
-      { baseUrl: "https://example.test", apiKey: "k", model: "test-condense-model" },
-      { db: env.DB, ...key, turnIndex: 2 },
-    );
-
-    const row = await env.DB.prepare("SELECT endpoint, turn_index FROM usage WHERE install_id = ?")
-      .bind(key.installId)
-      .first<{ endpoint: string; turn_index: number }>();
-    expect(row).toMatchObject({ endpoint: "condense", turn_index: 2 });
   });
 });

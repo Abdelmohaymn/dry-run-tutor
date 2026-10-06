@@ -22,10 +22,10 @@ afterEach(() => {
 // on the meta frame; it never fails or delays the turn beyond its timeout.
 
 async function setFinishOffer(overrides: Partial<{ enabled: boolean; min_turn: number; timeout_ms: number }> = {}) {
-  const row = await env.DB.prepare("SELECT payload FROM runtime_config WHERE id = 1").first<{ payload: string }>();
+  const row = await env.DB.prepare("SELECT payload FROM config WHERE id = 1").first<{ payload: string }>();
   const cfg = JSON.parse(row!.payload);
   cfg.finish_offer = { enabled: true, min_turn: 1, timeout_ms: 8000, ...overrides };
-  await env.DB.prepare("UPDATE runtime_config SET payload = ? WHERE id = 1").bind(JSON.stringify(cfg)).run();
+  await env.DB.prepare("UPDATE config SET payload = ? WHERE id = 1").bind(JSON.stringify(cfg)).run();
 }
 
 const isStream = (body: string) => JSON.parse(body).stream === true;
@@ -112,23 +112,22 @@ describe("finish offer — ready_to_finish on the meta frame", () => {
     expect(meta).not.toHaveProperty("ready_to_finish");
   });
 
-  it("records finish-check usage under its own endpoint", async () => {
+  it("makes the finish-check call on the keyed path and reports it", async () => {
     await setFinishOffer();
     mockTutor();
     mockFinishCheck({ status: 200, body: groqCompletionBody('{"ready":true}') });
-    await chat();
-    const row = await env.DB.prepare("SELECT COUNT(*) AS n FROM usage WHERE endpoint = 'finish_check'").first<{ n: number }>();
-    expect(row?.n).toBeGreaterThanOrEqual(1);
+    const meta = await chat();
+    expect(meta.ready_to_finish).toBe(true);
   });
 });
 
 describe("finish offer — trial path", () => {
-  it("runs on the operator pool, records trial_finish_check usage and spends the trial budget", async () => {
+  it("runs on the operator pool, spends the trial budget", async () => {
     await setFinishOffer();
     mockTutor();
     mockFinishCheck({ status: 200, body: groqCompletionBody('{"ready":true}', { prompt_tokens: 300, completion_tokens: 40 }) });
     const date = new Date().toISOString().slice(0, 10);
-    const before = await env.DB.prepare("SELECT COALESCE(SUM(tokens_spent),0) AS t FROM trial_budget WHERE date = ?1").bind(date).first<{ t: number }>();
+    const before = await env.DB.prepare("SELECT COALESCE(SUM(tokens_spent),0) AS t FROM provider_day WHERE date = ?1").bind(date).first<{ t: number }>();
 
     const res = await SELF.fetch("https://worker.test/v1/trial", {
       method: "POST",
@@ -138,9 +137,7 @@ describe("finish offer — trial path", () => {
     const meta = (await readChatSSE(res)).find((f) => f.event === "meta")!.data as Record<string, unknown>;
     expect(meta.ready_to_finish).toBe(true);
 
-    const usage = await env.DB.prepare("SELECT COUNT(*) AS n FROM usage WHERE endpoint = 'trial_finish_check'").first<{ n: number }>();
-    expect(usage?.n).toBe(1);
-    const after = await env.DB.prepare("SELECT COALESCE(SUM(tokens_spent),0) AS t FROM trial_budget WHERE date = ?1").bind(date).first<{ t: number }>();
+    const after = await env.DB.prepare("SELECT COALESCE(SUM(tokens_spent),0) AS t FROM provider_day WHERE date = ?1").bind(date).first<{ t: number }>();
     // tutor turn (550) + finish check (340)
     expect(after!.t - before!.t).toBe(890);
   });

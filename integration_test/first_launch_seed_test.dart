@@ -35,7 +35,6 @@ class _MockConnectivity extends Mock implements Connectivity {}
 const RuntimeConfig _config = RuntimeConfig(
   minSupportedVersion: '1.0.0',
   killedProblemIds: <String>[],
-  contentManifestUrl: '/v1/content/manifest.json',
   chat: ChatConfig(turnCap: 12, wrapUpAtTurn: 9, minTurnChars: 5),
   trial: TrialConfig(turnCap: 4),
   keyedProviders: <String>['groq'],
@@ -72,11 +71,17 @@ class _ScriptedProblemRepository implements ProblemRepository {
   bool prefetchSucceeds = false;
 
   @override
-  Future<void> prefetchManifest() async {
+  Future<void> fetchPractice() async {
     if (!prefetchSucceeds) {
       throw StateError('offline');
     }
   }
+
+  @override
+  Future<Problem> fetchDaily(String date) async => throw StateError('offline');
+
+  @override
+  Future<Problem?> cachedForDate(String date) async => null;
 
   @override
   Future<Problem?> byId(String problemId) async => null;

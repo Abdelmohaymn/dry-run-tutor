@@ -5,7 +5,6 @@
 // fresh install's taster survives a hint pulled before a single word is
 // spoken.
 import 'package:bloc_test/bloc_test.dart';
-import 'package:dry_run/core/analytics/event_name.dart';
 import 'package:dry_run/core/config/runtime_config.dart';
 import 'package:dry_run/core/errors/result.dart';
 import 'package:dry_run/core/models/wire_enums.dart';
@@ -17,7 +16,6 @@ import 'package:dry_run/features/chat/presentation/daily_session_state.dart';
 import 'package:dry_run/features/problem/domain/problem.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../fakes/fake_analytics_client.dart';
 import '../fakes/fake_assessment_repository.dart';
 import '../fakes/fake_streak_repository.dart';
 import '../fakes/fake_config_repository.dart';
@@ -59,7 +57,6 @@ Session _sessionWith({
 RuntimeConfig get _config => const RuntimeConfig(
       minSupportedVersion: '1.0.0',
       killedProblemIds: <String>[],
-      contentManifestUrl: '/v1/content/manifest.json',
       chat: ChatConfig(turnCap: 12, wrapUpAtTurn: 9, minTurnChars: 5),
       trial: TrialConfig(turnCap: 4),
       keyedProviders: <String>['groq'],
@@ -100,7 +97,6 @@ void main() {
         assessmentRepository: FakeAssessmentRepository(),
         recognitionService: FakeRecognitionService(),
         configRepository: FakeRemoteConfigRepository()..cachedValue = _config,
-        analyticsClient: FakeAnalyticsClient(),
         micRationaleRepository: FakeMicRationaleRepository(),
       );
     },
@@ -129,7 +125,6 @@ void main() {
     ],
   );
 
-  late FakeAnalyticsClient exhaustedAnalytics;
   blocTest<DailySessionCubit, DailySessionState>(
     'a ladder-exhausted pull renders the closing line and leaves the session open',
     build: () {
@@ -153,14 +148,12 @@ void main() {
                 exhausted: true,
               ),
             );
-      exhaustedAnalytics = FakeAnalyticsClient();
       return DailySessionCubit(
         sessionRepository: sessionRepository,
         streakRepository: FakeStreakRepository(),
         assessmentRepository: FakeAssessmentRepository(),
         recognitionService: FakeRecognitionService(),
         configRepository: FakeRemoteConfigRepository()..cachedValue = _config,
-        analyticsClient: exhaustedAnalytics,
         micRationaleRepository: FakeMicRationaleRepository(),
       );
     },
@@ -192,10 +185,6 @@ void main() {
     verify: (DailySessionCubit cubit) {
       expect(cubit.state, isA<Composing>());
       expect(cubit.state, isNot(isA<Failure>()));
-      expect(
-        exhaustedAnalytics.emitted.map(((EventName, Map<String, Object>?) e) => e.$1),
-        contains(EventName.hintLadderExhausted),
-      );
     },
   );
 
@@ -233,7 +222,6 @@ void main() {
         assessmentRepository: FakeAssessmentRepository(),
         recognitionService: FakeRecognitionService(),
         configRepository: FakeRemoteConfigRepository()..cachedValue = _config,
-        analyticsClient: FakeAnalyticsClient(),
         micRationaleRepository: FakeMicRationaleRepository(),
       );
     },
@@ -258,7 +246,6 @@ void main() {
     ],
   );
 
-  late FakeAnalyticsClient freshInstallAnalytics;
   blocTest<DailySessionCubit, DailySessionState>(
     'a hint pulled before speaking on a fresh install does not consume the taster',
     build: () {
@@ -278,14 +265,12 @@ void main() {
         ..watchSession = after
         ..pullHintHandler =
             (Session session) async => const Ok(HintRung(index: 1, text: 'Think about lookups.', exhausted: false));
-      freshInstallAnalytics = FakeAnalyticsClient();
       return DailySessionCubit(
         sessionRepository: sessionRepository,
         streakRepository: FakeStreakRepository(),
         assessmentRepository: FakeAssessmentRepository(),
         recognitionService: FakeRecognitionService(),
         configRepository: FakeRemoteConfigRepository()..cachedValue = _config,
-        analyticsClient: freshInstallAnalytics,
         micRationaleRepository: FakeMicRationaleRepository(),
       );
     },
@@ -297,12 +282,5 @@ void main() {
       isA<PullingHint>(),
       isA<Composing>().having((Composing s) => s.session.counters.turnIndex, 'turnIndex', 0),
     ],
-    verify: (DailySessionCubit cubit) {
-      expect(
-        freshInstallAnalytics.emitted.map(((EventName, Map<String, Object>?) e) => e.$1),
-        isNot(contains(EventName.trialSessionStarted)),
-        reason: 'a hint pull alone must never look like the taster starting',
-      );
-    },
   );
 }

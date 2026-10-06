@@ -19,7 +19,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
-import '../fakes/fake_analytics_client.dart';
 import '../fakes/fake_assessment_repository.dart';
 import '../fakes/fake_config_repository.dart';
 import '../fakes/fake_mic_rationale_repository.dart';
@@ -45,7 +44,6 @@ const Problem _problem = Problem(
 const RuntimeConfig _config = RuntimeConfig(
   minSupportedVersion: '1.0.0',
   killedProblemIds: <String>[],
-  contentManifestUrl: '/v1/content/manifest.json',
   chat: ChatConfig(turnCap: 4, wrapUpAtTurn: 3, minTurnChars: 5),
   trial: TrialConfig(turnCap: 4),
   keyedProviders: <String>['groq'],
@@ -69,7 +67,6 @@ DailySessionCubit _cubit() => DailySessionCubit(
       assessmentRepository: FakeAssessmentRepository(),
       recognitionService: FakeRecognitionService(),
       configRepository: FakeRemoteConfigRepository()..cachedValue = _config,
-      analyticsClient: FakeAnalyticsClient(),
       micRationaleRepository: FakeMicRationaleRepository(),
     );
 

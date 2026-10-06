@@ -23,24 +23,20 @@ const String _validConfigJson = '''
 {
   "min_supported_version": "1.0.0",
   "killed_problem_ids": [],
-  "content_manifest_url": "/v1/content/manifest.json",
   "chat": {"turn_cap": 12, "wrap_up_at_turn": 9, "min_turn_chars": 8},
   "trial": {"turn_cap": 4},
   "keyed_providers": ["groq", "gemini"]
 }
 ''';
 
-/// The same payload with the operator's daily pointer set — the relay is
-/// driving the rotation for every install.
-const String _configWithRotationJson = '''
+/// The same payload with a store listing for the update wall.
+const String _configWithUpdateUrlJson = '''
 {
   "min_supported_version": "1.0.0",
   "killed_problem_ids": [],
-  "content_manifest_url": "/v1/content/manifest.json",
   "chat": {"turn_cap": 12, "wrap_up_at_turn": 9, "min_turn_chars": 8},
   "trial": {"turn_cap": 4},
   "keyed_providers": ["groq", "gemini"],
-  "rotation": {"start_problem_id": "vp-0000", "anchor_date": "2026-09-18"},
   "update_url": "https://dry-run.en.uptodown.com/android"
 }
 ''';
@@ -119,22 +115,6 @@ void main() {
     expect(jsonDecode(row!.json)['min_supported_version'], '1.0.0');
   });
 
-  test('the rotation pointer round-trips, and its absence is not an error', () async {
-    RemoteConfigRepositoryImpl repoFor(String json) => RemoteConfigRepositoryImpl(
-          relayClient: _relayClientReturning(() => _okBody(json)),
-          configDao: db.configDao,
-          timeSource: _FixedTimeSource(),
-        );
-
-    // A relay not driving the rotation.
-    expect((await repoFor(_validConfigJson).load()).rotation, isNull);
-
-    final RuntimeConfig withPointer = await repoFor(_configWithRotationJson).load();
-    expect(withPointer.rotation, isNotNull);
-    expect(withPointer.rotation!.startProblemId, 'vp-0000');
-    expect(withPointer.rotation!.anchorDate, '2026-09-18');
-  });
-
   test('update_url round-trips, and its absence is null', () async {
     RemoteConfigRepositoryImpl repoFor(String json) => RemoteConfigRepositoryImpl(
           relayClient: _relayClientReturning(() => _okBody(json)),
@@ -144,7 +124,7 @@ void main() {
 
     expect((await repoFor(_validConfigJson).load()).updateUrl, isNull);
     expect(
-      (await repoFor(_configWithRotationJson).load()).updateUrl,
+      (await repoFor(_configWithUpdateUrlJson).load()).updateUrl,
       'https://dry-run.en.uptodown.com/android',
     );
   });

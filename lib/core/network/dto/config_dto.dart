@@ -57,28 +57,11 @@ class RepairConfigDto {
   Map<String, dynamic> toJson() => _$RepairConfigDtoToJson(this);
 }
 
-/// `config.schema.json#/properties/rotation` — the global daily pointer.
-/// Absent means the relay is not driving the rotation and each install
-/// walks its own un-attempted problems.
-@JsonSerializable(fieldRename: FieldRename.snake)
-class RotationConfigDto {
-  RotationConfigDto({required this.startProblemId, required this.anchorDate});
-
-  factory RotationConfigDto.fromJson(Map<String, dynamic> json) =>
-      _$RotationConfigDtoFromJson(json);
-
-  final String startProblemId;
-
-  /// `YYYY-MM-DD`, UTC — the day the pointer sits on [startProblemId].
-  final String anchorDate;
-
-  Map<String, dynamic> toJson() => _$RotationConfigDtoToJson(this);
-}
-
 /// `GET /v1/config` response, restricted to the keys FR-008c permits the
 /// app to read: `min_supported_version`, `update_url`, `killed_problem_ids`,
-/// `content_manifest_url`, `chat.*`, `trial.turn_cap`, `keyed_providers`,
-/// `repair.*` (feature 004, three fields only), `rotation`.
+/// `chat.*`, `trial.turn_cap`, `keyed_providers`, `repair.*` (feature 004,
+/// three fields only). The relay still sends `content_manifest_url` for
+/// pre-006 apps; it is ignored here, like every other unknown key.
 ///
 /// **This class has no field for `model`, `provider`, `providers`,
 /// `trim`, or `trial.pool`.** `json_serializable`'s generated `fromJson`
@@ -93,13 +76,11 @@ class ConfigDto {
   ConfigDto({
     required this.minSupportedVersion,
     required this.killedProblemIds,
-    required this.contentManifestUrl,
     required this.chat,
     required this.trial,
     this.updateUrl,
     this.keyedProviders,
     this.repair,
-    this.rotation,
   });
 
   factory ConfigDto.fromJson(Map<String, dynamic> json) => _$ConfigDtoFromJson(json);
@@ -110,7 +91,6 @@ class ConfigDto {
   final String? updateUrl;
 
   final List<String> killedProblemIds;
-  final String contentManifestUrl;
   final ChatConfigDto chat;
   final TrialConfigDto trial;
 
@@ -121,9 +101,6 @@ class ConfigDto {
 
   /// Absent means repair is off (feature 004's pre-feature behaviour).
   final RepairConfigDto? repair;
-
-  /// Absent means no operator-driven rotation — the per-install fallback.
-  final RotationConfigDto? rotation;
 
   Map<String, dynamic> toJson() => _$ConfigDtoToJson(this);
 }

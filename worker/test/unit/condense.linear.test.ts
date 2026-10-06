@@ -51,7 +51,6 @@ describe("condense() cumulative cost is linear in turn count (SC-007a)", () => {
         cfg,
         provider,
         { baseUrl: "https://example.test", apiKey: "k", model: "test-condense-model" },
-        { db: env.DB, installId: "install-linear", problemId: "vp-0001", date: "2026-08-20", turnIndex: n },
       );
       if (result.called) {
         callCount += 1;

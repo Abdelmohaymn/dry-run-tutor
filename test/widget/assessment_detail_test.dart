@@ -26,7 +26,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../fakes/fake_analytics_client.dart';
 import '../fakes/fake_assessment_repository.dart';
 import '../fakes/fake_config_repository.dart';
 import '../fakes/fake_mic_rationale_repository.dart';
@@ -92,7 +91,6 @@ DailySessionCubit _cubit(FakeAssessmentRepository assessments, {bool disputed = 
       assessmentRepository: assessments,
       recognitionService: FakeRecognitionService(),
       configRepository: FakeRemoteConfigRepository(),
-      analyticsClient: FakeAnalyticsClient(),
       micRationaleRepository: FakeMicRationaleRepository(),
     );
 

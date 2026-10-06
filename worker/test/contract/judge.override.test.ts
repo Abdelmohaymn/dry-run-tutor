@@ -1,4 +1,4 @@
-import { env, SELF, fetchMock } from "cloudflare:test";
+import { SELF, fetchMock } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, mintInstallId } from "./helpers";
 import { getPrivate, getPublicManifest } from "../../src/lib/content";
@@ -69,20 +69,5 @@ describe("POST /v1/judge — a self-contradictory verdict is overwritten", () =>
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
     expect(body.verdict).toBe("borderline");
-
-    // mintInstallId() returns the SIGNED header value (<uuid>.<sig>); the
-    // DB stores the bare uuid the middleware extracted.
-    const bareInstallId = installId.split(".")[0];
-    const events = await env.DB.prepare(
-      "SELECT name, props_json FROM events WHERE install_id = ?",
-    )
-      .bind(bareInstallId)
-      .all();
-    const overrideEvent = events.results.find(
-      (e: any) => e.name === "assessment_verdict_overridden",
-    ) as any;
-    expect(overrideEvent).toBeDefined();
-    const props = JSON.parse(overrideEvent.props_json);
-    expect(props).toEqual({ from: "pass", to: "borderline", problem_id: "vp-0001" });
   });
 });

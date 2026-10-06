@@ -48,27 +48,10 @@ class RepairConfig extends Equatable {
 }
 
 
-/// `rotation` — the global daily pointer (FR-035d). Present means the
-/// relay decides which problem every install gets today; absent means the
-/// per-install fallback in `DailyRepositoryImpl`.
-class RotationConfig extends Equatable {
-  const RotationConfig({required this.startProblemId, required this.anchorDate});
-
-  /// The problem served on [anchorDate] itself.
-  final String startProblemId;
-
-  /// `YYYY-MM-DD`, UTC.
-  final String anchorDate;
-
-  @override
-  List<Object?> get props => <Object?>[startProblemId, anchorDate];
-}
-
 /// A read-only projection of `config.schema.json`, restricted to exactly
 /// the keys FR-008c permits the app to read: `min_supported_version`, `update_url`,
-/// `killed_problem_ids`, `content_manifest_url`,
-/// `chat.{turn_cap,wrap_up_at_turn,min_turn_chars}`, `trial.turn_cap`,
-/// `keyed_providers`, `rotation`.
+/// `killed_problem_ids`, `chat.{turn_cap,wrap_up_at_turn,min_turn_chars}`,
+/// `trial.turn_cap`, `keyed_providers`.
 ///
 /// **Deliberately has no field for `model`, `provider`, `providers`,
 /// `trim`, or `trial.pool`.** Those are server business; FR-008c forbids
@@ -83,13 +66,11 @@ class RuntimeConfig extends Equatable {
   const RuntimeConfig({
     required this.minSupportedVersion,
     required this.killedProblemIds,
-    required this.contentManifestUrl,
     required this.chat,
     required this.trial,
     required this.keyedProviders,
     this.updateUrl,
     this.repair,
-    this.rotation,
   });
 
   factory RuntimeConfig.fromDto(ConfigDto dto) {
@@ -97,7 +78,6 @@ class RuntimeConfig extends Equatable {
       minSupportedVersion: dto.minSupportedVersion,
       updateUrl: dto.updateUrl,
       killedProblemIds: List<String>.unmodifiable(dto.killedProblemIds),
-      contentManifestUrl: dto.contentManifestUrl,
       chat: ChatConfig(
         turnCap: dto.chat.turnCap,
         wrapUpAtTurn: dto.chat.wrapUpAtTurn,
@@ -112,12 +92,6 @@ class RuntimeConfig extends Equatable {
               minChars: dto.repair!.minChars,
               timeoutMs: dto.repair!.timeoutMs,
             ),
-      rotation: dto.rotation == null
-          ? null
-          : RotationConfig(
-              startProblemId: dto.rotation!.startProblemId,
-              anchorDate: dto.rotation!.anchorDate,
-            ),
     );
   }
 
@@ -127,7 +101,6 @@ class RuntimeConfig extends Equatable {
   final String? updateUrl;
 
   final List<String> killedProblemIds;
-  final String contentManifestUrl;
   final ChatConfig chat;
   final TrialConfig trial;
 
@@ -137,19 +110,14 @@ class RuntimeConfig extends Equatable {
   /// Null means repair is off (feature 004's pre-feature behaviour).
   final RepairConfig? repair;
 
-  /// Null means the relay is not driving the rotation.
-  final RotationConfig? rotation;
-
   @override
   List<Object?> get props => <Object?>[
         minSupportedVersion,
         updateUrl,
         killedProblemIds,
-        contentManifestUrl,
         chat,
         trial,
         keyedProviders,
         repair,
-        rotation,
       ];
 }

@@ -5,7 +5,7 @@
   "description": "Served verbatim by GET /v1/config from the single row of D1 `runtime_config`. Every value here is changeable with one `wrangler d1 execute` and no app release (FR-033, Constitution X.3). Keep the payload small: it gates app launch.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["min_supported_version", "killed_problem_ids", "content_manifest_url", "chat", "model", "provider", "trim", "trial"],
+  "required": ["min_supported_version", "killed_problem_ids", "chat", "model", "provider", "trim", "trial"],
   "properties": {
     "min_supported_version": {
       "type": "string",
@@ -42,7 +42,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["start_problem_id", "anchor_date"],
-      "description": "The global daily pointer. Present means every install \u2014 new or long-standing \u2014 is handed the SAME problem on a given day: index(start_problem_id) + whole days since anchor_date, wrapped around the id-sorted evergreen pool. Absent means each install walks its own un-attempted problems (the pre-pointer behaviour). Restart everyone at problem one by setting start_problem_id to the first id and anchor_date to today \u2014 one D1 write, no release. A problem authored for exactly today still wins over the pointer, and a start_problem_id that is withdrawn or missing degrades to the first problem in the pool rather than stranding the day.",
+      "description": "SERVER-READ ONLY (feature 006). Stored in the config row and read by GET /v1/daily to pick the day's problem; GET /v1/config strips it, so the app never receives it. Present means every device is handed the SAME problem on a given day: index(start_problem_id) + whole days since anchor_date, wrapped around the id-sorted evergreen pool. Absent means dayNumber(date) % pool.length. Restart everyone at problem one by setting start_problem_id to the first id and anchor_date to today \u2014 one D1 write, no release. A problem authored for exactly the requested date still wins over the pointer, and a start_problem_id that is withdrawn or missing degrades to the first problem in the pool rather than stranding the day.",
       "properties": {
         "start_problem_id": {
           "type": "string",
@@ -59,6 +59,8 @@
     "content_manifest_url": {
       "type": "string",
       "format": "uri",
+      "deprecated": true,
+      "description": "LEGACY (feature 006). The manifest route is gone; the Worker still serves this key only so pre-006 apps can parse /v1/config and reach the update wall. Optional, read by nothing, and ignored by current apps.",
       "default": "https://api.example.com/v1/content/manifest.json"
     },
     "chat": {
@@ -103,7 +105,6 @@
       "required": ["enabled", "model", "min_chars", "max_input_chars", "timeout_ms", "max_output_ratio", "min_word_overlap"],
       "description": "Transcript repair (feature 004). Absent means repair is off, which is the pre-feature behaviour. THE MODEL NAME HERE IS A FREE-TIER CATALOGUE ENTRY AND WILL CHURN — that is why it is a D1 value and not a constant.",
       "properties": {
-        "enabled": { "type": "boolean", "default": true, "description": "FR-010's kill switch. False means the app never calls and never holds the review step." },
         "model": { "type": "string", "default": "llama-3.1-8b-instant", "description": "Overridden per provider by providers[id].repair_model." },
         "min_chars": { "type": "integer", "minimum": 1, "default": 40, "description": "FR-011. Non-whitespace characters. Below this, no round trip. THIS IS THE PRIMARY LEVER IF SC-005's 5% TOKEN BUDGET IS BREACHED." },
         "max_input_chars": { "type": "integer", "minimum": 1, "default": 2000, "description": "Bounded input. Sized above a full 90-second recording (~1400 chars)." },
@@ -153,8 +154,7 @@
               "model": { "type": "string" },
               "daily_token_budget": { "type": "integer", "minimum": 0, "description": "Input+output tokens this member may spend per UTC day on the trial path. Set BELOW the provider's published daily allowance, never equal to it — the last call before the ceiling must be one we declined, not one they refused." },
               "structured_output": { "type": "boolean", "description": "True only if this member genuinely supports strict json_schema decoding. THE JUDGE LEG IS ELIGIBLE ONLY ON TRUE (O3). Do not set true on a claim of 'JSON mode'; that is not the same guarantee, and FR-014's structural impossibility rests on this being strict." },
-              "enabled": { "type": "boolean", "default": false, "description": "FAILS CLOSED. A member stays false until three things are verified: its free tier requires no payment method, its published RPM/TPD are known, and — for structured_output:true — strict json_schema decoding is confirmed." },
-              "cooldown_ms": { "type": "integer", "minimum": 1000, "default": 60000, "description": "How long a member is skipped after it returns a rate limit. A 429 on the trial path routes to the next member; it never reaches the caller (FR-031c)." }
+                    "cooldown_ms": { "type": "integer", "minimum": 1000, "default": 60000, "description": "How long a member is skipped after it returns a rate limit. A 429 on the trial path routes to the next member; it never reaches the caller (FR-031c)." }
             }
           },
           "default": [
@@ -178,7 +178,6 @@
       "required": ["enabled", "min_turn", "timeout_ms"],
       "description": "Feature 005 (specs/005-finish-offer). After each conversational turn from min_turn, a structured call decides whether the learner has explained every required key insight; the answer reaches the app as MetaFrame.ready_to_finish. Skipped once the learner sends finish_offer_dismissed. Absent = disabled.",
       "properties": {
-        "enabled": { "type": "boolean", "default": false },
         "min_turn": { "type": "integer", "minimum": 1, "maximum": 40, "default": 2 },
         "timeout_ms": { "type": "integer", "minimum": 500, "maximum": 30000, "default": 8000, "description": "How long the meta frame waits for the check before reporting false." }
       }
@@ -197,12 +196,8 @@
     "web": {
       "type": "object",
       "additionalProperties": false,
-      "description": "The landing site's live demo and notify form (feature 007). Optional: absent means webConfig() falls back to these same defaults. Never sent by GET /v1/config.",
+      "description": "The landing site's notify form settings. Optional: absent means webConfig() falls back to these same defaults. Never sent by GET /v1/config. The live-demo fields were removed in feature 006.",
       "properties": {
-        "enabled": { "type": "boolean", "default": true, "description": "Kill switch for the live demo. False falls every visitor back to the scripted demo." },
-        "demo_turn_cap": { "type": "integer", "minimum": 1, "maximum": 10, "default": 5, "description": "Turns a live web demo gets before it ends." },
-        "daily_demo_cap": { "type": "integer", "minimum": 0, "maximum": 1000, "default": 10, "description": "Live demos started per UTC day across all visitors." },
-        "max_pool_share": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.4, "description": "Share of the trial pool's daily token budget the web demo may spend before it refuses (Constitution X.3)." },
         "allowed_origins": { "type": "array", "items": { "type": "string", "format": "uri" }, "default": [], "description": "Exact-match CORS allowlist for the web-only routes (web-cors.ts). Never '*'." },
         "notify_enabled": { "type": "boolean", "default": true, "description": "Kill switch for /v1/notify." }
       }

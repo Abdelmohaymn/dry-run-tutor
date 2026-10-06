@@ -1,11 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:dio/dio.dart';
 import 'package:drift/drift.dart' show Value;
 
-import '../analytics/analytics_client.dart';
-import '../analytics/event_name.dart';
 import '../db/dao/config_dao.dart';
 import '../db/app_database.dart' show CachedConfigCompanion, CachedConfigData;
 import '../network/dto/config_dto.dart';
@@ -42,21 +39,13 @@ class RemoteConfigRepositoryImpl implements RemoteConfigRepository {
     required RelayClient relayClient,
     required ConfigDao configDao,
     required TrustedTimeSource timeSource,
-    AnalyticsClient? analyticsClient,
   })  : _relayClient = relayClient,
         _configDao = configDao,
-        _timeSource = timeSource,
-        _analyticsClient = analyticsClient;
+        _timeSource = timeSource;
 
   final RelayClient _relayClient;
   final ConfigDao _configDao;
   final TrustedTimeSource _timeSource;
-
-  /// Nullable: `main()`'s launch sequence calls `load()` before
-  /// `AnalyticsClient` necessarily has anywhere useful to send this (the
-  /// buffer itself doesn't need it), and this repository must not gain a
-  /// hard dependency the composition root can't satisfy at that point.
-  final AnalyticsClient? _analyticsClient;
 
   final StreamController<RuntimeConfig> _controller = StreamController<RuntimeConfig>.broadcast();
 
@@ -119,21 +108,12 @@ class RemoteConfigRepositoryImpl implements RemoteConfigRepository {
         // about a config already returned above.
       }
       return config;
-    } catch (e) {
+    } catch (_) {
       // Any failure — unreachable, timeout, non-200, unparseable — falls
       // back to cache (FR-046). Only a first launch with no cached row at
       // all cannot honour this, and that is the sole case allowed to
       // rethrow: `seedGuard` is what turns it into the designed waiting
       // screen rather than an uncaught error reaching a widget.
-      //
-      // `configFetchFailed` fires on **every** failure branch here,
-      // cache-fallback or rethrow alike — US7 scenario 5 wants the
-      // operator able to see the fetch failed even when the fail-open
-      // path hid it from the learner entirely (T149).
-      _analyticsClient?.emit(
-        EventName.configFetchFailed,
-        props: <String, Object>{'reason': _failureReason(e)},
-      );
       final CachedConfigData? row = await _configDao.read();
       if (row == null) {
         rethrow;
@@ -143,30 +123,5 @@ class RemoteConfigRepositoryImpl implements RemoteConfigRepository {
       _cached = config;
       return config;
     }
-  }
-
-  /// `config_fetch_failed`'s `reason` prop — one of the four values
-  /// contracts/analytics-events.md closes this event to
-  /// (`offline | timeout | http | parse`), never the raw exception text,
-  /// which could be arbitrarily long or carry a URL/host the analytics
-  /// schema's scalar-and-length limits don't want.
-  String _failureReason(Object error) {
-    if (error is DioException) {
-      return switch (error.type) {
-        DioExceptionType.connectionTimeout ||
-        DioExceptionType.sendTimeout ||
-        DioExceptionType.receiveTimeout =>
-          'timeout',
-        DioExceptionType.badResponse => 'http',
-        // connectionError, cancel, and anything else dio can throw all
-        // mean the same thing from `config_fetch_failed`'s point of
-        // view: the relay was not reached.
-        _ => 'offline',
-      };
-    }
-    if (error is FormatException || error is TypeError) {
-      return 'parse';
-    }
-    return 'offline';
   }
 }

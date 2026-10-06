@@ -52,9 +52,6 @@ describe("POST /v1/chat key_check — validates a key without spending a turn", 
       await post("/v1/chat", installId, { problem_id: "vp-0001", messages: [{ role: "user", text: "first real turn" }] }),
     );
     expect((next.find((f) => f.event === "meta")!.data as { turn_index: number }).turn_index).toBe(1);
-
-    const row = await env.DB.prepare("SELECT endpoint FROM usage WHERE install_id = ?1 ORDER BY id").bind(installId.split(".")[0]).all();
-    expect(row.results.map((r) => r.endpoint)).toEqual(["key_check", "chat"]);
   });
 
   it("a rejected key surfaces as an INVALID_KEY error frame", async () => {

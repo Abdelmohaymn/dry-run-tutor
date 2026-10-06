@@ -4,7 +4,6 @@ import 'package:drift_flutter/drift_flutter.dart';
 import 'converters.dart';
 import 'dao/assessment_dao.dart';
 import 'dao/config_dao.dart';
-import 'dao/event_dao.dart';
 import 'dao/install_dao.dart';
 import 'dao/message_dao.dart';
 import 'dao/outbox_dao.dart';
@@ -18,7 +17,7 @@ part 'app_database.g.dart';
 
 /// The one Drift database. Everything retained indefinitely lives here:
 /// sessions, messages, drafts, assessments, the outbox, the streak, the
-/// config cache, and the analytics buffer.
+/// and the config cache.
 ///
 /// Schema version 1 at launch (data-model.md §13). Migrations must be
 /// additive where possible and must never destroy a table holding a
@@ -35,7 +34,6 @@ part 'app_database.g.dart';
     Outbox,
     StreakDays,
     CachedConfig,
-    BufferedEvents,
   ],
   daos: [
     InstallDao,
@@ -44,7 +42,6 @@ part 'app_database.g.dart';
     ProblemDao,
     StreakDao,
     OutboxDao,
-    EventDao,
     ConfigDao,
     AssessmentDao,
   ],
@@ -70,7 +67,7 @@ class AppDatabase extends _$AppDatabase {
   /// its streak day) is touched by either; `test/db/migration_test.dart`
   /// asserts exactly that.
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -111,6 +108,15 @@ class AppDatabase extends _$AppDatabase {
             );
             await m.database.customStatement('UPDATE cached_config SET id = 1');
           }
+          // Feature 006: identity is now a hash of the device's Android ID,
+          // so a stored random-uuid identity is discarded and the app
+          // registers once more (an old `<uuid>.<sig>` token would be
+          // refused by the relay anyway).
+          if (from < 6 && to >= 6) {
+            await m.database.customStatement('DELETE FROM install_identity');
+            // The analytics buffer is gone; IF EXISTS keeps fresh installs safe.
+            await m.database.customStatement('DROP TABLE IF EXISTS buffered_events');
+          }
         },
       );
 
@@ -129,7 +135,6 @@ class AppDatabase extends _$AppDatabase {
       await delete(outbox).go();
       await delete(streakDays).go();
       await delete(cachedConfig).go();
-      await delete(bufferedEvents).go();
     });
   }
 }

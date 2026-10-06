@@ -7,7 +7,6 @@ import '../errors/relay_error_mapper.dart';
 import 'dto/chat_dto.dart';
 import 'dto/config_dto.dart';
 import 'dto/error_dto.dart';
-import 'dto/event_dto.dart';
 import 'dto/install_dto.dart';
 import 'dto/judge_dto.dart';
 import 'dto/problem_dto.dart';
@@ -44,7 +43,7 @@ class ConfigResponse {
 ///
 /// | Header | Sent on |
 /// |---|---|
-/// | `X-Install-Id` | every call except `/v1/config` and the manifest |
+/// | `X-Install-Id` | every call except `/v1/config` and `/v1/practice` |
 /// | `X-User-Key` | `/v1/chat`, `/v1/judge`, `/v1/repair` only — never `/v1/trial` |
 /// | `X-Provider` | `/v1/chat`, `/v1/judge`, `/v1/repair` only — never `/v1/trial` |
 ///
@@ -60,10 +59,10 @@ class RelayClient {
 
   /// `POST /v1/install`. Called exactly once, at first launch. Sends no
   /// `X-Install-Id` — this call is what mints it.
-  Future<InstallResponseDto> install(String installUuid) async {
+  Future<InstallResponseDto> install(String deviceId) async {
     final Map<String, Object?> body = await _postJson(
       '/v1/install',
-      InstallRequestDto(installUuid: installUuid).toJson(),
+      InstallRequestDto(platform: 'android', deviceId: deviceId).toJson(),
       headers: const <String, String>{},
     );
     return InstallResponseDto.fromJson(body);
@@ -88,15 +87,30 @@ class RelayClient {
     }
   }
 
-  /// `GET /v1/content/manifest.json` (or `config.contentManifestUrl` if
-  /// the caller resolved a different path from config — the host is
-  /// still enforced by [HostAllowlistInterceptor] either way). No
-  /// `X-Install-Id`.
-  Future<ManifestDto> manifest({String path = '/v1/content/manifest.json'}) async {
+  /// `GET /v1/daily?date=` — the relay picks the day's problem and records
+  /// that this device was active that day. Needs `X-Install-Id`. A
+  /// `409 PROBLEM_KILLED` (every candidate withdrawn) surfaces as
+  /// [RelayError.problemKilled]; offline as [RelayError.transport].
+  Future<DailyResponseDto> daily({required String installId, required String date}) async {
+    try {
+      final Response<Map<String, dynamic>> response = await _dio.get<Map<String, dynamic>>(
+        '/v1/daily',
+        queryParameters: <String, String>{'date': date},
+        options: Options(headers: _headers(installId: installId)),
+      );
+      return DailyResponseDto.fromJson(response.data!);
+    } on DioException catch (e) {
+      throw RelayException(_mapTransportOrEnvelope(e, requestProblemId: '', callKind: RelayCallKind.chat));
+    }
+  }
+
+  /// `GET /v1/practice` — the onboarding warm-up. No `X-Install-Id`: it
+  /// is needed before registration can have happened.
+  Future<PracticeResponseDto> practice() async {
     try {
       final Response<Map<String, dynamic>> response =
-          await _dio.get<Map<String, dynamic>>(path);
-      return ManifestDto.fromJson(response.data!);
+          await _dio.get<Map<String, dynamic>>('/v1/practice');
+      return PracticeResponseDto.fromJson(response.data!);
     } on DioException catch (e) {
       throw RelayException(_mapTransportOrEnvelope(e, requestProblemId: '', callKind: RelayCallKind.chat));
     }
@@ -178,18 +192,6 @@ class RelayClient {
       callKind: RelayCallKind.judge,
     );
     return AssessmentDto.fromJson(response);
-  }
-
-  /// `POST /v1/event`. Fire-and-forget from the caller's point of view —
-  /// `AnalyticsClient` is what guarantees a failure here never surfaces
-  /// (FR-051); this method still throws on failure so the drain loop
-  /// knows to retry.
-  Future<void> sendEvents({required String installId, required EventBatchDto batch}) async {
-    await _postJson(
-      '/v1/event',
-      batch.toJson(),
-      headers: _headers(installId: installId),
-    );
   }
 
   // --- internals ---------------------------------------------------

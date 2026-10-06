@@ -21,7 +21,7 @@ afterEach(() => {
 async function turnsFor(installId: string): Promise<number> {
   const bareInstallId = installId.split(".")[0];
   const row = await env.DB.prepare(
-    "SELECT turns FROM turn_counter WHERE install_id = ?1 AND problem_id = ?2",
+    "SELECT turns FROM device_day WHERE device_hash = ?1 AND problem_id = ?2",
   )
     .bind(bareInstallId, "vp-0001")
     .first<{ turns: number }>();
@@ -49,7 +49,7 @@ async function sendChatTurn(installId: string, n: number): Promise<{ status: num
 
 // FR-007, SC-007. THIS TEST MUST NEVER BE DELETED (tasks.md Notes).
 describe("POST /v1/repair — reserves no turn, ever", () => {
-  it("the turn_counter is identical before and after a successful repair call", async () => {
+  it("the device_day counter is identical before and after a successful repair call", async () => {
     const installId = await mintInstallId();
     await setRepairConfig();
     const before = await turnsFor(installId);

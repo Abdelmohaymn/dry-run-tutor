@@ -1,6 +1,6 @@
-// data-model.md §B2. Three counters, one table (`turn_counter`), one round
+// data-model.md §B2. Three counters, one table (`device_day`), one round
 // trip each. All server state — none of it is ever read from the request
-// body. `(install_id, problem_id, date)` is the session identity.
+// body. `(device_hash, date, problem_id)` is the session identity.
 import { AppError } from "./errors";
 import { nowIso } from "./time";
 
@@ -32,13 +32,13 @@ export async function reserveTurn(
 ): Promise<ReserveTurnResult> {
   const row = await db
     .prepare(
-      `INSERT INTO turn_counter (install_id, problem_id, date, turns, solution_requests)
+      `INSERT INTO device_day (device_hash, problem_id, date, turns, solution_requests)
        VALUES (?1, ?2, ?3, 1, min(?4, ${MAX_SOLUTION_REQUEST_INCREMENT}))
-       ON CONFLICT(install_id, problem_id, date) DO UPDATE SET
-         turns = turn_counter.turns + 1,
+       ON CONFLICT(device_hash, date, problem_id) DO UPDATE SET
+         turns = device_day.turns + 1,
          solution_requests = max(
-           turn_counter.solution_requests,
-           min(?4, turn_counter.solution_requests + ${MAX_SOLUTION_REQUEST_INCREMENT})
+           device_day.solution_requests,
+           min(?4, device_day.solution_requests + ${MAX_SOLUTION_REQUEST_INCREMENT})
          )
        RETURNING turns, solution_requests, judged_at, hints_revealed`,
     )
@@ -68,8 +68,8 @@ export async function reserveTurn(
 export async function refundTurn(db: D1Database, key: TurnCounterKey, turnIndex: number): Promise<void> {
   await db
     .prepare(
-      `UPDATE turn_counter SET turns = turns - 1
-       WHERE install_id = ?1 AND problem_id = ?2 AND date = ?3 AND turns = ?4`,
+      `UPDATE device_day SET turns = turns - 1
+       WHERE device_hash = ?1 AND problem_id = ?2 AND date = ?3 AND turns = ?4`,
     )
     .bind(key.installId, key.problemId, key.date, turnIndex)
     .run();
@@ -91,10 +91,10 @@ export async function claimJudge(db: D1Database, key: TurnCounterKey): Promise<{
   const ts = nowIso();
   const row = await db
     .prepare(
-      `INSERT INTO turn_counter (install_id, problem_id, date, turns, judged_at)
+      `INSERT INTO device_day (device_hash, problem_id, date, turns, judged_at)
        VALUES (?1, ?2, ?3, 0, ?4)
-       ON CONFLICT(install_id, problem_id, date) DO UPDATE SET judged_at = ?4
-         WHERE turn_counter.judged_at IS NULL
+       ON CONFLICT(device_hash, date, problem_id) DO UPDATE SET judged_at = ?4
+         WHERE device_day.judged_at IS NULL
        RETURNING judged_at`,
     )
     .bind(key.installId, key.problemId, key.date, ts)
@@ -124,8 +124,8 @@ export async function releaseJudgeClaim(
 ): Promise<void> {
   await db
     .prepare(
-      `UPDATE turn_counter SET judged_at = NULL
-        WHERE install_id = ?1 AND problem_id = ?2 AND date = ?3 AND judged_at = ?4`,
+      `UPDATE device_day SET judged_at = NULL
+        WHERE device_hash = ?1 AND problem_id = ?2 AND date = ?3 AND judged_at = ?4`,
     )
     .bind(key.installId, key.problemId, key.date, judgedAt)
     .run();
@@ -149,8 +149,8 @@ export interface Counters {
 export async function readCounters(db: D1Database, key: TurnCounterKey): Promise<Counters> {
   const row = await db
     .prepare(
-      `SELECT turns, solution_requests, hints_revealed, judged_at FROM turn_counter
-       WHERE install_id = ?1 AND problem_id = ?2 AND date = ?3`,
+      `SELECT turns, solution_requests, hints_revealed, judged_at FROM device_day
+       WHERE device_hash = ?1 AND problem_id = ?2 AND date = ?3`,
     )
     .bind(key.installId, key.problemId, key.date)
     .first<{ turns: number; solution_requests: number; hints_revealed: number; judged_at: string | null }>();
@@ -173,10 +173,10 @@ export async function readCounters(db: D1Database, key: TurnCounterKey): Promise
 export async function revealNextHint(db: D1Database, key: TurnCounterKey): Promise<number> {
   const row = await db
     .prepare(
-      `INSERT INTO turn_counter (install_id, problem_id, date, turns, hints_revealed)
+      `INSERT INTO device_day (device_hash, problem_id, date, turns, hints_revealed)
        VALUES (?1, ?2, ?3, 0, 1)
-       ON CONFLICT(install_id, problem_id, date) DO UPDATE SET
-         hints_revealed = turn_counter.hints_revealed + 1
+       ON CONFLICT(device_hash, date, problem_id) DO UPDATE SET
+         hints_revealed = device_day.hints_revealed + 1
        RETURNING hints_revealed`,
     )
     .bind(key.installId, key.problemId, key.date)

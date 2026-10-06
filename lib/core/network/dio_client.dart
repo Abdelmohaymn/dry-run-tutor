@@ -10,7 +10,7 @@ import 'redacting_log_interceptor.dart';
 import 'server_date_interceptor.dart';
 
 /// The one `dio` instance the app is allowed to construct. Every relay
-/// call — install, config, manifest, chat, judge, trial, event — goes
+/// call — install, config, daily, practice, chat, judge, trial — goes
 /// through this client, which is what makes "the app only talks to one
 /// host" a property of the object graph rather than a habit (FR-004,
 /// Principle VI).

@@ -13,7 +13,6 @@ import 'package:dry_run/features/problem/domain/problem.dart';
 import 'package:dry_run/features/voice/domain/recognition_event.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../fakes/fake_analytics_client.dart';
 import '../fakes/fake_assessment_repository.dart';
 import '../fakes/fake_config_repository.dart';
 import '../fakes/fake_mic_rationale_repository.dart';
@@ -40,7 +39,6 @@ const Problem _problem = Problem(
 const RuntimeConfig _configRepairEnabled = RuntimeConfig(
   minSupportedVersion: '1.0.0',
   killedProblemIds: <String>[],
-  contentManifestUrl: '/v1/content/manifest.json',
   chat: ChatConfig(turnCap: 12, wrapUpAtTurn: 9, minTurnChars: 5),
   trial: TrialConfig(turnCap: 4),
   keyedProviders: <String>['groq'],
@@ -53,7 +51,6 @@ const RuntimeConfig _configRepairEnabled = RuntimeConfig(
 const RuntimeConfig _configRepairShortTimeout = RuntimeConfig(
   minSupportedVersion: '1.0.0',
   killedProblemIds: <String>[],
-  contentManifestUrl: '/v1/content/manifest.json',
   chat: ChatConfig(turnCap: 12, wrapUpAtTurn: 9, minTurnChars: 5),
   trial: TrialConfig(turnCap: 4),
   keyedProviders: <String>['groq'],
@@ -63,7 +60,6 @@ const RuntimeConfig _configRepairShortTimeout = RuntimeConfig(
 const RuntimeConfig _configRepairDisabled = RuntimeConfig(
   minSupportedVersion: '1.0.0',
   killedProblemIds: <String>[],
-  contentManifestUrl: '/v1/content/manifest.json',
   chat: ChatConfig(turnCap: 12, wrapUpAtTurn: 9, minTurnChars: 5),
   trial: TrialConfig(turnCap: 4),
   keyedProviders: <String>['groq'],
@@ -100,7 +96,6 @@ void main() {
         assessmentRepository: FakeAssessmentRepository(),
         recognitionService: recognitionService,
         configRepository: configRepository,
-        analyticsClient: FakeAnalyticsClient(),
         micRationaleRepository: FakeMicRationaleRepository(),
         transcriptRepairRepository: transcriptRepairRepository,
       );

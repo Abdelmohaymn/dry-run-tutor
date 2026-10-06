@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/analytics/analytics_client.dart';
-import '../../../core/analytics/event_name.dart';
 import '../../../core/l10n/generated/app_localizations.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../assessment/domain/assessment.dart';
@@ -20,14 +18,12 @@ class ReviewDayScreen extends StatefulWidget {
     required this.sessionRepository,
     required this.assessmentRepository,
     required this.streakRepository,
-    required this.analyticsClient,
     super.key,
   });
 
   final SessionRepository sessionRepository;
   final AssessmentRepository assessmentRepository;
   final StreakRepository streakRepository;
-  final AnalyticsClient analyticsClient;
 
   @override
   State<ReviewDayScreen> createState() => _ReviewDayScreenState();
@@ -85,7 +81,6 @@ class _ReviewDayScreenState extends State<ReviewDayScreen> {
                       assessment: assessment,
                       streakLength: _streakLength,
                       problemTitle: session.problem.title,
-                      onShared: () => widget.analyticsClient.emit(EventName.shareCardShared),
                     ),
                   ] else
                     Text(l10n.capReachedBody, style: context.appTypography.sansCaption),

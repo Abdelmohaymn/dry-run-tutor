@@ -2,83 +2,98 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart' show Value;
 
-import '../../../core/config/remote_config_repository.dart';
 import '../../../core/config/runtime_config.dart';
 import '../../../core/db/app_database.dart';
 import '../../../core/db/dao/problem_dao.dart';
+import '../../../core/errors/result.dart';
 import '../../../core/network/dto/problem_dto.dart';
 import '../../../core/network/relay_client.dart';
-import '../../../core/time/trusted_instant.dart';
 import '../../../core/time/trusted_time_source.dart';
+import '../../onboarding/domain/install_identity.dart';
+import '../../onboarding/domain/install_repository.dart';
 import '../domain/problem.dart';
 import '../domain/problem_repository.dart';
-
-/// FR-035a's "far enough ahead that today is readable offline" target.
-const int _prefetchWindowDays = 14;
 
 class ProblemRepositoryImpl implements ProblemRepository {
   ProblemRepositoryImpl({
     required RelayClient relayClient,
     required ProblemDao problemDao,
     required TrustedTimeSource timeSource,
-    required RemoteConfigRepository configRepository,
+    required InstallRepository installRepository,
   })  : _relayClient = relayClient,
         _problemDao = problemDao,
         _timeSource = timeSource,
-        _configRepository = configRepository;
+        _installRepository = installRepository;
 
   final RelayClient _relayClient;
   final ProblemDao _problemDao;
   final TrustedTimeSource _timeSource;
-  final RemoteConfigRepository _configRepository;
+  final InstallRepository _installRepository;
 
   @override
-  Future<void> prefetchManifest() async {
-    final RuntimeConfig config = _configRepository.cached() ?? await _configRepository.load();
-    final ManifestDto manifest = await _relayClient.manifest(path: config.contentManifestUrl);
-    final TrustedInstant now = await _timeSource.now();
-    final DateTime today = DateTime.utc(now.utc.year, now.utc.month, now.utc.day);
-    final DateTime windowEnd = today.add(const Duration(days: _prefetchWindowDays));
+  Future<Problem> fetchDaily(String date) async {
+    final InstallIdentity identity = switch (await _installRepository.ensureIdentity()) {
+      Ok<InstallIdentity>(:final value) => value,
+      Err<InstallIdentity>(:final error) => throw RelayException(error),
+    };
+    final DailyResponseDto response = await _relayClient.daily(
+      installId: identity.installId,
+      date: date,
+    );
+    final DateTime now = (await _timeSource.now()).utc;
+    await _problemDao.upsertAll(<CachedProblemsCompanion>[
+      _companion(response.problem, servedFor: response.date, fetchedAt: now),
+    ]);
+    final CachedProblem row = (await _problemDao.byId(response.problem.id))!;
+    return _toDomain(row);
+  }
 
-    final List<CachedProblemsCompanion> toStore = <CachedProblemsCompanion>[];
-    for (final PublicHalfDto dto in manifest.problems) {
-      if (config.killedProblemIds.contains(dto.id)) {
-        continue;
-      }
-      final DateTime? problemDate = dto.date == null ? null : DateTime.tryParse('${dto.date}T00:00:00Z');
-      // Dateless problems are evergreen (the repeat pool); dated ones are
-      // stored only within the prefetch window.
-      if (problemDate != null && problemDate.isAfter(windowEnd)) {
-        continue;
-      }
-      toStore.add(
-        CachedProblemsCompanion.insert(
-          problemId: dto.id,
-          schemaVersion: dto.schemaVersion,
-          title: dto.title,
-          ramp: dto.ramp,
-          difficulty: Value(dto.difficulty),
-          tags: dto.tags,
-          source: dto.source,
-          statement: dto.statement,
-          constraints: dto.constraints,
-          examplesJson: Value(
-            dto.examples == null
-                ? null
-                : jsonEncode(
-                    dto.examples!.map((ProblemExampleDto e) => e.toJson()).toList(growable: false),
-                  ),
-          ),
-          estSpeakSeconds: dto.estSpeakSeconds,
-          collections: dto.collections ?? const <String>[],
-          glossaryTerms: dto.glossaryTerms,
-          hintCount: dto.hintCount ?? 0,
-          manifestDate: Value(dto.date),
-          fetchedAt: now.utc,
-        ),
-      );
-    }
-    await _problemDao.upsertAll(toStore);
+  @override
+  Future<Problem?> cachedForDate(String date) async {
+    final CachedProblem? row = await _problemDao.byManifestDate(date);
+    return row == null ? null : _toDomain(row);
+  }
+
+  @override
+  Future<void> fetchPractice() async {
+    final PracticeResponseDto response = await _relayClient.practice();
+    final DateTime now = (await _timeSource.now()).utc;
+    await _problemDao.upsertAll(<CachedProblemsCompanion>[
+      _companion(response.problem, servedFor: null, fetchedAt: now),
+    ]);
+  }
+
+  CachedProblemsCompanion _companion(
+    PublicHalfDto dto, {
+    required String? servedFor,
+    required DateTime fetchedAt,
+  }) {
+    return CachedProblemsCompanion.insert(
+      problemId: dto.id,
+      schemaVersion: dto.schemaVersion,
+      title: dto.title,
+      ramp: dto.ramp,
+      difficulty: Value(dto.difficulty),
+      tags: dto.tags,
+      source: dto.source,
+      statement: dto.statement,
+      constraints: dto.constraints,
+      examplesJson: Value(
+        dto.examples == null
+            ? null
+            : jsonEncode(
+                dto.examples!.map((ProblemExampleDto e) => e.toJson()).toList(growable: false),
+              ),
+      ),
+      estSpeakSeconds: dto.estSpeakSeconds,
+      collections: dto.collections ?? const <String>[],
+      glossaryTerms: dto.glossaryTerms,
+      hintCount: dto.hintCount ?? 0,
+      // The UTC date `/v1/daily` served this problem for; null for the
+      // warm-up, which belongs to no day.
+      manifestDate: Value(servedFor),
+      fetchedAt: fetchedAt,
+    );
   }
 
   @override

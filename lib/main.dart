@@ -3,11 +3,8 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
-import 'core/analytics/analytics_client.dart';
-import 'core/analytics/event_name.dart';
 import 'core/config/remote_config_repository.dart';
 import 'core/config/runtime_config.dart';
 import 'core/di/service_locator.dart';
@@ -27,19 +24,6 @@ import 'features/voice/domain/recognition_service.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await setupLocator();
-
-  // `app_open` (contracts/analytics-events.md): every launch, with
-  // `is_first_launch` read off a plain preferences flag rather than
-  // install identity — a launch before `POST /v1/install` has ever
-  // succeeded (no network at all) is still a launch this event should
-  // count.
-  const String hasLaunchedBeforeKey = 'analytics.has_launched_before';
-  final SharedPreferences prefs = sl<SharedPreferences>();
-  final bool isFirstLaunch = !(prefs.getBool(hasLaunchedBeforeKey) ?? false);
-  if (isFirstLaunch) {
-    await prefs.setBool(hasLaunchedBeforeKey, true);
-  }
-  sl<AnalyticsClient>().emit(EventName.appOpen, props: <String, Object>{'is_first_launch': isFirstLaunch});
 
   // The only two places `sl<T>()` may be called: here, and a route's
   // `BlocProvider(create:)` (contracts/routes.md's composition-root rule,
@@ -84,9 +68,9 @@ Future<void> main() async {
         // FR-046 fail open — the hydrated cache above is still in force.
       }
       try {
-        await sl<ProblemRepository>().prefetchManifest();
+        await sl<ProblemRepository>().fetchPractice();
       } catch (_) {
-        // FR-035a is a prefetch, not a precondition.
+        // The warm-up is a prefetch, not a precondition.
       }
     }());
   }
@@ -114,7 +98,6 @@ Future<void> main() async {
     assessmentRepository: sl<AssessmentRepository>(),
     streakRepository: sl<StreakRepository>(),
     recognitionService: sl<RecognitionService>(),
-    analyticsClient: sl<AnalyticsClient>(),
     micRationaleRepository: sl<MicRationaleRepository>(),
     settingsRepository: sl<SettingsRepository>(),
     timeSource: sl<TrustedTimeSource>(),

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/analytics/analytics_client.dart';
-import '../../../core/analytics/event_name.dart';
 import '../../../core/l10n/generated/app_localizations.dart';
 import '../../../core/router/app_route.dart';
 import '../../../core/theme/app_theme.dart';
@@ -29,13 +27,11 @@ class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({
     required this.installRepository,
     required this.settingsRepository,
-    required this.analyticsClient,
     super.key,
   });
 
   final InstallRepository installRepository;
   final SettingsRepository settingsRepository;
-  final AnalyticsClient analyticsClient;
 
   @override
   State<WelcomeScreen> createState() => _WelcomeScreenState();
@@ -47,17 +43,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   /// null = not asked yet on this screen.
   bool? _remindersOn;
-
-  @override
-  void initState() {
-    super.initState();
-    // Head of the funnel (FR-049, US8). This used to fire on the age
-    // gate, which was the first screen a new install saw; with that gone
-    // the carousel is, so the pair moves here rather than disappearing —
-    // Principle X accepts onboarding friction only while its cost is
-    // measured, and these two events are how it is measured.
-    widget.analyticsClient.emit(EventName.onboardingStarted);
-  }
 
   @override
   void dispose() {
@@ -122,7 +107,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     await widget.installRepository.setPracticePending(
       destination == AppRoute.welcomePractice.path,
     );
-    widget.analyticsClient.emit(EventName.onboardingDone);
     if (mounted) {
       context.go(destination);
     }

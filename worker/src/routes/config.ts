@@ -14,9 +14,10 @@ export const configRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 configRoute.get("/", async (c) => {
   const cfg = await getRuntimeConfig(c.env.DB);
-  // `web` (feature 007) is the landing site's own levers. The app has no use
-  // for it, so it never leaves the Worker in this payload.
-  const { web: _web, ...appCfg } = cfg;
+  // `web` (feature 007) is the landing site's own levers; `rotation` is read
+  // by GET /v1/daily (006). The app has no use for either, so neither leaves
+  // the Worker in this payload.
+  const { web: _web, rotation: _rotation, ...appCfg } = cfg;
   const body = JSON.stringify(appCfg);
   // A stable ETag over the served bytes, not a per-request random value —
   // it changes only when the lever payload itself changes.

@@ -14,7 +14,6 @@ import 'package:dry_run/features/chat/presentation/daily_session_state.dart';
 import 'package:dry_run/features/problem/domain/problem.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../fakes/fake_analytics_client.dart';
 import '../fakes/fake_assessment_repository.dart';
 import '../fakes/fake_streak_repository.dart';
 import '../fakes/fake_config_repository.dart';
@@ -52,7 +51,6 @@ Session _sessionWithOneSolutionAsk() => const Session(
 RuntimeConfig get _config => const RuntimeConfig(
       minSupportedVersion: '1.0.0',
       killedProblemIds: <String>[],
-      contentManifestUrl: '/v1/content/manifest.json',
       chat: ChatConfig(turnCap: 12, wrapUpAtTurn: 9, minTurnChars: 5),
       trial: TrialConfig(turnCap: 4),
       keyedProviders: <String>['groq'],
@@ -67,7 +65,6 @@ void main() {
         assessmentRepository: FakeAssessmentRepository(),
         recognitionService: FakeRecognitionService(),
         configRepository: FakeRemoteConfigRepository()..cachedValue = _config,
-        analyticsClient: FakeAnalyticsClient(),
         micRationaleRepository: FakeMicRationaleRepository(),
       );
 

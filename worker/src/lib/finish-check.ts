@@ -9,7 +9,6 @@
 import { FINISH_CHECK_PROMPT } from "../prompts/finish-check";
 import type { StructuredCompletionResult } from "./provider";
 import type { Turn } from "./schemas";
-import { writeUsage, type UsageEndpoint } from "./usage";
 import type { Problem } from "../../../tools/problem-types";
 
 export type FinishCheckCall = (
@@ -17,15 +16,6 @@ export type FinishCheckCall = (
   userContent: string,
   jsonSchema: { name: string; schema: Record<string, unknown> },
 ) => Promise<{ result: StructuredCompletionResult; providerId: string; model: string }>;
-
-export interface FinishCheckContext {
-  db: D1Database;
-  installId: string;
-  problemId: string;
-  date: string;
-  turnIndex: number;
-  usageEndpoint: UsageEndpoint;
-}
 
 /**
  * Headroom for a reasoning model's hidden tokens before the one-field
@@ -68,27 +58,13 @@ export async function runFinishCheck(
   problem: Problem,
   history: Turn[],
   call: FinishCheckCall,
-  ctx: FinishCheckContext,
 ): Promise<boolean> {
-  const startedAt = Date.now();
   try {
-    const { result, providerId, model } = await call(
+    const { result } = await call(
       FINISH_CHECK_PROMPT,
       buildFinishCheckInput(problem, history),
       FINISH_CHECK_SCHEMA,
     );
-    await writeUsage(ctx.db, {
-      installId: ctx.installId,
-      date: ctx.date,
-      endpoint: ctx.usageEndpoint,
-      problemId: ctx.problemId,
-      turnIndex: ctx.turnIndex,
-      model,
-      provider: providerId,
-      inputTokens: result.usage.inputTokens,
-      outputTokens: result.usage.outputTokens,
-      latencyMs: Date.now() - startedAt,
-    });
     const json = result.json as { ready?: unknown } | undefined;
     return json?.ready === true;
   } catch {

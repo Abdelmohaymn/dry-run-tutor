@@ -42,7 +42,10 @@ Future<bool> isAgeConfirmed();
 Future<void> confirmAge();
 ```
 
-`ensureIdentity()` is idempotent and **never re-mints on failure** — see [relay-client.md](./relay-client.md).
+`ensureIdentity()` is idempotent: it reuses a stored identity, otherwise reads the Android ID through
+`DeviceIdPlatform` and calls `POST /v1/install` once. A reinstall recovers the same identity because
+the relay derives it from the device. A missing Android ID is `RelayError.badRequest()` and no call
+is made — see [relay-client.md](./relay-client.md).
 
 ## `features/keys` — `KeyRepository`
 
@@ -62,16 +65,29 @@ line.
 ## `features/problem` — `ProblemRepository`
 
 ```dart
-Future<void> prefetchManifest();                      // two weeks ahead, FR-035a
+Future<Problem> fetchDaily(String date);               // GET /v1/daily; caches with manifestDate = date
+Future<Problem?> cachedForDate(String date);           // cached by an earlier fetchDaily, or null
+Future<void> fetchPractice();                          // GET /v1/practice; caches the warm-up
 Future<Problem?> byId(String problemId);
-Future<List<Problem>> available(RuntimeConfig config); // excludes killed_problem_ids
+Future<List<Problem>> available(RuntimeConfig config); // cached, not killed, not the warm-up
+Future<Problem?> practiceProblem();
+Future<bool> hasAnyCached();
 ```
+
+`fetchDaily` and `fetchPractice` throw `RelayException` on any relay failure. `fetchDaily` needs the
+install identity for `X-Install-Id`, so the implementation depends on `InstallRepository`.
+`available()` is now used only as the key-check probe's fallback.
 
 ## `features/daily` — `DailyRepository`
 
 ```dart
 Future<DailySelection> forToday();   // (problem, isRepeat), against trusted time
 ```
+
+The server picks the problem: `forToday()` returns the problem cached for today if it is not in
+`killed_problem_ids`, otherwise calls `ProblemRepository.fetchDaily(today)`. Any `RelayException`
+(`PROBLEM_KILLED`, or offline with nothing cached) becomes `NoProblemAvailableException`, the existing
+"no problem" state (FR-020).
 
 Three requirements collapse into this one method. FR-040 excludes withdrawn problems. FR-035b returns
 a repeat with **no marker of any kind** when the library is exhausted — the presentation layer cannot
@@ -134,7 +150,7 @@ Future<Assessment?> forSession(String sessionId);
 Future<void> recordDispute(String sessionId);    // local only, FR-031a
 ```
 
-`recordDispute` sets `disputed`/`disputedAt` and emits `assessment_disputed`. **Nothing leaves the
+`recordDispute` sets `disputed`/`disputedAt`. **Nothing leaves the
 device** and no consent prompt is shown, because FR-031b forbids asking for consent the app will not
 act on.
 
@@ -175,15 +191,3 @@ Drained by `OutboxDrainBloc` — the one event-driven `Bloc` in the app — seri
 The `solutionRequestCountAtEnqueue` guard lives here (data-model §6): a replayed row can never carry
 a higher solution count than the row it replaces, which is what stops the offline queue from
 releasing a solution the learner never asked twice for.
-
-## `core/analytics` — `AnalyticsClient`
-
-```dart
-void emit(EventName name, {Map<String, Object>? props});   // fire and forget, never throws
-```
-
-`EventName` is an **enum over the 23 closed names** — a name the schema does not know is a compile
-error, not a 400. `props` is validated against the schema's limits before buffering. `emit` returns
-`void` and cannot throw: FR-051 requires that an analytics failure affect nothing the learner sees,
-and a signature with no failure channel is the cheapest way to guarantee no call site tries to handle
-one.

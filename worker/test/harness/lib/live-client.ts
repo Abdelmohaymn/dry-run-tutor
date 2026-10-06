@@ -17,7 +17,7 @@ export function requireGroqApiKey(): string {
 
 /**
  * Optional: point this harness run at a different provider/model than
- * whatever's seeded in runtime_config, without editing the migration's
+ * whatever's seeded in config, without editing the migration's
  * seed row — set both HARNESS_PROVIDER and HARNESS_MODEL to opt in. Left
  * unset, the seeded default (groq) runs as normal. Useful for verifying
  * the harness against a different learner key when the usual one is
@@ -27,13 +27,13 @@ export async function applyProviderOverride(db: D1Database): Promise<void> {
   const provider = env.HARNESS_PROVIDER;
   const model = env.HARNESS_MODEL;
   if (!provider || !model) return;
-  const row = await db.prepare("SELECT payload FROM runtime_config WHERE id = 1").first<{ payload: string }>();
+  const row = await db.prepare("SELECT payload FROM config WHERE id = 1").first<{ payload: string }>();
   if (!row) return;
   const cfg = JSON.parse(row.payload);
   cfg.provider = provider;
   cfg.model = model;
   await db
-    .prepare("UPDATE runtime_config SET payload = ?1, updated_at = datetime('now') WHERE id = 1")
+    .prepare("UPDATE config SET payload = ?1, updated_at = datetime('now') WHERE id = 1")
     .bind(JSON.stringify(cfg))
     .run();
 }
@@ -42,7 +42,7 @@ export async function mintInstallId(): Promise<string> {
   const res = await SELF.fetch("https://worker.test/v1/install", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ install_uuid: crypto.randomUUID() }),
+    body: JSON.stringify({ platform: "android", device_id: crypto.randomUUID().replace(/-/g, "").slice(0, 16) }),
   });
   const body = (await res.json()) as { install_id: string };
   return body.install_id;

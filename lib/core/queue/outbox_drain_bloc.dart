@@ -4,8 +4,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../analytics/analytics_client.dart';
-import '../analytics/event_name.dart';
 import '../db/app_database.dart';
 import '../db/dao/assessment_dao.dart';
 import '../db/dao/message_dao.dart';
@@ -46,7 +44,6 @@ class OutboxDrainBloc extends Bloc<OutboxDrainEvent, OutboxDrainState> {
     required SessionDao sessionDao,
     required AssessmentDao assessmentDao,
     required TrustedTimeSource timeSource,
-    required AnalyticsClient analyticsClient,
     required Future<String> Function() resolveInstallId,
     required Future<(String?, String?)> Function(SessionRow session) resolveKeyedHeaders,
     NotificationService? notificationService,
@@ -57,7 +54,6 @@ class OutboxDrainBloc extends Bloc<OutboxDrainEvent, OutboxDrainState> {
         _sessionDao = sessionDao,
         _assessmentDao = assessmentDao,
         _timeSource = timeSource,
-        _analyticsClient = analyticsClient,
         _resolveInstallId = resolveInstallId,
         _resolveKeyedHeaders = resolveKeyedHeaders,
         _notificationService = notificationService,
@@ -76,7 +72,6 @@ class OutboxDrainBloc extends Bloc<OutboxDrainEvent, OutboxDrainState> {
   final SessionDao _sessionDao;
   final AssessmentDao _assessmentDao;
   final TrustedTimeSource _timeSource;
-  final AnalyticsClient _analyticsClient;
   final Future<String> Function() _resolveInstallId;
   final Future<(String?, String?)> Function(SessionRow session) _resolveKeyedHeaders;
   final NotificationService? _notificationService;
@@ -109,15 +104,6 @@ class OutboxDrainBloc extends Bloc<OutboxDrainEvent, OutboxDrainState> {
       // directly — a local notification is the only way the learner
       // finds out their assessment caught up.
       await _notificationService?.notifyAssessmentReady();
-    }
-    if (drained > 0) {
-      _analyticsClient.emit(
-        EventName.offlineQueueDrained,
-        props: <String, Object>{
-          'items': drained,
-          'kind': drainedKinds.length == 1 ? drainedKinds.first.name : 'mixed',
-        },
-      );
     }
     emit(const OutboxIdle());
   }

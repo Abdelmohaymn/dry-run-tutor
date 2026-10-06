@@ -120,7 +120,13 @@ class KeyRepositoryImpl implements KeyRepository {
     }
   }
 
+  /// The warm-up first: after a fresh install the cache may hold nothing
+  /// else, so `available()` alone would fail the key check.
   Future<Problem?> _anyProbeProblem(RuntimeConfig config) async {
+    final Problem? practice = await _problemRepository.practiceProblem();
+    if (practice != null) {
+      return practice;
+    }
     final List<Problem> available = await _problemRepository.available(config);
     if (available.isEmpty) {
       return null;

@@ -51,7 +51,6 @@ chatRoute.post("/", async (c) => {
     date,
     cfg,
     turnCap: cfg.chat.turn_cap,
-    usageEndpoint: "chat" as const,
   };
 
   const streamChat = async (systemPrompt: string, messages: ProviderMessage[]) => ({
@@ -93,7 +92,6 @@ chatRoute.post("/", async (c) => {
       provider: groqProvider,
       groundTruthTier: "AB",
       condenseEnabled: true,
-      condenseUsageEndpoint: "condense",
       streamChat,
       condenseCallOptions: () => ({ baseUrl: keyed.baseUrl, apiKey: userKey, model: keyed.condenseModel }),
       finishCheck: async (systemPrompt, userContent, jsonSchema) => ({
@@ -111,7 +109,6 @@ chatRoute.post("/", async (c) => {
         providerId: keyed.id,
         model: keyed.model,
       }),
-      finishCheckUsageEndpoint: "finish_check",
     },
     problem,
   );

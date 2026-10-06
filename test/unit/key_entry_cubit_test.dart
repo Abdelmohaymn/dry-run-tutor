@@ -2,39 +2,25 @@
 // learner typed preserved, and FR-005b: a key is never persisted before
 // its probe succeeds.
 import 'package:bloc_test/bloc_test.dart';
-import 'package:dry_run/core/analytics/event_name.dart';
 import 'package:dry_run/core/errors/relay_error.dart';
 import 'package:dry_run/core/errors/result.dart';
 import 'package:dry_run/features/keys/presentation/key_entry_cubit.dart';
 import 'package:dry_run/features/keys/presentation/key_entry_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../fakes/fake_analytics_client.dart';
 import '../fakes/fake_key_repository.dart';
 
 void main() {
   late FakeKeyRepository keyRepository;
-  late FakeAnalyticsClient analyticsClient;
 
   setUp(() {
     keyRepository = FakeKeyRepository();
-    analyticsClient = FakeAnalyticsClient();
   });
 
   KeyEntryCubit buildCubit() => KeyEntryCubit(
         keyRepository: keyRepository,
         providers: const <String>['groq', 'gemini'],
-        analyticsClient: analyticsClient,
       );
-
-  test('opens on the first offered provider and emits key_entry_started', () {
-    buildCubit();
-    final (EventName, Map<String, Object>?)? started = analyticsClient.emitted
-        .cast<(EventName, Map<String, Object>?)?>()
-        .firstWhere((event) => event!.$1 == EventName.keyEntryStarted, orElse: () => null);
-    expect(started, isNotNull);
-    expect(started!.$2?['provider'], 'groq');
-  });
 
   blocTest<KeyEntryCubit, KeyEntryState>(
     'a valid key persists and the state carries the provider',

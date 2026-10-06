@@ -25,7 +25,6 @@ import 'package:dry_run/features/problem/domain/problem.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
-import '../test/fakes/fake_analytics_client.dart';
 import '../test/fakes/fake_assessment_repository.dart';
 import '../test/fakes/fake_config_repository.dart';
 import '../test/fakes/fake_mic_rationale_repository.dart';
@@ -72,12 +71,10 @@ void main() {
           ..cachedValue = const RuntimeConfig(
             minSupportedVersion: '1.0.0',
             killedProblemIds: <String>[],
-            contentManifestUrl: '/v1/content/manifest.json',
             chat: ChatConfig(turnCap: 12, wrapUpAtTurn: 9, minTurnChars: 5),
             trial: TrialConfig(turnCap: 4),
             keyedProviders: <String>['groq'],
           ),
-        analyticsClient: FakeAnalyticsClient(),
         micRationaleRepository: FakeMicRationaleRepository(),
       );
 

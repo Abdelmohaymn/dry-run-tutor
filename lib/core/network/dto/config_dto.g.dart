@@ -40,24 +40,11 @@ Map<String, dynamic> _$RepairConfigDtoToJson(RepairConfigDto instance) =>
       'timeout_ms': instance.timeoutMs,
     };
 
-RotationConfigDto _$RotationConfigDtoFromJson(Map<String, dynamic> json) =>
-    RotationConfigDto(
-      startProblemId: json['start_problem_id'] as String,
-      anchorDate: json['anchor_date'] as String,
-    );
-
-Map<String, dynamic> _$RotationConfigDtoToJson(RotationConfigDto instance) =>
-    <String, dynamic>{
-      'start_problem_id': instance.startProblemId,
-      'anchor_date': instance.anchorDate,
-    };
-
 ConfigDto _$ConfigDtoFromJson(Map<String, dynamic> json) => ConfigDto(
   minSupportedVersion: json['min_supported_version'] as String,
   killedProblemIds: (json['killed_problem_ids'] as List<dynamic>)
       .map((e) => e as String)
       .toList(),
-  contentManifestUrl: json['content_manifest_url'] as String,
   chat: ChatConfigDto.fromJson(json['chat'] as Map<String, dynamic>),
   trial: TrialConfigDto.fromJson(json['trial'] as Map<String, dynamic>),
   updateUrl: json['update_url'] as String?,
@@ -67,19 +54,14 @@ ConfigDto _$ConfigDtoFromJson(Map<String, dynamic> json) => ConfigDto(
   repair: json['repair'] == null
       ? null
       : RepairConfigDto.fromJson(json['repair'] as Map<String, dynamic>),
-  rotation: json['rotation'] == null
-      ? null
-      : RotationConfigDto.fromJson(json['rotation'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$ConfigDtoToJson(ConfigDto instance) => <String, dynamic>{
   'min_supported_version': instance.minSupportedVersion,
   'update_url': instance.updateUrl,
   'killed_problem_ids': instance.killedProblemIds,
-  'content_manifest_url': instance.contentManifestUrl,
   'chat': instance.chat.toJson(),
   'trial': instance.trial.toJson(),
   'keyed_providers': instance.keyedProviders,
   'repair': instance.repair?.toJson(),
-  'rotation': instance.rotation?.toJson(),
 };

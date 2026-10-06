@@ -11,7 +11,7 @@ afterEach(() => {
   fetchMock.assertNoPendingInterceptors();
 });
 
-const TABLES = ["usage", "turn_counter", "trial_consumed", "trial_budget", "events", "runtime_config"];
+const TABLES = ["config", "devices", "device_day", "provider_day", "notify_signup"];
 
 async function dumpAllTables(): Promise<string> {
   const dumps = await Promise.all(
@@ -22,7 +22,7 @@ async function dumpAllTables(): Promise<string> {
 
 // FR-026, SC-006 support. Sweeps every D1 table after a full session.
 describe("no D1 table ever holds a learner key, a message, a summary, or a reply", () => {
-  it("after a full chat + hint + judge + event session, none of the secret markers are anywhere in D1", async () => {
+  it("after a full chat + hint + judge + daily session, none of the secret markers are anywhere in D1", async () => {
     const SECRET_KEY = "gsk_the_learners_actual_secret_key_value";
     const LEARNER_TEXT = "MARKER_LEARNER_SAID_THIS_EXACT_PHRASE";
     const TUTOR_REPLY = "MARKER_TUTOR_REPLIED_WITH_THIS_EXACT_PHRASE";
@@ -88,10 +88,8 @@ describe("no D1 table ever holds a learner key, a message, a summary, or a reply
     });
     await judgeRes.json();
 
-    await SELF.fetch("https://worker.test/v1/event", {
-      method: "POST",
-      headers: { "X-Install-Id": installId, "content-type": "application/json" },
-      body: JSON.stringify({ events: [{ name: "app_open", client_ts: "2026-08-21T00:00:00.000Z" }] }),
+    await SELF.fetch(`https://worker.test/v1/daily?date=${new Date().toISOString().slice(0, 10)}`, {
+      headers: { "X-Install-Id": installId },
     });
 
     const blob = await dumpAllTables();

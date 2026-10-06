@@ -2,7 +2,6 @@
 // an offer the learner answers. Never ends the session by itself; Keep going
 // hides it for the rest of the session and tells the relay to stop checking.
 import 'package:bloc_test/bloc_test.dart';
-import 'package:dry_run/core/analytics/event_name.dart';
 import 'package:dry_run/core/config/runtime_config.dart';
 import 'package:dry_run/core/models/wire_enums.dart';
 import 'package:dry_run/features/chat/domain/server_counters.dart';
@@ -13,7 +12,6 @@ import 'package:dry_run/features/chat/presentation/daily_session_state.dart';
 import 'package:dry_run/features/problem/domain/problem.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../fakes/fake_analytics_client.dart';
 import '../fakes/fake_assessment_repository.dart';
 import '../fakes/fake_config_repository.dart';
 import '../fakes/fake_mic_rationale_repository.dart';
@@ -58,7 +56,7 @@ Session _sessionAt(int turnIndex) => Session(
       solutionRequestCount: 0,
     );
 
-DailySessionCubit _cubit(FakeSessionRepository repo, FakeAnalyticsClient analytics) => DailySessionCubit(
+DailySessionCubit _cubit(FakeSessionRepository repo) => DailySessionCubit(
       sessionRepository: repo,
       streakRepository: FakeStreakRepository(),
       assessmentRepository: FakeAssessmentRepository(),
@@ -67,12 +65,10 @@ DailySessionCubit _cubit(FakeSessionRepository repo, FakeAnalyticsClient analyti
         ..cachedValue = const RuntimeConfig(
           minSupportedVersion: '1.0.0',
           killedProblemIds: <String>[],
-          contentManifestUrl: '/v1/content/manifest.json',
           chat: ChatConfig(turnCap: 15, wrapUpAtTurn: 12, minTurnChars: 5),
           trial: TrialConfig(turnCap: 15),
           keyedProviders: <String>['nebius'],
         ),
-      analyticsClient: analytics,
       micRationaleRepository: FakeMicRationaleRepository(),
     );
 
@@ -86,14 +82,13 @@ FakeSessionRepository _repo(List<ServerCounters> replies) {
 }
 
 void main() {
-  final FakeAnalyticsClient analytics = FakeAnalyticsClient();
   late FakeSessionRepository repo;
 
   blocTest<DailySessionCubit, DailySessionState>(
     'ready_to_finish turns into FinishOffered, and a turn without it stays Composing',
     build: () {
       repo = _repo(<ServerCounters>[_counters(2), _counters(3, ready: true)]);
-      return _cubit(repo, analytics);
+      return _cubit(repo);
     },
     seed: () => DailySessionState.composing(_sessionAt(1), null),
     act: (DailySessionCubit cubit) async {
@@ -106,16 +101,13 @@ void main() {
       isA<Sending>(),
       isA<FinishOffered>().having((FinishOffered s) => s.session.counters.turnIndex, 'turnIndex', 3),
     ],
-    verify: (_) {
-      expect(analytics.emitted.map((e) => e.$1), contains(EventName.finishOfferShown));
-    },
   );
 
   blocTest<DailySessionCubit, DailySessionState>(
     'Keep going hides the offer for the rest of the session and tells the relay to stop checking',
     build: () {
       repo = _repo(<ServerCounters>[_counters(4, ready: true)]);
-      return _cubit(repo, analytics);
+      return _cubit(repo);
     },
     seed: () => DailySessionState.finishOffered(_sessionAt(3)),
     act: (DailySessionCubit cubit) async {
@@ -136,7 +128,7 @@ void main() {
     'the cap still wins over a ready answer on the terminal turn',
     build: () {
       repo = _repo(<ServerCounters>[_counters(15, ready: true, ended: 'cap')]);
-      return _cubit(repo, analytics);
+      return _cubit(repo);
     },
     seed: () => DailySessionState.composing(_sessionAt(14), null),
     act: (DailySessionCubit cubit) => cubit.sendTyped('Last thing I would say.'),

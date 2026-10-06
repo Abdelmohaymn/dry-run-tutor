@@ -28,7 +28,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../fakes/fake_analytics_client.dart';
 import '../fakes/fake_assessment_repository.dart';
 import '../fakes/fake_config_repository.dart';
 import '../fakes/fake_mic_rationale_repository.dart';
@@ -97,14 +96,12 @@ void main() {
         ..cachedValue = const RuntimeConfig(
           minSupportedVersion: '1.0.0',
           killedProblemIds: <String>[],
-          contentManifestUrl: '/v1/content/manifest.json',
           // Wrap up at the first turn, cap well above it — this is the
           // wrap-up state, not the cap.
           chat: ChatConfig(turnCap: 12, wrapUpAtTurn: 1, minTurnChars: 5),
           trial: TrialConfig(turnCap: 12),
           keyedProviders: <String>['groq'],
         ),
-      analyticsClient: FakeAnalyticsClient(),
       micRationaleRepository: FakeMicRationaleRepository(),
     );
     addTearDown(cubit.close);
@@ -177,7 +174,6 @@ void main() {
         assessmentRepository: assessments,
         recognitionService: FakeRecognitionService(),
         configRepository: FakeRemoteConfigRepository(),
-        analyticsClient: FakeAnalyticsClient(),
         micRationaleRepository: FakeMicRationaleRepository(),
       );
       addTearDown(cubit.close);

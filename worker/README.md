@@ -35,7 +35,7 @@ Reproduces one tutor turn from a real conversation against live Groq and reports
 GROQ_API_KEY=gsk_... npm run replay:tutor -- tools/replay-samples/pair-sum-full-answer.json --runs 8
 ```
 
-The file is a JSON array of `{"role": "user" | "tutor", "text"}` turns ending on the learner's, the same shape as `messages` on `POST /v1/chat`. Options: `--problem` (default `vp-0001`), `--runs`, `--gap` (seconds between calls; a free key hits Groq's tokens-per-minute limit fast), `--model`. The runtime_config values it builds the prompt with are constants at the top of `tools/replay-tutor.ts`.
+The file is a JSON array of `{"role": "user" | "tutor", "text"}` turns ending on the learner's, the same shape as `messages` on `POST /v1/chat`. Options: `--problem` (default `vp-0001`), `--runs`, `--gap` (seconds between calls; a free key hits Groq's tokens-per-minute limit fast), `--model`. The config values it builds the prompt with are constants at the top of `tools/replay-tutor.ts`.
 
 ## Client fail-open obligation (GET /v1/config)
 
@@ -43,15 +43,15 @@ The file is a JSON array of `{"role": "user" | "tutor", "text"}` turns ending on
 
 ## Changing a lever with no redeploy
 
-Every lever lives in the single `runtime_config` row (`contracts/config.schema.json`). Read the current payload, edit the JSON, write it back:
+Every lever lives in the single `config` row (`contracts/config.schema.json`). Read the current payload, edit the JSON, write it back:
 
 ```sh
 npx wrangler d1 execute dry-run-dev --local \
-  --command "SELECT payload FROM runtime_config WHERE id = 1"
+  --command "SELECT payload FROM config WHERE id = 1"
 
 # edit the JSON, then:
 npx wrangler d1 execute dry-run-dev --local \
-  --command "UPDATE runtime_config SET payload = '<edited JSON>', updated_at = datetime('now') WHERE id = 1"
+  --command "UPDATE config SET payload = '<edited JSON>', updated_at = datetime('now') WHERE id = 1"
 ```
 
 Drop `--local` (and use the `dev`/`prod` D1 database name) to change a deployed environment. `GET /v1/config` reflects the change on its next read (no cache on the server side — see the client fail-open note above for the client's own cache).
@@ -72,7 +72,7 @@ Levers, one line each — full detail in `contracts/config.schema.json` and `spe
 
 ## The daily pointer (`rotation`)
 
-`rotation` decides which problem **every** install gets on a given day. Set it and the answer is the same for a year-old install and one made this morning:
+`rotation` decides which problem **every** device gets on a given day. It is applied by the Worker in `GET /v1/daily` (and is never sent to the app), so the answer is the same for a year-old install and one made this morning:
 
 ```
 problem = evergreen_pool_sorted_by_id[ index(start_problem_id) + whole_days_since(anchor_date) ]
@@ -84,17 +84,17 @@ Restart everyone at the first problem, one write, no release:
 
 ```sh
 npx wrangler d1 execute dry-run-prod --remote \
-  --command "UPDATE runtime_config SET payload = json_set(payload, '\$.rotation.start_problem_id', 'vp-0000', '\$.rotation.anchor_date', date('now')), updated_at = datetime('now') WHERE id = 1"
+  --command "UPDATE config SET payload = json_set(payload, '\$.rotation.start_problem_id', 'vp-0000', '\$.rotation.anchor_date', date('now')), updated_at = datetime('now') WHERE id = 1"
 ```
 
-Devices pick it up within their config cache window; there is no push.
+Devices pick it up the next time they fetch the daily problem; a problem already cached for today stays until the next day (or until it is killed).
 
 Four things worth knowing before you move it:
 
-- **Omit `rotation` entirely** and each install falls back to walking its own un-attempted problems — the pre-pointer behaviour, still the default in the seeded row.
+- **Omit `rotation` entirely** and the pick is `dayNumber(date) % pool.length` over the id-sorted pool — still the same problem for every device. The old per-install "walk my un-attempted problems" behaviour is gone: the server cannot see local history.
 - **A problem authored for exactly today outranks the pointer.** Dated problems are an explicit override and are not in the rotation pool.
 - **A bad pointer is a loud failure, not a quiet one.** A `start_problem_id` or `anchor_date` that fails the schema makes `GET /v1/config` return 502 rather than serving a wrong problem everywhere; a well-formed id that is withdrawn or not yet in the manifest degrades to the top of the pool.
-- **The pointer does not erase local history.** A learner who has seen today's problem before still gets `isRepeat` recorded locally (FR-035c) and sees no marker for it (FR-035b).
+- **The pointer does not erase local history.** A learner who has seen today's problem before still gets `isRepeat` recorded locally (FR-035c) and sees no marker for it (FR-035b); the app computes it from its own completed sessions.
 
 ## The ad kill switch (`ads.enabled`)
 
@@ -102,7 +102,7 @@ Turns off both ad surfaces — the rewarded hint video and the assessment inters
 
 ```sh
 npx wrangler d1 execute dry-run-prod --remote \
-  --command "UPDATE runtime_config SET payload = json_set(payload, '\$.ads.enabled', json('false')), updated_at = datetime('now') WHERE id = 1"
+  --command "UPDATE config SET payload = json_set(payload, '\$.ads.enabled', json('false')), updated_at = datetime('now') WHERE id = 1"
 ```
 
 Back on: `json('true')`. Installs pick it up on their next launch.

@@ -12,7 +12,7 @@
 // `messages` table (only `kind = 'turn'` rows are replayed as context).
 //
 // The system prompt is built the way runConversationalTurn() builds it,
-// with the runtime_config values below. Keep those in step with the
+// with the config values below. Keep those in step with the
 // environment being reproduced. Every run spends real tokens on the key.
 import { readFileSync } from "node:fs";
 import { setDefaultAutoSelectFamilyAttemptTimeout } from "node:net";
@@ -24,7 +24,7 @@ import type { Turn } from "../src/lib/schemas";
 import { TUTOR_PROMPT, rewriteNote } from "../src/prompts/tutor";
 import type { Problem } from "../../tools/problem-types";
 
-// The dev runtime_config's values on 2026-09-25.
+// The dev config's values on 2026-09-25.
 const TURN_CAP = 15;
 const CFG = {
   trim: { verbatim_turns: 6, narrow_after_turn: 3, narrow_margin: 0.15 },

@@ -5,12 +5,13 @@ part 'install_dto.g.dart';
 /// `POST /v1/install` request. Sent exactly once, at first launch.
 @JsonSerializable(fieldRename: FieldRename.snake)
 class InstallRequestDto {
-  InstallRequestDto({required this.installUuid});
+  InstallRequestDto({required this.platform, required this.deviceId});
 
   factory InstallRequestDto.fromJson(Map<String, dynamic> json) =>
       _$InstallRequestDtoFromJson(json);
 
-  final String installUuid;
+  final String platform;
+  final String deviceId;
 
   Map<String, dynamic> toJson() => _$InstallRequestDtoToJson(this);
 }

@@ -25,7 +25,6 @@ import { blockedTermsIn, buildBlockedTerms, cleanLead } from "./leak-filter";
 import { LADDER_EXHAUSTED, flatLadder, nextHint } from "./hint-ladder";
 import { LADDER_EXHAUSTED_LINE, LEAK_BLOCKED_FALLBACK, TUTOR_PROMPT, WRAP_UP_SENTENCE, rewriteNote } from "../prompts/tutor";
 import { writeDone, writeError, writeMeta, writeToken, type MetaFramePayload } from "./sse";
-import { writeUsage, type UsageEndpoint } from "./usage";
 import type { Provider, ProviderMessage, StreamChatResult } from "./provider";
 import { withReplyLanguageNote } from "./reply-language";
 import type { Problem } from "../../../tools/problem-types";
@@ -40,8 +39,6 @@ export interface ChatTurnDeps {
   turnCap: number;
   groundTruthTier: "A" | "AB";
   condenseEnabled: boolean;
-  usageEndpoint: UsageEndpoint; // "chat" | "trial_chat"
-  condenseUsageEndpoint: UsageEndpoint; // always "condense"
   /** Resolves the credential for THIS request's main streaming call. */
   streamChat: (systemPrompt: string, messages: ProviderMessage[]) => Promise<{
     stream: StreamChatResult;
@@ -64,7 +61,6 @@ export interface ChatTurnDeps {
    * Absent = no check, and `ready_to_finish` is left off the meta frame.
    */
   finishCheck?: FinishCheckCall;
-  finishCheckUsageEndpoint?: UsageEndpoint; // "finish_check" | "trial_finish_check"
 }
 
 /**
@@ -83,7 +79,6 @@ export async function runKeyCheck(
 ): Promise<Response> {
   const key: TurnCounterKey = { installId: deps.installId, problemId: deps.problemId, date: deps.date };
   return streamSSE(c, async (stream) => {
-    const startedAt = Date.now();
     let opened: { stream: StreamChatResult; providerId: string; model: string };
     try {
       opened = await openStream("Reply with the single word OK.", [{ role: "user", text: "OK" }]);
@@ -99,19 +94,6 @@ export async function runKeyCheck(
     }
 
     const counters = await readCounters(deps.db, key);
-    await writeUsage(deps.db, {
-      installId: deps.installId,
-      date: deps.date,
-      endpoint: "key_check",
-      problemId: deps.problemId,
-      turnIndex: counters.turns,
-      model: opened.model,
-      provider: opened.providerId,
-      inputTokens: 0,
-      outputTokens: 0,
-      latencyMs: Date.now() - startedAt,
-      leakBlocked: false,
-    });
 
     const meta: MetaFramePayload = {
       turn_index: counters.turns,
@@ -130,7 +112,7 @@ export async function runKeyCheck(
 export async function runHintTurn(
   c: Context,
   body: ChatRequest,
-  deps: Pick<ChatTurnDeps, "db" | "installId" | "problemId" | "date" | "cfg" | "turnCap" | "usageEndpoint">,
+  deps: Pick<ChatTurnDeps, "db" | "installId" | "problemId" | "date" | "cfg" | "turnCap">,
   problem: Problem,
 ): Promise<Response> {
   const key: TurnCounterKey = { installId: deps.installId, problemId: deps.problemId, date: deps.date };
@@ -160,19 +142,6 @@ export async function runHintTurn(
     };
     await writeMeta(stream, meta);
     await writeDone(stream);
-
-    await writeUsage(deps.db, {
-      installId: deps.installId,
-      date: deps.date,
-      endpoint: "hint",
-      problemId: deps.problemId,
-      turnIndex: counters.turns,
-      model: "n/a",
-      provider: deps.cfg.provider,
-      inputTokens: 0,
-      outputTokens: 0,
-      latencyMs: 0,
-    });
   });
 }
 
@@ -206,13 +175,6 @@ export async function runConversationalTurn(
             deps.cfg,
             deps.provider,
             await deps.condenseCallOptions(),
-            {
-              db: deps.db,
-              installId: deps.installId,
-              problemId: deps.problemId,
-              date: deps.date,
-              turnIndex: reserved.turnIndex,
-            },
           )
         : { summary: body.summary, verbatim: body.messages, called: false, covered: 0 };
 
@@ -262,14 +224,7 @@ export async function runConversationalTurn(
         sessionEnded === null &&
         reserved.turnIndex >= finishOffer.min_turn
           ? withinMs(
-              runFinishCheck(problem, learnerHistory, deps.finishCheck, {
-                db: deps.db,
-                installId: deps.installId,
-                problemId: deps.problemId,
-                date: deps.date,
-                turnIndex: reserved.turnIndex,
-                usageEndpoint: deps.finishCheckUsageEndpoint ?? "finish_check",
-              }),
+              runFinishCheck(problem, learnerHistory, deps.finishCheck),
               finishOffer.timeout_ms,
             )
           : null;
@@ -280,15 +235,12 @@ export async function runConversationalTurn(
 
       // The whole draft is read before any of it is sent, so a blocked
       // word can be written around instead of cut off (data-model.md §B1).
-      const startedAt = Date.now();
       const first = await deps.streamChat(systemPrompt, providerMessages);
       const firstText = await collectText(first.stream.deltas);
-      const firstUsage = await first.stream.usage();
+      // Awaited for its side effect: on the trial path usage() is the wrapper
+      // that settles the trial budget with the real token count.
+      await first.stream.usage();
       let reply = firstText;
-      let providerId = first.providerId;
-      let model = first.model;
-      let inputTokens = firstUsage.inputTokens;
-      let outputTokens = firstUsage.outputTokens;
 
       const hits = blockedTermsIn(firstText, blockedTerms);
       const leakBlocked = hits.length > 0;
@@ -301,13 +253,9 @@ export async function runConversationalTurn(
         try {
           const second = await deps.streamChat(systemPrompt + rewriteNote(hits), providerMessages);
           const secondText = await collectText(second.stream.deltas);
-          const secondUsage = await second.stream.usage();
-          inputTokens += secondUsage.inputTokens;
-          outputTokens += secondUsage.outputTokens;
+          await second.stream.usage();
           if (secondText.trim() !== "" && blockedTermsIn(secondText, blockedTerms).length === 0) {
             rewrite = secondText;
-            providerId = second.providerId;
-            model = second.model;
           }
         } catch {
           // The first draft was answered; a failed rewrite is not a failed turn.
@@ -321,20 +269,6 @@ export async function runConversationalTurn(
         tokenEmitted = true;
         await writeToken(stream, reply);
       }
-
-      await writeUsage(deps.db, {
-        installId: deps.installId,
-        date: deps.date,
-        endpoint: deps.usageEndpoint,
-        problemId: deps.problemId,
-        turnIndex: reserved.turnIndex,
-        model,
-        provider: providerId,
-        inputTokens,
-        outputTokens,
-        latencyMs: Date.now() - startedAt,
-        leakBlocked,
-      });
 
       const meta: MetaFramePayload = {
         turn_index: reserved.turnIndex,
