@@ -1,5 +1,43 @@
 <!--
 SYNC IMPACT REPORT (latest)
+Version change: 2.0.0 → 3.0.0
+Rationale: MAJOR. The first-party analytics event stream is removed. Quality
+           Gates required analytics on POST /v1/event; Principles I and X each
+           required a measurement that only that stream could produce. All three
+           are redefined or dropped. Owner-approved 2026-10-06 for feature
+           006-lean-backend (specs/006-lean-backend/plan.md gate G-1).
+           Justified by cost and privacy, not by D7 (Governance): the event
+           stream was the largest D1 writer and the main privacy liability, and
+           D7 survives without it.
+
+Modified principles:
+  - Principle I: the "`chat_turn_sent.input_mode` split MUST stay watchable"
+    measurement is dropped. The voice-first rule itself is unchanged; reversing
+    it still needs an amendment and a MAJOR bump.
+  - Principle X, "This trade is measured" paragraph: the hint-pull-rate baseline
+    comparison is dropped; D7 is still compared against its pre-advertising
+    baseline. Closing paragraph: "the BYOK funnel is instrumented" → measured
+    through D7 only.
+  - Principle X constraint 8: "analytics stay on our own POST /v1/event" →
+    there is no product-analytics stream.
+  - Quality Gates "Ship measurable…": analytics on POST /v1/event → Day-7 is
+    measured from a hashed device id and per-day activity rows (devices +
+    device_day); no event stream. Advertising-SDK carve-out reworded to match.
+
+Added sections: none. Removed sections: none.
+
+Source of record: ../docs/constitution.md (outside this repo) MUST receive the
+  same change. Per the amendment procedure it is amended there first; here it
+  was synced from the owner's decision in-session.
+
+Deferred / follow-up TODOs:
+  - Apply this amendment to ../docs/constitution.md (owner).
+  - Older reports below are history; the 2.0.0 line "Product analytics remain
+    first-party on POST /v1/event" is superseded by this one.
+-->
+
+<!--
+SYNC IMPACT REPORT (2.0.0)
 Version change: 1.0.1 → 2.0.0
 Rationale: MAJOR. Principle X is redefined in a backward-incompatible way. The
            sentence "There is no revenue model and there never will be one — no
@@ -41,7 +79,7 @@ Deferred / follow-up TODOs: the two consequential amendments above.
 -->
 
 <!--
-SYNC IMPACT REPORT (latest)
+SYNC IMPACT REPORT (1.0.1)
 Version change: 1.0.0 → 1.0.1
 Rationale: PATCH. Records that open decisions O4, O1, and O2 are all resolved.
            No principle is added, removed, or redefined — Principle I stands
@@ -118,10 +156,9 @@ default — mic primary", and it was confirmed deliberately rather than by drift
 when feature 002 was specified (`specs/002-voice-tutor-app/spec.md` §Context).
 This principle therefore stands as written and is no longer contingent.
 
-What the contingency leaves behind is a measurement, not an open decision: the
-`chat_turn_sent.input_mode` split MUST stay watchable. If typing overwhelmingly
-wins in the field, that is grounds to re-derive the thesis — through an
-amendment and a MAJOR bump, deliberately, never by drift.
+The spoken-vs-typed split is no longer measured (3.0.0 removed the event
+stream). Reversing voice-first still requires an amendment and a MAJOR bump,
+deliberately, never by drift.
 
 ### II. The Assessment Classifies Against Ground Truth; It Never Judges Freely
 
@@ -276,19 +313,18 @@ may violate any of them:
    tutor hints, it does not solve, and the price of a hint never changes what a hint is.
 8. **The privacy story is told truthfully, not quietly.** The advertising SDK is the sole
    permitted exception to the first-party rule in Quality Gates, and it is an exception
-   for advertising only — analytics stay on our own `POST /v1/event`. The store
+   for advertising only — there is no product-analytics stream at all. The store
    data-safety declaration MUST state plainly what the ad framework collects, the device
    advertising identifier included.
 
 **This trade is measured, not assumed.** Governance still governs: advertising was not
-adopted because it moves Day-7 retention, and it plausibly harms it. Hint-pull rate and D7
-are both compared against their pre-advertising baselines after launch. If gating the hint
-ladder measurably damages either, that is grounds to repeal constraint 7 — deliberately,
-through an amendment, not by drift.
+adopted because it moves Day-7 retention, and it plausibly harms it. D7 is compared
+against its pre-advertising baseline after launch. If gating the hint ladder measurably
+damages it, that is grounds to repeal constraint 7 — deliberately, through an amendment,
+not by drift.
 
 The price of this architecture is still paid in onboarding friction, not money. That trade
-was made deliberately; the BYOK funnel is instrumented from day one so the cost of it is
-measured, not assumed.
+was made deliberately; its cost shows up in D7, the only number measured.
 
 ## Locked Technical Stack
 
@@ -333,17 +369,18 @@ LeetCode, Codeforces, or anywhere else. `source` is an own-authored label only.
 Any problem found wrong in the wild MUST be killable remotely without an app
 release.
 
-**Ship measurable, ship remotely controllable — and own both.** Analytics land
-from day one with an anonymous ID, no PII and no message content, sent to our
-own `POST /v1/event`, not a third-party SDK: the D7 number the project is judged
-on is a single query against data we already hold, every session already reaches
-our Worker, and a third-party SDK would cost the privacy story Principles VI and
-VII exist to build. Crash reporting requires no SDK either — Play Console
+**Ship measurable, ship remotely controllable — and own both.** Day-7 is measured
+from a hashed device id and per-day activity rows (`devices` + `device_day`); there
+is no event stream. The server keeps no PII and no message content, and no
+third-party analytics SDK is used: the D7 number the project is judged on is a
+single query against rows the Worker already writes to enforce the free limits,
+and a third-party SDK would cost the privacy story Principles VI and VII exist to
+build. Crash reporting requires no SDK either — Play Console
 reports crashes and ANRs natively.
 
 **One exception, added 2026-09-15:** the advertising SDK permitted by Principle X is
 third-party by necessity. It is scoped to advertising and reports ad events only; it is
-never a route for product analytics, which stay first-party. Everything else here stands.
+never a route for product analytics, of which there are none. Everything else here stands.
 
 One remote-config surface handles force-update, per-problem kill-switch, OTA
 content, chat turn cap, model, provider, and trimming thresholds — one endpoint,
@@ -379,4 +416,4 @@ Complexity MUST be justified against the D7 bar. Runtime development guidance
 lives in `docs/PLAN.md` (phases and DoDs) and `docs/design.md` (architecture);
 neither may contradict this document.
 
-**Version**: 2.0.0 | **Ratified**: 2026-08-13 | **Last Amended**: 2026-09-15
+**Version**: 3.0.0 | **Ratified**: 2026-08-13 | **Last Amended**: 2026-10-06
