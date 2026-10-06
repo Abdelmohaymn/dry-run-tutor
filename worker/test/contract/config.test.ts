@@ -18,4 +18,12 @@ describe("GET /v1/config", () => {
     const body = (await res.json()) as Record<string, unknown>;
     expect(body.web).toBeUndefined();
   });
+
+  it("never sends rotation either, and keeps the legacy content_manifest_url for pre-006 apps", async () => {
+    const res = await SELF.fetch("https://worker.test/v1/config");
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.rotation).toBeUndefined();
+    expect(body.web).toBeUndefined();
+    expect(typeof body.content_manifest_url).toBe("string");
+  });
 });

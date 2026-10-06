@@ -127,12 +127,12 @@ description: "Task list for 006 Lean Backend"
 
 ### Worker (plan W4)
 
-- [ ] T036 [P] [US2] Create `worker/src/lib/daily-pick.ts` exporting pure `pickDaily(problems, cfg, date): PublicHalf | null` and `dayNumber(d)`, implementing steps 1–5 of contracts/worker-api.md §GET /v1/daily exactly (eligible excludes killed and `PRACTICE_COLLECTION`; dated wins; pool id-sorted; pointer pick as a port of the app's `_pointerPick`; else `dayNumber % pool.length`) (W4)
-- [ ] T037 [P] [US2] Create `worker/test/unit/daily-pick.test.ts` with the cases in quickstart.md §2 "New" (dated wins; killed dated skipped; practice never picked even if dated; pointer anchor day / +1 / wrap-around / unknown start id → 0 / future anchor → clamp / bad anchor → 0 elapsed; no pointer → `dayNumber % pool`; all killed → `null`) using small synthetic arrays (W4)
-- [ ] T038 [US2] Create `worker/src/routes/daily.ts` per contracts/worker-api.md §GET /v1/daily: validate `date` (regex + real calendar day) and the ±1-day window → 400 `BAD_REQUEST`; `getRuntimeConfig` + `getPublicManifest` → `pickDaily`; `null` → 409 `PROBLEM_KILLED`; `INSERT OR IGNORE INTO device_day (device_hash, date, problem_id) VALUES (?1, ?2, ?3)` with the requested date; 200 `{ date, problem }` with `cache-control: private, no-store`. Mount in `worker/src/index.ts`: `app.use("/v1/daily", installAuth); app.route("/v1/daily", dailyRoute);` (W4)
-- [ ] T039 [US2] In `worker/src/routes/config.ts` strip rotation too: `const { web: _web, rotation: _rotation, ...appCfg } = cfg;` (W4)
-- [ ] T040 [P] [US2] Create `worker/test/contract/daily.test.ts` with every case in quickstart.md §2 "New" (no header / legacy token → 400; today 200 + `no-store`; same date two devices → same id; ±2 → 400, +1 → 200; malformed date → 400; `device_day` row with zero counters; second call keeps seeded `turns = 3`; all killed → 409; no private key names / editorial text — take these assertions from `test/contract/manifest.test.ts`) (W4)
-- [ ] T041 [P] [US2] Rewrite `worker/test/contract/config.rotation-lever.test.ts`: keep the three "refuses a malformed …" cases; replace the "served verbatim" cases with "rotation is never served by /v1/config, even when set" (W4, quickstart.md §2)
+- [X] T036 [P] [US2] Create `worker/src/lib/daily-pick.ts` exporting pure `pickDaily(problems, cfg, date): PublicHalf | null` and `dayNumber(d)`, implementing steps 1–5 of contracts/worker-api.md §GET /v1/daily exactly (eligible excludes killed and `PRACTICE_COLLECTION`; dated wins; pool id-sorted; pointer pick as a port of the app's `_pointerPick`; else `dayNumber % pool.length`) (W4)
+- [X] T037 [P] [US2] Create `worker/test/unit/daily-pick.test.ts` with the cases in quickstart.md §2 "New" (dated wins; killed dated skipped; practice never picked even if dated; pointer anchor day / +1 / wrap-around / unknown start id → 0 / future anchor → clamp / bad anchor → 0 elapsed; no pointer → `dayNumber % pool`; all killed → `null`) using small synthetic arrays (W4)
+- [X] T038 [US2] Create `worker/src/routes/daily.ts` per contracts/worker-api.md §GET /v1/daily: validate `date` (regex + real calendar day) and the ±1-day window → 400 `BAD_REQUEST`; `getRuntimeConfig` + `getPublicManifest` → `pickDaily`; `null` → 409 `PROBLEM_KILLED`; `INSERT OR IGNORE INTO device_day (device_hash, date, problem_id) VALUES (?1, ?2, ?3)` with the requested date; 200 `{ date, problem }` with `cache-control: private, no-store`. Mount in `worker/src/index.ts`: `app.use("/v1/daily", installAuth); app.route("/v1/daily", dailyRoute);` (W4)
+- [X] T039 [US2] In `worker/src/routes/config.ts` strip rotation too: `const { web: _web, rotation: _rotation, ...appCfg } = cfg;` (W4)
+- [X] T040 [P] [US2] Create `worker/test/contract/daily.test.ts` with every case in quickstart.md §2 "New" (no header / legacy token → 400; today 200 + `no-store`; same date two devices → same id; ±2 → 400, +1 → 200; malformed date → 400; `device_day` row with zero counters; second call keeps seeded `turns = 3`; all killed → 409; no private key names / editorial text — take these assertions from `test/contract/manifest.test.ts`) (W4)
+- [X] T041 [P] [US2] Rewrite `worker/test/contract/config.rotation-lever.test.ts`: keep the three "refuses a malformed …" cases; replace the "served verbatim" cases with "rotation is never served by /v1/config, even when set" (W4, quickstart.md §2)
 
 **Checkpoint**: full Worker gate green. Commit.
 
@@ -158,8 +158,8 @@ description: "Task list for 006 Lean Backend"
 
 ### Worker
 
-- [ ] T049 [P] [US5] Update `worker/src/routes/privacy.ts` copy per contracts/worker-api.md §Privacy page (install-identifier row → hashed device identifier; delete "App interaction events" row and the website "Counts." paragraph; replace the last sentence of "Keeping and deleting data"; bump `LAST_UPDATED`) (W4)
-- [ ] T050 [US5] In `worker/test/unit/no-content-persisted.test.ts` add a `/v1/daily` call to the session (the `TABLES` list and `/v1/event` removal were done in T034) (W4, quickstart.md §2)
+- [X] T049 [P] [US5] Update `worker/src/routes/privacy.ts` copy per contracts/worker-api.md §Privacy page (install-identifier row → hashed device identifier; delete "App interaction events" row and the website "Counts." paragraph; replace the last sentence of "Keeping and deleting data"; bump `LAST_UPDATED`) (W4)
+- [X] T050 [US5] In `worker/test/unit/no-content-persisted.test.ts` add a `/v1/daily` call to the session (the `TABLES` list and `/v1/event` removal were done in T034) (W4, quickstart.md §2)
 
 ### App (plan A2) — remove call sites first, then params, then files, then tests; run `flutter analyze` after each task
 
@@ -182,9 +182,9 @@ description: "Task list for 006 Lean Backend"
 
 ### Worker (plan W4)
 
-- [ ] T057 [US3] Create `worker/src/routes/practice.ts` per contracts/worker-api.md §GET /v1/practice (no auth; first id-sorted problem with `PRACTICE_COLLECTION` not in `killed_problem_ids`; none → 409 `PROBLEM_KILLED`; 200 `{ problem }` with `cache-control: public, max-age=3600`); mount with `app.route("/v1/practice", practiceRoute)` in `worker/src/index.ts` (W4)
-- [ ] T058 [US3] Delete `worker/src/routes/manifest.ts` and its import + mount in `worker/src/index.ts`; delete `worker/test/contract/manifest.test.ts` (its private-field assertions now live in T040 and T059) (W4)
-- [ ] T059 [P] [US3] Create `worker/test/contract/practice.test.ts` (no header → 200 with `collections` containing `practice`; `cache-control: public, max-age=3600`; practice id killed → 409; no private fields) (W4)
+- [X] T057 [US3] Create `worker/src/routes/practice.ts` per contracts/worker-api.md §GET /v1/practice (no auth; first id-sorted problem with `PRACTICE_COLLECTION` not in `killed_problem_ids`; none → 409 `PROBLEM_KILLED`; 200 `{ problem }` with `cache-control: public, max-age=3600`); mount with `app.route("/v1/practice", practiceRoute)` in `worker/src/index.ts` (W4)
+- [X] T058 [US3] Delete `worker/src/routes/manifest.ts` and its import + mount in `worker/src/index.ts`; delete `worker/test/contract/manifest.test.ts` (its private-field assertions now live in T040 and T059) (W4)
+- [X] T059 [P] [US3] Create `worker/test/contract/practice.test.ts` (no header → 200 with `collections` containing `practice`; `cache-control: public, max-age=3600`; practice id killed → 409; no private fields) (W4)
 
 ### App (plan A3, practice half)
 
@@ -204,8 +204,8 @@ description: "Task list for 006 Lean Backend"
 
 **Independent test**: `/v1/config` has `content_manifest_url` and no `rotation`/`web`; an old build against dev with raised `min_supported_version` shows "Update required" (quickstart.md §4 #1, #12).
 
-- [ ] T065 [US6] Add a case to `worker/test/contract/config.test.ts`: the `/v1/config` body has no `rotation` and no `web`, and still has `content_manifest_url` (quickstart.md §2)
-- [ ] T066 [US6] Re-run `worker/test/unit/config-consumers.test.ts` unchanged and confirm it passes (quickstart.md §2: `content_manifest_url` is still an app-only lever served verbatim); if it fails, stop and report
+- [X] T065 [US6] Add a case to `worker/test/contract/config.test.ts`: the `/v1/config` body has no `rotation` and no `web`, and still has `content_manifest_url` (quickstart.md §2)
+- [X] T066 [US6] Re-run `worker/test/unit/config-consumers.test.ts` unchanged and confirm it passes (quickstart.md §2: `content_manifest_url` is still an app-only lever served verbatim); if it fails, stop and report
 
 **Checkpoint**: Worker gate green. Commit.
 
