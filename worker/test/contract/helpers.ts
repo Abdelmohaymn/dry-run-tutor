@@ -3,14 +3,19 @@ import { env, SELF, fetchMock } from "cloudflare:test";
 export const GROQ_ORIGIN = "https://api.groq.com";
 export const GROQ_CHAT_PATH = "/openai/v1/chat/completions";
 
-export async function mintInstallId(): Promise<string> {
+/** Registers the given Android ID; the same id always yields the same install id. */
+export async function mintInstallIdFor(deviceId: string): Promise<string> {
   const res = await SELF.fetch("https://worker.test/v1/install", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ install_uuid: crypto.randomUUID() }),
+    body: JSON.stringify({ platform: "android", device_id: deviceId }),
   });
   const body = (await res.json()) as { install_id: string };
   return body.install_id;
+}
+
+export async function mintInstallId(): Promise<string> {
+  return mintInstallIdFor(crypto.randomUUID().replace(/-/g, "").slice(0, 16));
 }
 
 /** A minimal, valid streaming SSE body an OpenAI-compatible endpoint would return. */
@@ -78,7 +83,7 @@ export function systemPromptOf(rawBody: string): string {
 }
 
 /**
- * Feature 004. The seed migration's `runtime_config` row carries no `repair`
+ * Feature 004. The seed migration's `config` row carries no `repair`
  * block (it predates this feature), so every repair contract test that
  * needs `cfg.repair.enabled === true` writes one first — same D1-payload-edit
  * pattern as config.turncap-lever.test.ts. Values match
@@ -95,7 +100,7 @@ export async function setRepairConfig(
     min_word_overlap: number;
   }> = {},
 ): Promise<void> {
-  const row = await env.DB.prepare("SELECT payload FROM runtime_config WHERE id = 1").first<{
+  const row = await env.DB.prepare("SELECT payload FROM config WHERE id = 1").first<{
     payload: string;
   }>();
   const cfg = JSON.parse(row!.payload);
@@ -109,13 +114,13 @@ export async function setRepairConfig(
     min_word_overlap: 0.6,
     ...overrides,
   };
-  await env.DB.prepare("UPDATE runtime_config SET payload = ? WHERE id = 1")
+  await env.DB.prepare("UPDATE config SET payload = ? WHERE id = 1")
     .bind(JSON.stringify(cfg))
     .run();
 }
 
 /**
- * Feature 007. The seed migration's `runtime_config` row carries no `web`
+ * Feature 007. The seed migration's `config` row carries no `web`
  * block (it predates this feature), so every web-route contract test that
  * needs a known origin writes one first — same
  * D1-payload-edit pattern as setRepairConfig above.
@@ -126,7 +131,7 @@ export async function setWebConfig(
     notify_enabled: boolean;
   }> = {},
 ): Promise<void> {
-  const row = await env.DB.prepare("SELECT payload FROM runtime_config WHERE id = 1").first<{
+  const row = await env.DB.prepare("SELECT payload FROM config WHERE id = 1").first<{
     payload: string;
   }>();
   const cfg = JSON.parse(row!.payload);
@@ -135,7 +140,7 @@ export async function setWebConfig(
     notify_enabled: true,
     ...overrides,
   };
-  await env.DB.prepare("UPDATE runtime_config SET payload = ? WHERE id = 1")
+  await env.DB.prepare("UPDATE config SET payload = ? WHERE id = 1")
     .bind(JSON.stringify(cfg))
     .run();
 }

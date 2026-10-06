@@ -2,7 +2,7 @@ import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
 async function putRotation(rotation: unknown): Promise<void> {
-  const row = await env.DB.prepare("SELECT payload FROM runtime_config WHERE id = 1").first<{
+  const row = await env.DB.prepare("SELECT payload FROM config WHERE id = 1").first<{
     payload: string;
   }>();
   const cfg = JSON.parse(row!.payload);
@@ -11,7 +11,7 @@ async function putRotation(rotation: unknown): Promise<void> {
   } else {
     cfg.rotation = rotation;
   }
-  await env.DB.prepare("UPDATE runtime_config SET payload = ? WHERE id = 1")
+  await env.DB.prepare("UPDATE config SET payload = ? WHERE id = 1")
     .bind(JSON.stringify(cfg))
     .run();
 }
@@ -46,7 +46,7 @@ describe("GET /v1/config — the rotation pointer", () => {
   it("moving the pointer back is one write", async () => {
     await putRotation({ start_problem_id: "vp-0042", anchor_date: "2026-09-18" });
     await env.DB.prepare(
-      "UPDATE runtime_config SET payload = json_set(payload, '$.rotation.start_problem_id', 'vp-0000', '$.rotation.anchor_date', '2026-10-01')",
+      "UPDATE config SET payload = json_set(payload, '$.rotation.start_problem_id', 'vp-0000', '$.rotation.anchor_date', '2026-10-01')",
     ).run();
 
     expect((await served()).rotation).toEqual({

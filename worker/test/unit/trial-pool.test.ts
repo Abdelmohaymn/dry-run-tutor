@@ -62,7 +62,7 @@ describe("selectMember()", () => {
     const under = member({ daily_token_budget: 100000 });
     const date = new Date().toISOString().slice(0, 10);
     await env.DB.prepare(
-      "INSERT INTO trial_budget (date, provider_id, tokens_spent) VALUES (?1, ?2, ?3)",
+      "INSERT INTO provider_day (date, provider_id, tokens_spent) VALUES (?1, ?2, ?3)",
     )
       .bind(date, over.id, 500)
       .run();
@@ -78,7 +78,7 @@ describe("selectMember()", () => {
     const date = new Date().toISOString().slice(0, 10);
     const future = new Date(Date.now() + 60_000).toISOString();
     await env.DB.prepare(
-      "INSERT INTO trial_budget (date, provider_id, tokens_spent, cooldown_until) VALUES (?1, ?2, 0, ?3)",
+      "INSERT INTO provider_day (date, provider_id, tokens_spent, cooldown_until) VALUES (?1, ?2, 0, ?3)",
     )
       .bind(date, cooling.id, future)
       .run();

@@ -1,4 +1,4 @@
-// research.md R-010. Reads the single `runtime_config` row and validates it
+// research.md R-010. Reads the single `config` row and validates it
 // against a module-scope Zod transcription of contracts/config.schema.json.
 // Callers read the config ONCE per request, at the top of the route handler,
 // and thread the returned object through every downstream pure function as
@@ -73,7 +73,8 @@ export const runtimeConfigSchema = z
      */
     update_url: z.string().url().startsWith("https://").optional(),
     killed_problem_ids: z.array(z.string().regex(/^vp-\d{4}$/)),
-    content_manifest_url: z.string().url(),
+    // Legacy: served only so pre-006 apps can still parse /v1/config and reach the update wall. Read by nothing.
+    content_manifest_url: z.string().url().optional(),
     chat: z
       .object({
         turn_cap: z.number().int().min(1).max(40),
@@ -195,13 +196,13 @@ export function webConfig(cfg: RuntimeConfig): NonNullable<RuntimeConfig["web"]>
   return cfg.web ?? webDefaults;
 }
 
-/** Reads and validates the single `runtime_config` row. Throws on a payload that fails the schema — an invalid config is never served. */
+/** Reads and validates the single `config` row. Throws on a payload that fails the schema — an invalid config is never served. */
 export async function getRuntimeConfig(db: D1Database): Promise<RuntimeConfig> {
   const row = await db
-    .prepare("SELECT payload FROM runtime_config WHERE id = 1")
+    .prepare("SELECT payload FROM config WHERE id = 1")
     .first<{ payload: string }>();
   if (!row) {
-    throw new Error("runtime_config row is missing — migration 0001_init.sql was not applied");
+    throw new Error("config row is missing — migration 0001_init.sql was not applied");
   }
   return runtimeConfigSchema.parse(JSON.parse(row.payload));
 }

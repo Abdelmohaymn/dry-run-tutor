@@ -3,26 +3,25 @@ import { signInstallId, verifyInstallId } from "../../src/lib/install-id";
 
 const SECRET = "test-install-hmac-secret";
 const OTHER_SECRET = "a-different-secret";
-const SOME_UUID = "3f1c2a4e-5b6d-4e7f-89ab-1234567890ab";
+const SOME_HASH = "3f1c2a4e5b6d4e7f89ab1234567890ab3f1c2a4e5b6d4e7f89ab1234567890ab";
 
 describe("install-id sign/verify", () => {
-  it("round trips: a signed id verifies back to the same uuid", async () => {
-    const installId = await signInstallId(SOME_UUID, SECRET);
+  it("round trips: a signed id verifies back to the same device hash", async () => {
+    const installId = await signInstallId(SOME_HASH, SECRET);
     const verified = await verifyInstallId(installId, SECRET);
-    expect(verified).toBe(SOME_UUID);
+    expect(verified).toBe(SOME_HASH);
   });
 
   it("fails verification against a different secret", async () => {
-    const installId = await signInstallId(SOME_UUID, SECRET);
+    const installId = await signInstallId(SOME_HASH, SECRET);
     const verified = await verifyInstallId(installId, OTHER_SECRET);
     expect(verified).toBeNull();
   });
 
-  it("fails verification when the uuid is tampered with but the signature is not", async () => {
-    const installId = await signInstallId(SOME_UUID, SECRET);
+  it("fails verification when the hash is tampered with but the signature is not", async () => {
+    const installId = await signInstallId(SOME_HASH, SECRET);
     const [, sig] = installId.split(".");
-    const tamperedUuid = "00000000-0000-4000-8000-000000000000";
-    const tampered = `${tamperedUuid}.${sig}`;
+    const tampered = `${"0".repeat(64)}.${sig}`;
     const verified = await verifyInstallId(tampered, SECRET);
     expect(verified).toBeNull();
   });
@@ -32,9 +31,15 @@ describe("install-id sign/verify", () => {
     expect(verified).toBeNull();
   });
 
-  it("rejects a non-uuidv4 prefix even with a syntactically valid signature", async () => {
-    const installId = await signInstallId("not-a-uuid-at-all", SECRET);
+  it("rejects a non-64-hex prefix even with a syntactically valid signature", async () => {
+    const installId = await signInstallId("not-a-hash-at-all", SECRET);
     const verified = await verifyInstallId(installId, SECRET);
+    expect(verified).toBeNull();
+  });
+
+  it("rejects a legacy <uuidv4>.<sig> signed with the right secret", async () => {
+    const legacy = await signInstallId("3f1c2a4e-5b6d-4e7f-89ab-1234567890ab", SECRET);
+    const verified = await verifyInstallId(legacy, SECRET);
     expect(verified).toBeNull();
   });
 });

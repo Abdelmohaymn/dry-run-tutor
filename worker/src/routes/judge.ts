@@ -49,7 +49,6 @@ judgeRoute.post("/", async (c) => {
       installId,
       problemId: body.problem_id,
       date,
-      usageEndpoint: "judge",
       structuredCompletion: async (systemPrompt, userContent, jsonSchema) => ({
         result: await groqProvider.structuredCompletion({
           baseUrl: keyed.baseUrl,

@@ -12,9 +12,7 @@ import { repairRoute } from "./routes/repair";
 import { manifestRoute } from "./routes/manifest";
 import { trialRoute } from "./routes/trial";
 import { configRoute } from "./routes/config";
-import { eventRoute } from "./routes/event";
 import { privacyRoute } from "./routes/privacy";
-import { webEventRoute } from "./routes/web-event";
 import { notifyRoute } from "./routes/notify";
 import { installAuth } from "./middleware/install-auth";
 import { webCors } from "./middleware/web-cors";
@@ -32,11 +30,7 @@ app.use("/v1/trial", installAuth);
 app.route("/v1/trial", trialRoute);
 app.route("/v1/content/manifest.json", manifestRoute);
 app.route("/v1/config", configRoute);
-app.use("/v1/event", installAuth);
-app.route("/v1/event", eventRoute);
 // Website only: CORS-guarded, no install auth (feature 007).
-app.use("/v1/web-event", webCors);
-app.route("/v1/web-event", webEventRoute);
 app.use("/v1/notify", webCors);
 app.route("/v1/notify", notifyRoute);
 // Public, unauthenticated, and deliberately outside /v1: this is a page for

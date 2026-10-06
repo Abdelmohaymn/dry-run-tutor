@@ -70,7 +70,7 @@ trialRoute.post("/", async (c) => {
     return runHintTurn(
       c,
       body,
-      { db, installId, problemId: body.problem_id, date, cfg, turnCap: cfg.trial.turn_cap, usageEndpoint: "trial_chat" },
+      { db, installId, problemId: body.problem_id, date, cfg, turnCap: cfg.trial.turn_cap },
       problem,
     );
   }
@@ -119,7 +119,7 @@ trialRoute.post("/", async (c) => {
       c,
       body,
       db,
-      usageId: installId,
+      installId,
       problemId: body.problem_id,
       date,
       cfg,
@@ -192,8 +192,6 @@ trialRoute.post("/", async (c) => {
         turnCap: cfg.trial.turn_cap,
         groundTruthTier: cfg.trial.ground_truth_tier,
         condenseEnabled: cfg.trial.condense,
-        usageEndpoint: "trial_chat",
-        condenseUsageEndpoint: "condense",
         streamChat: async (systemPrompt, messages) => {
           const { member, result } = await runLeg(
             "chat",
@@ -240,7 +238,6 @@ trialRoute.post("/", async (c) => {
           await settleTrialBudget(db, now, member.id, "judge", result.usage.inputTokens + result.usage.outputTokens);
           return { result, providerId: member.id, model: member.model };
         },
-        finishCheckUsageEndpoint: "trial_finish_check",
         onBeforeProviderCall: async () => {
           await markTrialStarted(db, installId, trialStartedAt, body.problem_id, date, ipHash);
         },
@@ -263,7 +260,6 @@ trialRoute.post("/", async (c) => {
       installId,
       problemId: body.problem_id,
       date,
-      usageEndpoint: "trial_judge",
       structuredCompletion: async (systemPrompt, userContent, jsonSchema) => {
         const { member, result } = await runLeg(
           "judge",

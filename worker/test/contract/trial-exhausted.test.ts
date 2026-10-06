@@ -23,7 +23,7 @@ describe("POST /v1/trial — graceful exhaustion", () => {
     // Push "groq" (the sole seeded, enabled member) over its
     // daily_token_budget (180000) so selectMember("chat", ...) returns null.
     await env.DB.prepare(
-      "INSERT INTO trial_budget (date, provider_id, tokens_spent) VALUES (?1, 'groq', 999999)",
+      "INSERT INTO provider_day (date, provider_id, tokens_spent) VALUES (?1, 'groq', 999999)",
     )
       .bind(date)
       .run();

@@ -10,9 +10,6 @@ import { getPrivate, getPublicManifest } from "../lib/content";
 import { getRuntimeConfig } from "../lib/runtime-config";
 import { PROVIDER_HEADER, resolveKeyedProvider } from "../lib/keyed-provider";
 import { groqProvider } from "../lib/provider-groq";
-import { readCounters } from "../lib/turn-cap";
-import { writeUsage } from "../lib/usage";
-import { utcDate } from "../lib/time";
 import {
   callRepairProvider,
   containsNoGroundTruth,
@@ -23,7 +20,6 @@ import {
 export const repairRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 repairRoute.post("/", async (c) => {
-  const installId = c.get("installId");
   const userKey = c.req.header("X-User-Key");
   if (!userKey) throw new AppError("BAD_REQUEST");
 
@@ -40,7 +36,7 @@ repairRoute.post("/", async (c) => {
 
   const keyed = resolveKeyedProvider(cfg, c.req.header(PROVIDER_HEADER));
 
-  // Skip checks: nothing was spent, so no usage row and no provider call.
+  // Skip checks: nothing was spent, so no provider call.
   const denseChars = body.transcript.replace(/\s/g, "").length;
   if (
     cfg.repair === undefined ||
@@ -50,8 +46,6 @@ repairRoute.post("/", async (c) => {
   ) {
     return c.json({ repaired: body.transcript, changed: false }, 200);
   }
-
-  const date = utcDate();
 
   const called = await callRepairProvider({
     provider: groqProvider,
@@ -78,24 +72,7 @@ repairRoute.post("/", async (c) => {
   const lengthOk = withinLengthRatio(body.transcript, called.text, cfg.repair.max_output_ratio);
   const groundTruthOk = containsNoGroundTruth(called.text, blockedTerms);
   const overlapOk = retainsLearnerWords(body.transcript, called.text, cfg.repair.min_word_overlap);
-  const leakBlocked = !groundTruthOk;
   const guardsPassed = lengthOk && groundTruthOk && overlapOk;
-
-  const turnIndex = (await readCounters(c.env.DB, { installId, problemId: body.problem_id, date })).turns;
-
-  await writeUsage(c.env.DB, {
-    installId,
-    date,
-    endpoint: "repair",
-    problemId: body.problem_id,
-    turnIndex,
-    model: keyed.repairModel,
-    provider: keyed.id,
-    inputTokens: called.inputTokens,
-    outputTokens: called.outputTokens,
-    latencyMs: called.latencyMs,
-    leakBlocked,
-  });
 
   const repaired = guardsPassed ? called.text : body.transcript;
   return c.json({ repaired, changed: repaired !== body.transcript }, 200);

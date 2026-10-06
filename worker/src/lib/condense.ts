@@ -5,7 +5,6 @@ import { CONDENSE_PROMPT } from "../prompts/condense";
 import type { Provider } from "./provider";
 import type { RuntimeConfig } from "./runtime-config";
 import type { Turn } from "./schemas";
-import { writeUsage } from "./usage";
 
 export interface CondenseResult {
   /** Present when called; otherwise the prior summary passed straight through. */
@@ -32,15 +31,6 @@ export interface CondenseCallOptions {
   model: string;
 }
 
-export interface CondenseUsageContext {
-  db: D1Database;
-  installId: string;
-  problemId: string;
-  date: string;
-  /** From turn-cap.ts, for the usage row. */
-  turnIndex: number;
-}
-
 function renderTurns(turns: Turn[]): string {
   return turns.map((t) => `${t.role}: ${t.text}`).join("\n");
 }
@@ -51,7 +41,6 @@ export async function condense(
   cfg: RuntimeConfig,
   provider: Provider,
   callOptions: CondenseCallOptions,
-  usageContext: CondenseUsageContext,
 ): Promise<CondenseResult> {
   const K = cfg.trim.verbatim_turns;
   if (messages.length <= K) {
@@ -63,7 +52,6 @@ export async function condense(
   const falling = messages.slice(0, messages.length - K);
   const verbatim = messages.slice(messages.length - K);
 
-  const startedAt = Date.now();
   const result = await provider.structuredCompletion({
     baseUrl: callOptions.baseUrl,
     model: callOptions.model,
@@ -79,20 +67,6 @@ export async function condense(
     // finish and still emit the ~120-word summary CONDENSE_PROMPT asks for.
     maxTokens: 600,
     temperature: 0,
-  });
-  const latencyMs = Date.now() - startedAt;
-
-  await writeUsage(usageContext.db, {
-    installId: usageContext.installId,
-    date: usageContext.date,
-    endpoint: "condense",
-    problemId: usageContext.problemId,
-    turnIndex: usageContext.turnIndex,
-    model: callOptions.model,
-    provider: cfg.provider,
-    inputTokens: result.usage.inputTokens,
-    outputTokens: result.usage.outputTokens,
-    latencyMs,
   });
 
   return { summary: result.text, verbatim, called: true, covered: falling.length };

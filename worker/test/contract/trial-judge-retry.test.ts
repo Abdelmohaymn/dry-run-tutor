@@ -38,10 +38,10 @@ function trial(installId: string, body: unknown) {
 }
 
 async function setPoolExtras(extra: Record<string, unknown>) {
-  const row = await env.DB.prepare("SELECT payload FROM runtime_config WHERE id = 1").first<{ payload: string }>();
+  const row = await env.DB.prepare("SELECT payload FROM config WHERE id = 1").first<{ payload: string }>();
   const cfg = JSON.parse(row!.payload);
   cfg.trial.pool = cfg.trial.pool.map((m: any) => ({ ...m, structured_extra_body: extra }));
-  await env.DB.prepare("UPDATE runtime_config SET payload = ? WHERE id = 1").bind(JSON.stringify(cfg)).run();
+  await env.DB.prepare("UPDATE config SET payload = ? WHERE id = 1").bind(JSON.stringify(cfg)).run();
 }
 
 describe("POST /v1/trial judge — after the session is already judged", () => {

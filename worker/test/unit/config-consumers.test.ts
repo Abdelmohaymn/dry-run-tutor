@@ -37,7 +37,7 @@ const LEVER_CONSUMERS: Record<string, { file: string; needle: string }[]> = {
 // The two app-only levers: served verbatim, read by no worker/src/** module.
 const APP_ONLY_LEVERS = ["min_supported_version", "content_manifest_url"];
 
-describe("every runtime_config lever has the consumer data-model.md §A5 names", () => {
+describe("every config lever has the consumer data-model.md §A5 names", () => {
   const source: Record<string, string> = env.WORKER_SOURCE;
 
   for (const [lever, consumers] of Object.entries(LEVER_CONSUMERS)) {

@@ -23,11 +23,11 @@ afterEach(() => {
 });
 
 async function offerBothProviders() {
-  const row = await env.DB.prepare("SELECT payload FROM runtime_config WHERE id = 1").first<{ payload: string }>();
+  const row = await env.DB.prepare("SELECT payload FROM config WHERE id = 1").first<{ payload: string }>();
   const cfg = JSON.parse(row!.payload);
   cfg.keyed_providers = ["groq", "gemini"];
   cfg.providers = { gemini: { model: "gemini-flash-latest", condense_model: "gemini-flash-latest" } };
-  await env.DB.prepare("UPDATE runtime_config SET payload = ? WHERE id = 1").bind(JSON.stringify(cfg)).run();
+  await env.DB.prepare("UPDATE config SET payload = ? WHERE id = 1").bind(JSON.stringify(cfg)).run();
   return cfg;
 }
 
@@ -112,23 +112,26 @@ describe("POST /v1/chat and /v1/judge — routed by the key's own provider", () 
   });
 
   it("refuses a real provider the operator has not offered for key entry", async () => {
-    const row = await env.DB.prepare("SELECT payload FROM runtime_config WHERE id = 1").first<{ payload: string }>();
+    const row = await env.DB.prepare("SELECT payload FROM config WHERE id = 1").first<{ payload: string }>();
     const cfg = JSON.parse(row!.payload);
     cfg.keyed_providers = ["groq"];
-    await env.DB.prepare("UPDATE runtime_config SET payload = ? WHERE id = 1").bind(JSON.stringify(cfg)).run();
+    await env.DB.prepare("UPDATE config SET payload = ? WHERE id = 1").bind(JSON.stringify(cfg)).run();
 
     const res = await sendChat(await mintInstallId(), "gemini");
     expect(res.status).toBe(400);
   });
 
-  it("routes the assessment by the same rule, and records the provider it used", async () => {
+  it("routes the assessment by the same rule, and sends the provider's own model", async () => {
     await offerBothProviders();
     const installId = await mintInstallId();
 
+    let judgeBody = "";
     fetchMock
       .get(GEMINI_ORIGIN)
       .intercept({ path: GEMINI_CHAT_PATH, method: "POST" })
-      .reply(200, groqCompletionBody(JSON.stringify({
+      .reply(200, (opts) => {
+        judgeBody = opts.body as string;
+        return groqCompletionBody(JSON.stringify({
         matched_approach: "hashmap",
         matched_verdict: "optimal",
         insights_hit: [],
@@ -144,15 +147,11 @@ describe("POST /v1/chat and /v1/judge — routed by the key's own provider", () 
         verdict: "unclear",
         confidence: 0.5,
         feedback: "Some feedback here.",
-      })));
+        }));
+      });
 
     expect((await sendJudge(installId, "gemini")).status).toBe(200);
-
-    const usage = await env.DB.prepare(
-      "SELECT provider, model FROM usage WHERE install_id = ?1 AND endpoint = 'judge'",
-    ).bind(installId.split(".")[0]).first<{ provider: string; model: string }>();
-    expect(usage?.provider).toBe("gemini");
-    expect(usage?.model).toBe("gemini-flash-latest");
+    expect(JSON.parse(judgeBody).model).toBe("gemini-flash-latest");
   });
 
   it("ignores the header on /v1/trial — a learner cannot steer the operator's credential", async () => {
@@ -178,13 +177,13 @@ describe("POST /v1/chat and /v1/judge — routed by the key's own provider", () 
   it("/v1/repair uses providers[id].repair_model when set, and repair.model when not", async () => {
     const installId = await mintInstallId();
     await setRepairConfig();
-    const row = await env.DB.prepare("SELECT payload FROM runtime_config WHERE id = 1").first<{
+    const row = await env.DB.prepare("SELECT payload FROM config WHERE id = 1").first<{
       payload: string;
     }>();
     const cfg = JSON.parse(row!.payload);
     cfg.providers = cfg.providers ?? {};
     cfg.providers.groq = { ...(cfg.providers.groq ?? {}), repair_model: "groq-repair-override" };
-    await env.DB.prepare("UPDATE runtime_config SET payload = ? WHERE id = 1").bind(JSON.stringify(cfg)).run();
+    await env.DB.prepare("UPDATE config SET payload = ? WHERE id = 1").bind(JSON.stringify(cfg)).run();
 
     fetchMock
       .get(GROQ_ORIGIN)

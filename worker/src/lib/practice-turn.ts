@@ -1,7 +1,7 @@
 // The practice branch of routes/trial.ts: the onboarding walkthrough's
 // conversational turn — runConversationalTurn, groqProvider, the trial pool
 // via runLeg, the leak filter. The caller reserves/releases the turn on its
-// own side (trial_consumed) and passes that in as `reserve`/`release`; this
+// own side (devices.trial_*) and passes that in as `reserve`/`release`; this
 // function has no opinion on either.
 import type { Context } from "hono";
 import { AppError } from "./errors";
@@ -16,8 +16,8 @@ export interface PracticeTurnOptions {
   c: Context;
   body: ChatRequest;
   db: D1Database;
-  /** installId for turn_counter/usage. */
-  usageId: string;
+  /** installId for the device_day counters. */
+  installId: string;
   problemId: string;
   date: string;
   cfg: RuntimeConfig;
@@ -37,7 +37,7 @@ export async function runPracticeTurn(opts: PracticeTurnOptions): Promise<Respon
     opts.body,
     {
       db: opts.db,
-      installId: opts.usageId,
+      installId: opts.installId,
       problemId: opts.problemId,
       date: opts.date,
       cfg: opts.cfg,
@@ -45,8 +45,6 @@ export async function runPracticeTurn(opts: PracticeTurnOptions): Promise<Respon
       turnCap: opts.turnCap,
       groundTruthTier: opts.cfg.trial.ground_truth_tier,
       condenseEnabled: false,
-      usageEndpoint: "trial_chat",
-      condenseUsageEndpoint: "condense",
       streamChat: async (systemPrompt, messages) => {
         const { member, result } = await runLeg(
           "chat",

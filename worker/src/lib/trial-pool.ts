@@ -1,8 +1,9 @@
 // data-model.md §B8. Only routes/trial.ts calls this. The keyed paths
-// (/v1/chat, /v1/judge) never touch trial_budget and can never return
+// (/v1/chat, /v1/judge) never touch provider_day and can never return
 // TRIAL_UNAVAILABLE — the operator's allowance is fixed and shared by every
 // new install, unlike a learner's own key.
 import { AppError } from "./errors";
+import { networkKey } from "./network-key";
 import type { RuntimeConfig } from "./runtime-config";
 import type { ProviderCallOptions } from "./provider";
 
@@ -51,7 +52,7 @@ export async function selectMember(
   const date = now.toISOString().slice(0, 10);
   for (const m of candidates) {
     const row = await db
-      .prepare("SELECT tokens_spent, cooldown_until FROM trial_budget WHERE date = ?1 AND provider_id = ?2")
+      .prepare("SELECT tokens_spent, cooldown_until FROM provider_day WHERE date = ?1 AND provider_id = ?2")
       .bind(date, m.id)
       .first<{ tokens_spent: number; cooldown_until: string | null }>();
     if (row) {
@@ -66,9 +67,9 @@ export async function selectMember(
 async function reserveEstimate(db: D1Database, date: string, providerId: string, estimate: number): Promise<void> {
   await db
     .prepare(
-      `INSERT INTO trial_budget (date, provider_id, tokens_spent)
+      `INSERT INTO provider_day (date, provider_id, tokens_spent)
        VALUES (?1, ?2, ?3)
-       ON CONFLICT(date, provider_id) DO UPDATE SET tokens_spent = trial_budget.tokens_spent + ?3`,
+       ON CONFLICT(date, provider_id) DO UPDATE SET tokens_spent = provider_day.tokens_spent + ?3`,
     )
     .bind(date, providerId, estimate)
     .run();
@@ -91,7 +92,7 @@ export async function settleTrialBudget(
   const date = now.toISOString().slice(0, 10);
   await db
     .prepare(
-      `UPDATE trial_budget SET tokens_spent = tokens_spent - ?3 + ?4
+      `UPDATE provider_day SET tokens_spent = tokens_spent - ?3 + ?4
        WHERE date = ?1 AND provider_id = ?2`,
     )
     .bind(date, providerId, estimateFor(leg), actual)
@@ -107,7 +108,7 @@ export async function settleTrialBudget(
 async function releaseEstimate(db: D1Database, date: string, providerId: string, estimate: number): Promise<void> {
   await db
     .prepare(
-      `UPDATE trial_budget SET tokens_spent = MAX(tokens_spent - ?3, 0)
+      `UPDATE provider_day SET tokens_spent = MAX(tokens_spent - ?3, 0)
        WHERE date = ?1 AND provider_id = ?2`,
     )
     .bind(date, providerId, estimate)
@@ -117,7 +118,7 @@ async function releaseEstimate(db: D1Database, date: string, providerId: string,
 async function setCooldown(db: D1Database, date: string, providerId: string, cooldownUntil: string): Promise<void> {
   await db
     .prepare(
-      `INSERT INTO trial_budget (date, provider_id, tokens_spent, cooldown_until)
+      `INSERT INTO provider_day (date, provider_id, tokens_spent, cooldown_until)
        VALUES (?1, ?2, 0, ?3)
        ON CONFLICT(date, provider_id) DO UPDATE SET cooldown_until = ?3`,
     )
@@ -210,10 +211,11 @@ export async function runLeg<T>(
   }
 }
 
-// --- trial_consumed (data-model.md §A4, §B8, FR-032, FR-032a) ---
+// --- devices.trial_* (data-model.md §A2, FR-032, FR-032a) ---
 
 export interface TrialConsumedRow {
-  startedAt: string;
+  /** NULL while the taster is unclaimed (the `devices` row exists from /v1/install). */
+  startedAt: string | null;
   completedAt: string | null;
   /**
    * The problem the taster was spent on. NULL on a pre-0002 row, and on a
@@ -230,22 +232,22 @@ export interface TrialConsumedRow {
 export async function getTrialConsumed(db: D1Database, installId: string): Promise<TrialConsumedRow | null> {
   const row = await db
     .prepare(
-      "SELECT started_at, completed_at, problem_id, date, practice_turns FROM trial_consumed WHERE install_id = ?1",
+      "SELECT trial_started_at, trial_completed_at, trial_problem_id, trial_date, practice_turns FROM devices WHERE device_hash = ?1",
     )
     .bind(installId)
     .first<{
-      started_at: string;
-      completed_at: string | null;
-      problem_id: string | null;
-      date: string | null;
+      trial_started_at: string | null;
+      trial_completed_at: string | null;
+      trial_problem_id: string | null;
+      trial_date: string | null;
       practice_turns: number;
     }>();
   if (!row) return null;
   return {
-    startedAt: row.started_at,
-    completedAt: row.completed_at,
-    problemId: row.problem_id,
-    date: row.date,
+    startedAt: row.trial_started_at,
+    completedAt: row.trial_completed_at,
+    problemId: row.trial_problem_id,
+    date: row.trial_date,
     practiceTurns: row.practice_turns ?? 0,
   };
 }
@@ -301,9 +303,9 @@ export async function bumpPracticeTurn(
 ): Promise<void> {
   await db
     .prepare(
-      `INSERT INTO trial_consumed (install_id, started_at, practice_turns)
+      `INSERT INTO devices (device_hash, created_at, practice_turns)
        VALUES (?1, ?2, 1)
-       ON CONFLICT(install_id) DO UPDATE SET practice_turns = practice_turns + 1`,
+       ON CONFLICT(device_hash) DO UPDATE SET practice_turns = devices.practice_turns + 1`,
     )
     .bind(installId, startedAt)
     .run();
@@ -313,7 +315,7 @@ export async function bumpPracticeTurn(
 export async function releasePracticeTurn(db: D1Database, installId: string): Promise<void> {
   await db
     .prepare(
-      "UPDATE trial_consumed SET practice_turns = MAX(0, practice_turns - 1) WHERE install_id = ?1",
+      "UPDATE devices SET practice_turns = MAX(0, practice_turns - 1) WHERE device_hash = ?1",
     )
     .bind(installId)
     .run();
@@ -340,19 +342,19 @@ export async function markTrialStarted(
       // walkthrough may have created it (0003) with problem_id/date NULL.
       // The WHERE is what preserves 0002's guarantee — a row that already
       // names a problem is never re-pointed at a different one.
-      `INSERT INTO trial_consumed (install_id, started_at, problem_id, date, ip_hash)
-       VALUES (?1, ?2, ?3, ?4, ?5)
-       ON CONFLICT(install_id) DO UPDATE
-         SET started_at = ?2, problem_id = ?3, date = ?4, ip_hash = ?5
-         WHERE trial_consumed.problem_id IS NULL AND trial_consumed.completed_at IS NULL`,
+      `INSERT INTO devices (device_hash, created_at, trial_started_at, trial_problem_id, trial_date, trial_ip_hash)
+       VALUES (?1, ?2, ?2, ?3, ?4, ?5)
+       ON CONFLICT(device_hash) DO UPDATE
+         SET trial_started_at = ?2, trial_problem_id = ?3, trial_date = ?4, trial_ip_hash = ?5
+         WHERE devices.trial_problem_id IS NULL AND devices.trial_completed_at IS NULL`,
     )
     .bind(installId, startedAt, problemId, date, ipHash)
     .run();
 }
 
 /**
- * Keyed hash of the caller's IP, so `trial_consumed` can count sessions per
- * network without ever storing an address. Keyed with the install secret, so
+ * Keyed hash of the caller's IP, so `devices` can count sessions per
+ * network (IPv6 by /64, see network-key.ts) without ever storing an address. Keyed with the install secret, so
  * the stored value cannot be reversed by hashing the IPv4 space.
  */
 export async function hashIp(ip: string, secret: string): Promise<string> {
@@ -363,7 +365,7 @@ export async function hashIp(ip: string, secret: string): Promise<string> {
     false,
     ["sign"],
   );
-  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`ip:${ip}`));
+  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`ip:${networkKey(ip)}`));
   return [...new Uint8Array(mac)]
     .slice(0, 16)
     .map((b) => b.toString(16).padStart(2, "0"))
@@ -378,7 +380,7 @@ export async function ipSessionGateOk(cfg: RuntimeConfig, db: D1Database, ipHash
   const cap = cfg.trial.ip_daily_session_cap;
   if (cap <= 0) return true;
   const row = await db
-    .prepare("SELECT COUNT(*) AS n FROM trial_consumed WHERE ip_hash = ?1 AND date = ?2")
+    .prepare("SELECT COUNT(*) AS n FROM devices WHERE trial_ip_hash = ?1 AND trial_date = ?2")
     .bind(ipHash, date)
     .first<{ n: number }>();
   return (row?.n ?? 0) < cap;
@@ -392,20 +394,27 @@ export async function ipSessionGateOk(cfg: RuntimeConfig, db: D1Database, ipHash
  * Guarded on `started_at`, which markTrialStarted() leaves untouched on an
  * existing row (ON CONFLICT DO NOTHING). So this removes ONLY a row the same
  * call just created; a failed turn in the middle of an established session
- * cannot delete that session. Matters more since 0002: the row now pins the
- * taster to one problem on one day, so a row written by a call that never
+ * cannot clear that session. Matters more since 0002: the row pins the
+ * taster to one problem on one day, so a claim written by a call that never
  * reached a provider would forfeit the taster outright.
+ *
+ * UPDATE, never DELETE (006): the `devices` row also holds `created_at` and
+ * `practice_turns` and must survive.
  */
 export async function releaseTrialStart(db: D1Database, installId: string, startedAt: string): Promise<void> {
   await db
-    .prepare("DELETE FROM trial_consumed WHERE install_id = ?1 AND started_at = ?2 AND completed_at IS NULL")
+    .prepare(
+      `UPDATE devices
+         SET trial_started_at = NULL, trial_problem_id = NULL, trial_date = NULL, trial_ip_hash = NULL
+       WHERE device_hash = ?1 AND trial_started_at = ?2 AND trial_completed_at IS NULL`,
+    )
     .bind(installId, startedAt)
     .run();
 }
 
 export async function markTrialCompleted(db: D1Database, installId: string, completedAt: string): Promise<void> {
   await db
-    .prepare("UPDATE trial_consumed SET completed_at = ?2 WHERE install_id = ?1")
+    .prepare("UPDATE devices SET trial_completed_at = ?2 WHERE device_hash = ?1")
     .bind(installId, completedAt)
     .run();
 }
@@ -417,7 +426,7 @@ export async function countSessionsStartedToday(db: D1Database, date: string): P
     // not started a session, and must not count against the operator's cap
     // on how many tasters begin today.
     .prepare(
-      "SELECT COUNT(*) AS n FROM trial_consumed WHERE started_at LIKE ?1 AND problem_id IS NOT NULL",
+      "SELECT COUNT(*) AS n FROM devices WHERE trial_started_at LIKE ?1 AND trial_problem_id IS NOT NULL",
     )
     .bind(`${date}%`)
     .first<{ n: number }>();
@@ -427,8 +436,8 @@ export async function countSessionsStartedToday(db: D1Database, date: string): P
 /**
  * data-model.md §A5: `trial.daily_session_cap` and `trial.pool[]` are both
  * read here, not in routes/trial.ts — the new-session gate is this
- * module's concern in full. Refuses only a NEW session (no
- * `trial_consumed` row yet); a session already in flight is the caller's
+ * module's concern in full. Refuses only a NEW session (the device
+ * has not claimed its taster yet); a session already in flight is the caller's
  * to allow regardless of this result.
  */
 export async function newSessionGateOk(cfg: RuntimeConfig, db: D1Database, now: Date): Promise<boolean> {

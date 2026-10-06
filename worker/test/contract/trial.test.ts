@@ -92,12 +92,10 @@ describe("POST /v1/trial — one complete session, no learner key", () => {
     expect(typeof assessment.editorial).toBe("string");
   });
 
-  // T096: usage.provider is the pool member's id, so
-  // SELECT provider, SUM(input_tokens+output_tokens) ... GROUP BY provider
-  // answers "how much of whose allowance did we spend today" (SC-010a).
-  it("usage rows for the trial carry endpoint trial_chat/trial_judge and provider = the pool member id", async () => {
+  // provider_day.provider_id is the pool member's id, so it answers "how much
+  // of whose allowance did we spend today" (SC-010a).
+  it("trial calls spend against the pool member's provider_day row", async () => {
     const installId = await mintInstallId();
-    const bareInstallId = installId.split(".")[0];
 
     mockChatReply();
     const turn1 = await sendTrialChat(installId, [{ role: "user", text: "hash map idea" }]);
@@ -107,17 +105,13 @@ describe("POST /v1/trial — one complete session, no learner key", () => {
     const judged = await sendTrialJudge(installId, [{ role: "user", text: "hash map idea" }]);
     await judged.json();
 
-    const rows = await env.DB.prepare(
-      "SELECT endpoint, provider FROM usage WHERE install_id = ?1 ORDER BY id",
+    const today = new Date().toISOString().slice(0, 10);
+    const row = await env.DB.prepare(
+      "SELECT tokens_spent FROM provider_day WHERE date = ?1 AND provider_id = 'groq'",
     )
-      .bind(bareInstallId)
-      .all();
-    const endpoints = rows.results.map((r: any) => r.endpoint);
-    expect(endpoints).toContain("trial_chat");
-    expect(endpoints).toContain("trial_judge");
-    for (const row of rows.results as any[]) {
-      expect(row.provider).toBe("groq");
-    }
+      .bind(today)
+      .first<{ tokens_spent: number }>();
+    expect(row?.tokens_spent ?? 0).toBeGreaterThan(0);
   });
 
   it("a second trial session after completion is refused 100% of the time (SC-010)", async () => {

@@ -28,13 +28,13 @@ function mockChatReply(text = "How much work does that do as the list grows?") {
     .reply(200, groqStreamBody(text), { headers: { "content-type": "text/event-stream" } });
 }
 
-/** `mintInstallId()` hands back `<uuid>.<hmac>`; the tables key on the uuid. */
+/** `mintInstallId()` hands back `<device_hash>.<hmac>`; the tables key on the hash. */
 function bare(installId: string): string {
   return installId.split(".")[0];
 }
 
 async function practiceTurnsOf(installId: string): Promise<number | null> {
-  const row = await env.DB.prepare("SELECT practice_turns FROM trial_consumed WHERE install_id = ?1")
+  const row = await env.DB.prepare("SELECT practice_turns FROM devices WHERE device_hash = ?1")
     .bind(bare(installId))
     .first<{ practice_turns: number }>();
   return row?.practice_turns ?? null;
@@ -69,7 +69,7 @@ describe("POST /v1/trial — the onboarding walkthrough", () => {
 
     // The row exists, but names no problem and no day: the taster is intact.
     const row = await env.DB.prepare(
-      "SELECT problem_id, date, completed_at FROM trial_consumed WHERE install_id = ?1",
+      "SELECT trial_problem_id AS problem_id, trial_date AS date, trial_completed_at AS completed_at FROM devices WHERE device_hash = ?1",
     )
       .bind(bare(installId))
       .first<{ problem_id: string | null; date: string | null; completed_at: string | null }>();
@@ -85,7 +85,7 @@ describe("POST /v1/trial — the onboarding walkthrough", () => {
 
     // And the real session claimed it, on the same row.
     const after = await env.DB.prepare(
-      "SELECT problem_id, practice_turns FROM trial_consumed WHERE install_id = ?1",
+      "SELECT trial_problem_id AS problem_id, practice_turns FROM devices WHERE device_hash = ?1",
     )
       .bind(bare(installId))
       .first<{ problem_id: string | null; practice_turns: number }>();
@@ -111,10 +111,10 @@ describe("POST /v1/trial — the onboarding walkthrough", () => {
     expect(sixth.status).toBe(409);
     expect(((await sixth.json()) as any).error.code).toBe("TRIAL_CONSUMED");
 
-    // turn_counter rolls over daily; this row does not, so tomorrow is the
+    // device_day rolls over daily; this row does not, so tomorrow is the
     // same refusal. Clearing the per-(problem, date) counter proves the
     // bound is not coming from there.
-    await env.DB.prepare("DELETE FROM turn_counter WHERE install_id = ?1").bind(bare(installId)).run();
+    await env.DB.prepare("DELETE FROM device_day WHERE device_hash = ?1").bind(bare(installId)).run();
     const tomorrow = await trialChat(installId, PRACTICE, "Trying again on a new day.");
     expect(tomorrow.status).toBe(409);
     expect(((await tomorrow.json()) as any).error.code).toBe("TRIAL_CONSUMED");
@@ -135,6 +135,6 @@ describe("POST /v1/trial — the onboarding walkthrough", () => {
     });
 
     expect(res.status).toBe(400);
-    expect(await practiceTurnsOf(installId)).toBeNull();
+    expect(await practiceTurnsOf(installId)).toBe(0);
   });
 });

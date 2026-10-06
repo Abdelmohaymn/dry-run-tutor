@@ -19,8 +19,9 @@ export interface Env {
 }
 
 // Set by middleware/install-auth.ts once the X-Install-Id header verifies.
-// This is the bare uuid — the part of the signed header that identifies the
-// install — never the signature.
+// This is the 64-hex device hash — the part of the signed header that
+// identifies the phone — never the signature. The name predates 006
+// (research.md R-3).
 export interface Variables {
   installId: string;
 }

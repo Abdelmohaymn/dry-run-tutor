@@ -5,12 +5,12 @@ import { webCors } from "../../src/middleware/web-cors";
 import type { Env, Variables } from "../../src/types";
 
 async function setAllowedOrigins(origins: string[]): Promise<void> {
-  const row = await env.DB.prepare("SELECT payload FROM runtime_config WHERE id = 1").first<{
+  const row = await env.DB.prepare("SELECT payload FROM config WHERE id = 1").first<{
     payload: string;
   }>();
   const cfg = JSON.parse(row!.payload);
   cfg.web = { allowed_origins: origins };
-  await env.DB.prepare("UPDATE runtime_config SET payload = ? WHERE id = 1")
+  await env.DB.prepare("UPDATE config SET payload = ? WHERE id = 1")
     .bind(JSON.stringify(cfg))
     .run();
 }

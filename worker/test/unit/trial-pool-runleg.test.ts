@@ -36,7 +36,7 @@ async function cfgWithPool(pool: TrialPoolMember[]): Promise<RuntimeConfig> {
 
 async function tokensSpent(providerId: string, date: string): Promise<number> {
   const row = await env.DB.prepare(
-    "SELECT tokens_spent FROM trial_budget WHERE date = ?1 AND provider_id = ?2",
+    "SELECT tokens_spent FROM provider_day WHERE date = ?1 AND provider_id = ?2",
   )
     .bind(date, providerId)
     .first<{ tokens_spent: number }>();
@@ -110,7 +110,7 @@ describe("runLeg() — budget accounting and 429 routing", () => {
     ).rejects.toMatchObject({ code: "TRIAL_UNAVAILABLE" });
 
     const row = await env.DB.prepare(
-      "SELECT cooldown_until FROM trial_budget WHERE date = ?1 AND provider_id = ?2",
+      "SELECT cooldown_until FROM provider_day WHERE date = ?1 AND provider_id = ?2",
     )
       .bind(date, m.id)
       .first<{ cooldown_until: string | null }>();
@@ -166,7 +166,7 @@ describe("runLeg() — budget accounting and 429 routing", () => {
     ).rejects.toMatchObject({ code: "TRIAL_UNAVAILABLE" });
 
     const row = await env.DB.prepare(
-      "SELECT cooldown_until FROM trial_budget WHERE date = ?1 AND provider_id = ?2",
+      "SELECT cooldown_until FROM provider_day WHERE date = ?1 AND provider_id = ?2",
     )
       .bind(date, m.id)
       .first<{ cooldown_until: string | null }>();
@@ -294,7 +294,7 @@ describe("runLeg() — budget accounting and 429 routing", () => {
 
     expect(served.id).toBe(second.id);
     const row = await env.DB.prepare(
-      "SELECT cooldown_until FROM trial_budget WHERE date = ?1 AND provider_id = ?2",
+      "SELECT cooldown_until FROM provider_day WHERE date = ?1 AND provider_id = ?2",
     )
       .bind(date, first.id)
       .first<{ cooldown_until: string | null }>();
