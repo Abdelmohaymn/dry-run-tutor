@@ -1,13 +1,11 @@
 // R-009 / SC-012, modelled directly on the worker's redact.test.ts: one
-// known key string, zero occurrences across every log line, every
-// analytics payload, and every database row written during a simulated
+// known key string, zero occurrences across every log line and every
+// database row written during a simulated
 // session. `KeyRepositoryImpl` writes only through `SecureKeyStore`
 // (never Drift, never shared_preferences); this test proves that holds
 // even once the rest of a session's writes — problem cache, session,
-// messages, config cache, a buffered analytics event — land in the same
+// messages, config cache — land in the same
 // database the key repository never touches.
-import 'package:dry_run/core/analytics/analytics_client.dart';
-import 'package:dry_run/core/analytics/event_name.dart';
 import 'package:dry_run/core/config/runtime_config.dart';
 import 'package:dry_run/core/db/app_database.dart';
 import 'package:dry_run/core/db/converters.dart';
@@ -15,8 +13,6 @@ import 'package:dry_run/core/network/dto/chat_dto.dart';
 import 'package:dry_run/core/network/dto/turn_dto.dart';
 import 'package:dry_run/core/network/redacting_log_interceptor.dart';
 import 'package:dry_run/core/network/sse_parser.dart';
-import 'package:dry_run/core/time/trusted_instant.dart';
-import 'package:dry_run/core/time/trusted_time_source.dart';
 import 'package:dry_run/features/keys/data/key_repository_impl.dart';
 import 'package:dry_run/features/keys/data/secure_key_store.dart';
 import 'package:dry_run/features/keys/domain/learner_key.dart';
@@ -48,18 +44,6 @@ class _InMemorySecureKeyStore implements SecureKeyStore {
   Future<void> delete(String key) async {
     _values.remove(key);
   }
-}
-
-class _FixedTimeSource implements TrustedTimeSource {
-  @override
-  Future<TrustedInstant> now() async => TrustedInstant(
-        utc: DateTime.utc(2026, 1, 1),
-        source: TrustedTimeSourceKind.trustedTime,
-        isStale: false,
-      );
-
-  @override
-  Future<String> today() async => '2026-01-01';
 }
 
 void main() {
@@ -130,7 +114,6 @@ void main() {
           ..cachedValue = const RuntimeConfig(
             minSupportedVersion: '1.0.0',
             killedProblemIds: <String>[],
-            contentManifestUrl: '/v1/content/manifest.json',
             chat: ChatConfig(turnCap: 12, wrapUpAtTurn: 9, minTurnChars: 5),
             trial: TrialConfig(turnCap: 4),
             keyedProviders: <String>['groq'],
@@ -189,18 +172,6 @@ void main() {
             ),
           );
 
-      final AnalyticsClientImpl analytics = AnalyticsClientImpl(
-        eventDao: db.eventDao,
-        timeSource: _FixedTimeSource(),
-        relayClient: MockRelayClient(),
-        resolveInstallId: () async => 'install-1',
-      );
-      addTearDown(analytics.dispose);
-      analytics.emit(EventName.keySaved, props: const <String, Object>{'provider': 'groq'});
-      // `emit` is fire-and-forget; let the buffered write land before the
-      // scan below reads it back.
-      await Future<void>.delayed(Duration.zero);
-
       final String dump = await _dumpEveryTable(db);
       expect(dump, isNot(contains(_knownKey)));
 
@@ -220,7 +191,6 @@ Future<String> _dumpEveryTable(AppDatabase db) async {
     ..writeln(await db.select(db.assessments).get())
     ..writeln(await db.select(db.outbox).get())
     ..writeln(await db.select(db.streakDays).get())
-    ..writeln(await db.select(db.cachedConfig).get())
-    ..writeln(await db.select(db.bufferedEvents).get());
+    ..writeln(await db.select(db.cachedConfig).get());
   return buffer.toString();
 }

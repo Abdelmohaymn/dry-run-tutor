@@ -16,7 +16,6 @@ import 'package:dry_run/features/chat/presentation/daily_session_state.dart';
 import 'package:dry_run/features/problem/domain/problem.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../fakes/fake_analytics_client.dart';
 import '../fakes/fake_assessment_repository.dart';
 import '../fakes/fake_streak_repository.dart';
 import '../fakes/fake_config_repository.dart';
@@ -60,12 +59,10 @@ DailySessionCubit _buildCubit(FakeSessionRepository sessionRepository, {int minT
         ..cachedValue = RuntimeConfig(
           minSupportedVersion: '1.0.0',
           killedProblemIds: const <String>[],
-          contentManifestUrl: '/v1/content/manifest.json',
           chat: ChatConfig(turnCap: 12, wrapUpAtTurn: 9, minTurnChars: minTurnChars),
           trial: const TrialConfig(turnCap: 4),
           keyedProviders: const <String>['groq'],
         ),
-      analyticsClient: FakeAnalyticsClient(),
       micRationaleRepository: FakeMicRationaleRepository(),
     );
 

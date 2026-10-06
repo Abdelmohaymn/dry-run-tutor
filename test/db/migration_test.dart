@@ -3,13 +3,15 @@
 // every schema version pair intact. Destroying retained history quietly in
 // a migration is exactly how an "indefinite" promise breaks.
 //
-// The schema is at version 5. v2 adds the nullable
+// The schema is at version 6. v2 adds the nullable
 // `CachedProblems.examplesJson`; v3 adds `Sessions.isPractice`, defaulted
 // false; v4 adds the nullable `Drafts.repaired` (feature 004). Those three
 // are additive and touch nothing retained. v5 is the first that deletes:
 // it dedupes `install_identity` and `cached_config`, which appended a row
-// per write until their ids were pinned. Extend rather than rewrite when a
-// v6 lands — bump `AppDatabase.schemaVersion`, add the migration step, and
+// per write until their ids were pinned. v6 (feature 006) clears
+// `install_identity` (identity is now a hash of the Android ID) and drops
+// the analytics `buffered_events` table. Extend rather than rewrite when a
+// v7 lands — bump `AppDatabase.schemaVersion`, add the migration step, and
 // add a case to the migration test below.
 import 'package:dry_run/core/db/app_database.dart';
 import 'package:dry_run/core/db/converters.dart';
@@ -27,10 +29,10 @@ void main() {
       await _expectSessionIntact(db);
     });
 
-    test('schemaVersion is 5 — the floor this test suite assumes', () {
+    test('schemaVersion is 6 — the floor this test suite assumes', () {
       final AppDatabase db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      expect(db.schemaVersion, 5);
+      expect(db.schemaVersion, 6);
     });
 
     test('the v1 -> v2 migration adds examplesJson and keeps the row', () async {
@@ -126,7 +128,36 @@ void main() {
       expect(await db.select(db.cachedConfig).get(), isEmpty);
     });
 
-    test('a v1 database upgraded straight to v5 keeps its session', () async {
+    test('the v5 -> v6 migration clears the old install identity, drops buffered_events, and keeps the session', () async {
+      final AppDatabase db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+
+      await _seedCompletedSession(db);
+      await db.customStatement(
+        "INSERT INTO install_identity (id, install_uuid, install_id, minted_at) "
+        "VALUES (1, 'uuid-a', 'id-a', 1000)",
+      );
+      // The analytics buffer a v5 device still carries; the v6 schema no
+      // longer declares it, so it is created by hand here.
+      await db.customStatement(
+        'CREATE TABLE buffered_events (id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, '
+        'client_ts TEXT NOT NULL, props TEXT, attempts INTEGER NOT NULL DEFAULT 0)',
+      );
+      await db.customStatement(
+        "INSERT INTO buffered_events (id, name, client_ts) VALUES ('e1', 'app_open', '2026-01-01T00:00:00Z')",
+      );
+
+      await db.migration.onUpgrade(Migrator(db), 5, 6);
+
+      expect(await db.select(db.installIdentity).get(), isEmpty);
+      final List<QueryRow> leftover = await db
+          .customSelect("SELECT name FROM sqlite_master WHERE name = 'buffered_events'")
+          .get();
+      expect(leftover, isEmpty);
+      await _expectSessionIntact(db);
+    });
+
+    test('a v1 database upgraded straight to v6 keeps its session', () async {
       final AppDatabase db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
 
@@ -134,7 +165,7 @@ void main() {
       await db.customStatement('ALTER TABLE cached_problems DROP COLUMN examples_json');
       await db.customStatement('ALTER TABLE sessions DROP COLUMN is_practice');
       await db.customStatement('ALTER TABLE drafts DROP COLUMN repaired');
-      await db.migration.onUpgrade(Migrator(db), 1, 5);
+      await db.migration.onUpgrade(Migrator(db), 1, 6);
 
       await _expectSessionIntact(db);
       final SessionRow session = await db.select(db.sessions).getSingle();

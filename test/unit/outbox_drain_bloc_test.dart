@@ -16,7 +16,6 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
-import '../fakes/fake_analytics_client.dart';
 import '../fakes/fake_outbox_repository.dart';
 import '../fakes/fake_trusted_time_source.dart';
 import '../fakes/mock_relay_client.dart';
@@ -28,7 +27,6 @@ void main() {
   late MockRelayClient relayClient;
   late FakeTrustedTimeSource timeSource;
   late FakeOutboxRepository outboxRepository;
-  late FakeAnalyticsClient analyticsClient;
 
   setUpAll(() {
     registerFallbackValue(ChatRequestDto(problemId: 'vp-0001', messages: const <TurnDto>[]));
@@ -42,7 +40,6 @@ void main() {
     relayClient = MockRelayClient();
     timeSource = FakeTrustedTimeSource();
     outboxRepository = FakeOutboxRepository();
-    analyticsClient = FakeAnalyticsClient();
 
     await db.into(db.cachedProblems).insert(
           CachedProblemsCompanion.insert(
@@ -80,7 +77,6 @@ void main() {
       sessionDao: db.sessionDao,
       assessmentDao: db.assessmentDao,
       timeSource: timeSource,
-      analyticsClient: analyticsClient,
       resolveInstallId: () async => 'install-1',
       resolveKeyedHeaders: (SessionRow session) async => (null, null),
       connectivity: connectivity,

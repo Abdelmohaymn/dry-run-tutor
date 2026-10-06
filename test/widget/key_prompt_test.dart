@@ -8,7 +8,6 @@
 //
 // All three now raise a dialog that explains itself first, and the form is
 // *pushed* from it, so backing out returns to the conversation.
-import 'package:dry_run/core/analytics/analytics_client.dart';
 import 'package:dry_run/core/config/remote_config_repository.dart';
 import 'package:dry_run/core/config/runtime_config.dart';
 import 'package:dry_run/core/di/service_locator.dart';
@@ -30,7 +29,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
-import '../fakes/fake_analytics_client.dart';
 import '../fakes/fake_assessment_repository.dart';
 import '../fakes/fake_config_repository.dart';
 import '../fakes/fake_key_repository.dart';
@@ -57,7 +55,6 @@ const Problem _problem = Problem(
 const RuntimeConfig _config = RuntimeConfig(
   minSupportedVersion: '1.0.0',
   killedProblemIds: <String>[],
-  contentManifestUrl: '/v1/content/manifest.json',
   chat: ChatConfig(turnCap: 4, wrapUpAtTurn: 3, minTurnChars: 5),
   trial: TrialConfig(turnCap: 4),
   keyedProviders: <String>['groq'],
@@ -81,7 +78,6 @@ DailySessionCubit _cubit() => DailySessionCubit(
       assessmentRepository: FakeAssessmentRepository(),
       recognitionService: FakeRecognitionService(),
       configRepository: FakeRemoteConfigRepository()..cachedValue = _config,
-      analyticsClient: FakeAnalyticsClient(),
       micRationaleRepository: FakeMicRationaleRepository(),
     );
 
@@ -269,7 +265,6 @@ void main() {
   group('backing out of the key form', () {
     setUp(() {
       sl.registerSingleton<KeyRepository>(FakeKeyRepository());
-      sl.registerSingleton<AnalyticsClient>(FakeAnalyticsClient());
       sl.registerSingleton<RemoteConfigRepository>(
         FakeRemoteConfigRepository()..cachedValue = _config,
       );

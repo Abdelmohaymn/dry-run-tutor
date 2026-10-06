@@ -265,7 +265,6 @@ class _ShareSectionState extends State<_ShareSection> {
       assessment: widget.assessment,
       streakLength: streakLength,
       problemTitle: widget.problemTitle,
-      onShared: context.read<DailySessionCubit>().recordShare,
     );
   }
 }

@@ -15,7 +15,6 @@ import 'package:dry_run/features/chat/presentation/daily_session_state.dart';
 import 'package:dry_run/features/problem/domain/problem.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../fakes/fake_analytics_client.dart';
 import '../fakes/fake_assessment_repository.dart';
 import '../fakes/fake_streak_repository.dart';
 import '../fakes/fake_config_repository.dart';
@@ -70,12 +69,10 @@ void main() {
         ..cachedValue = const RuntimeConfig(
           minSupportedVersion: '1.0.0',
           killedProblemIds: <String>[],
-          contentManifestUrl: '/v1/content/manifest.json',
           chat: ChatConfig(turnCap: 12, wrapUpAtTurn: 9, minTurnChars: 5),
           trial: TrialConfig(turnCap: 4),
           keyedProviders: <String>['groq'],
         ),
-      analyticsClient: FakeAnalyticsClient(),
       micRationaleRepository: FakeMicRationaleRepository(),
     ),
     seed: () => DailySessionState.composing(_session(), null),

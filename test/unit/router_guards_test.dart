@@ -22,7 +22,6 @@ void main() {
   const RuntimeConfig config = RuntimeConfig(
     minSupportedVersion: '1.0.0',
     killedProblemIds: <String>[],
-    contentManifestUrl: '/v1/content/manifest.json',
     chat: ChatConfig(turnCap: 12, wrapUpAtTurn: 9, minTurnChars: 8),
     trial: TrialConfig(turnCap: 4),
     keyedProviders: <String>['groq'],

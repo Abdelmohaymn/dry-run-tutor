@@ -30,14 +30,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
-import '../fakes/fake_analytics_client.dart';
 import '../fakes/fake_install_repository.dart';
 import '../fakes/fake_mic_rationale_repository.dart';
 import '../fakes/fake_recognition_service.dart';
 import '../fakes/fake_session_repository.dart';
 import '../fakes/fake_settings_repository.dart';
 
-late FakeAnalyticsClient analyticsClient;
 late FakeInstallRepository installRepository;
 late FakeSettingsRepository settingsRepository;
 late FakeRecognitionService recognitionService;
@@ -69,7 +67,6 @@ Future<GoRouter> _pumpWelcome(WidgetTester tester) async {
         builder: (_, _) => WelcomeScreen(
           installRepository: installRepository,
           settingsRepository: settingsRepository,
-          analyticsClient: analyticsClient,
         ),
       ),
       GoRoute(path: AppRoute.welcomePractice.path, builder: (_, _) => _practiceScreen()),
@@ -98,7 +95,6 @@ void main() {
   tearDown(() => recognitionService.dispose());
 
   setUp(() {
-    analyticsClient = FakeAnalyticsClient();
     installRepository = FakeInstallRepository()..welcomeSeen = false;
     settingsRepository = FakeSettingsRepository();
     recognitionService = FakeRecognitionService();

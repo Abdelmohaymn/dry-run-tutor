@@ -61,7 +61,7 @@ void main() {
     // `AppBrand.channelPrefix`; the Kotlin end hardcodes its own string. A
     // mismatch is a MissingPluginException at runtime on a real device only.
     expect(AppBrand.channelPrefix, 'app.dryrun');
-    for (final String channel in <String>['trusted_time', 'on_device_recognizer']) {
+    for (final String channel in <String>['trusted_time', 'on_device_recognizer', 'device_id']) {
       final bool declared = Directory('android/app/src/main/kotlin')
           .listSync(recursive: true)
           .whereType<File>()

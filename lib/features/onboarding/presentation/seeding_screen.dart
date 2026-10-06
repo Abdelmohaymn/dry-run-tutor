@@ -180,7 +180,7 @@ class _SeedingScreenState extends State<SeedingScreen> {
       // screen up.
     }
     try {
-      await widget.problemRepository.prefetchManifest();
+      await widget.problemRepository.fetchPractice();
     } catch (_) {
       // Same best-effort as above.
     }

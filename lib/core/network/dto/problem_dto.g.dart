@@ -89,17 +89,23 @@ Map<String, dynamic> _$PublicHalfDtoToJson(PublicHalfDto instance) =>
       'hint_count': instance.hintCount,
     };
 
-ManifestDto _$ManifestDtoFromJson(Map<String, dynamic> json) => ManifestDto(
-  schemaVersion: (json['schema_version'] as num).toInt(),
-  generated: json['generated'] as String,
-  problems: (json['problems'] as List<dynamic>)
-      .map((e) => PublicHalfDto.fromJson(e as Map<String, dynamic>))
-      .toList(),
-);
+DailyResponseDto _$DailyResponseDtoFromJson(Map<String, dynamic> json) =>
+    DailyResponseDto(
+      date: json['date'] as String,
+      problem: PublicHalfDto.fromJson(json['problem'] as Map<String, dynamic>),
+    );
 
-Map<String, dynamic> _$ManifestDtoToJson(ManifestDto instance) =>
+Map<String, dynamic> _$DailyResponseDtoToJson(DailyResponseDto instance) =>
     <String, dynamic>{
-      'schema_version': instance.schemaVersion,
-      'generated': instance.generated,
-      'problems': instance.problems.map((e) => e.toJson()).toList(),
+      'date': instance.date,
+      'problem': instance.problem.toJson(),
     };
+
+PracticeResponseDto _$PracticeResponseDtoFromJson(Map<String, dynamic> json) =>
+    PracticeResponseDto(
+      problem: PublicHalfDto.fromJson(json['problem'] as Map<String, dynamic>),
+    );
+
+Map<String, dynamic> _$PracticeResponseDtoToJson(
+  PracticeResponseDto instance,
+) => <String, dynamic>{'problem': instance.problem.toJson()};

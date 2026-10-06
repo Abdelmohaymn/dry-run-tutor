@@ -7,10 +7,16 @@ part of 'install_dto.dart';
 // **************************************************************************
 
 InstallRequestDto _$InstallRequestDtoFromJson(Map<String, dynamic> json) =>
-    InstallRequestDto(installUuid: json['install_uuid'] as String);
+    InstallRequestDto(
+      platform: json['platform'] as String,
+      deviceId: json['device_id'] as String,
+    );
 
 Map<String, dynamic> _$InstallRequestDtoToJson(InstallRequestDto instance) =>
-    <String, dynamic>{'install_uuid': instance.installUuid};
+    <String, dynamic>{
+      'platform': instance.platform,
+      'device_id': instance.deviceId,
+    };
 
 InstallResponseDto _$InstallResponseDtoFromJson(Map<String, dynamic> json) =>
     InstallResponseDto(installId: json['install_id'] as String);

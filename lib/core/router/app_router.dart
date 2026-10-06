@@ -34,7 +34,6 @@ import '../../features/voice/domain/mic_rationale_repository.dart';
 import '../../features/voice/domain/recognition_service.dart';
 import '../../features/voice/presentation/recognition_unavailable_screen.dart';
 import '../../features/voice/presentation/recording_screen.dart';
-import '../analytics/analytics_client.dart';
 import '../time/trusted_time_source.dart';
 import '../update/update_required_screen.dart';
 
@@ -82,7 +81,6 @@ GoRouter buildAppRouter({
   required AssessmentRepository assessmentRepository,
   required StreakRepository streakRepository,
   required RecognitionService recognitionService,
-  required AnalyticsClient analyticsClient,
   required MicRationaleRepository micRationaleRepository,
   required SettingsRepository settingsRepository,
   required TrustedTimeSource timeSource,
@@ -126,7 +124,6 @@ GoRouter buildAppRouter({
             streakRepository: streakRepository,
             recognitionService: recognitionService,
             configRepository: configRepository,
-            analyticsClient: analyticsClient,
             micRationaleRepository: micRationaleRepository,
             child: child,
           );
@@ -209,7 +206,6 @@ GoRouter buildAppRouter({
         builder: (_, _) => WelcomeScreen(
           installRepository: installRepository,
           settingsRepository: settingsRepository,
-          analyticsClient: analyticsClient,
         ),
       ),
       GoRoute(
@@ -234,7 +230,6 @@ GoRouter buildAppRouter({
           sessionRepository: sessionRepository,
           assessmentRepository: assessmentRepository,
           streakRepository: streakRepository,
-          analyticsClient: analyticsClient,
         ),
       ),
       GoRoute(

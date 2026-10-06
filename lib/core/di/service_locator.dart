@@ -27,9 +27,9 @@ import '../../features/voice/data/spoken_language_repository_impl.dart';
 import '../../features/voice/domain/mic_rationale_repository.dart';
 import '../../features/voice/domain/recognition_service.dart';
 import '../../features/voice/domain/spoken_language_repository.dart';
-import '../analytics/analytics_client.dart';
 import '../config/remote_config_repository.dart';
 import '../db/app_database.dart';
+import '../device/device_id_platform.dart';
 import '../errors/result.dart';
 import '../models/wire_enums.dart';
 import '../network/dio_client.dart';
@@ -62,6 +62,7 @@ Future<void> setupLocator() async {
   sl.registerLazySingleton<TrustedTimePlatform>(
     () => MethodChannelTrustedTimePlatform(),
   );
+  sl.registerLazySingleton<DeviceIdPlatform>(() => MethodChannelDeviceIdPlatform());
   sl.registerLazySingleton<TrustedTimeAnchorStore>(
     () => SharedPreferencesTrustedTimeAnchorStore(sl<SharedPreferences>()),
   );
@@ -97,6 +98,7 @@ Future<void> setupLocator() async {
       installDao: sl<AppDatabase>().installDao,
       prefs: sl<SharedPreferences>(),
       timeSource: sl<TrustedTimeSource>(),
+      deviceIdPlatform: sl<DeviceIdPlatform>(),
     ),
   );
   sl.registerLazySingleton<ProblemRepository>(
@@ -104,7 +106,7 @@ Future<void> setupLocator() async {
       relayClient: sl<RelayClient>(),
       problemDao: sl<AppDatabase>().problemDao,
       timeSource: sl<TrustedTimeSource>(),
-      configRepository: sl<RemoteConfigRepository>(),
+      installRepository: sl<InstallRepository>(),
     ),
   );
   sl.registerLazySingleton<KeyRepository>(
@@ -114,22 +116,6 @@ Future<void> setupLocator() async {
       installRepository: sl<InstallRepository>(),
       problemRepository: sl<ProblemRepository>(),
       configRepository: sl<RemoteConfigRepository>(),
-    ),
-  );
-  sl.registerLazySingleton<AnalyticsClient>(
-    () => AnalyticsClientImpl(
-      eventDao: sl<AppDatabase>().eventDao,
-      timeSource: sl<TrustedTimeSource>(),
-      relayClient: sl<RelayClient>(),
-      resolveInstallId: () async {
-        final result = await sl<InstallRepository>().ensureIdentity();
-        return switch (result) {
-          Ok(:final value) => value.installId,
-          Err() => throw StateError(
-            'no install identity to drain analytics with',
-          ),
-        };
-      },
     ),
   );
   sl.registerLazySingleton<DailyRepository>(
@@ -220,7 +206,6 @@ Future<void> setupLocator() async {
       sessionDao: sl<AppDatabase>().sessionDao,
       assessmentDao: sl<AppDatabase>().assessmentDao,
       timeSource: sl<TrustedTimeSource>(),
-      analyticsClient: sl<AnalyticsClient>(),
       resolveInstallId: () async {
         final result = await sl<InstallRepository>().ensureIdentity();
         return switch (result) {

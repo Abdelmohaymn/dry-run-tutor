@@ -18,7 +18,6 @@ import 'package:dry_run/features/streak/presentation/share_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-void _noop() {}
 
 Assessment _assessment({
   String? claimedTime = 'O(n*m)',
@@ -49,7 +48,6 @@ ShareCard _card({Assessment? assessment, int streakLength = 2}) => ShareCard(
       assessment: assessment ?? _assessment(),
       streakLength: streakLength,
       problemTitle: 'First Palindromic String',
-      onShared: _noop,
     );
 
 Future<void> _pump(WidgetTester tester, Widget child) => tester.pumpWidget(

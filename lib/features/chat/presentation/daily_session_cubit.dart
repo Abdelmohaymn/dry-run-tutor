@@ -2,8 +2,6 @@ import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../core/analytics/analytics_client.dart';
-import '../../../core/analytics/event_name.dart';
 import '../../../core/config/remote_config_repository.dart';
 import '../../../core/config/runtime_config.dart';
 import '../../../core/errors/relay_error.dart';
@@ -65,7 +63,6 @@ class DailySessionCubit extends Cubit<DailySessionState> {
     required StreakRepository streakRepository,
     required RecognitionService recognitionService,
     required RemoteConfigRepository configRepository,
-    required AnalyticsClient analyticsClient,
     required MicRationaleRepository micRationaleRepository,
     SettingsRepository? settingsRepository,
     TranscriptRepairRepository? transcriptRepairRepository,
@@ -74,7 +71,6 @@ class DailySessionCubit extends Cubit<DailySessionState> {
         _streakRepository = streakRepository,
         _recognitionService = recognitionService,
         _configRepository = configRepository,
-        _analyticsClient = analyticsClient,
         _micRationaleRepository = micRationaleRepository,
         _settingsRepository = settingsRepository,
         _transcriptRepairRepository = transcriptRepairRepository,
@@ -85,7 +81,6 @@ class DailySessionCubit extends Cubit<DailySessionState> {
   final StreakRepository _streakRepository;
   final RecognitionService _recognitionService;
   final RemoteConfigRepository _configRepository;
-  final AnalyticsClient _analyticsClient;
   final MicRationaleRepository _micRationaleRepository;
 
   /// Nullable so every existing test construction of this Cubit — none of
@@ -104,8 +99,6 @@ class DailySessionCubit extends Cubit<DailySessionState> {
   StreamSubscription<RecognitionEvent>? _recognitionSub;
   Timer? _recordingTicker;
   final Stopwatch _recordingStopwatch = Stopwatch();
-  final Stopwatch _sendStopwatch = Stopwatch();
-  bool _usedChipThisReview = false;
   String? _pendingSendText;
   InputMode? _pendingSendMode;
 
@@ -114,11 +107,6 @@ class DailySessionCubit extends Cubit<DailySessionState> {
   /// sent with every later turn so the relay stops running the check.
   String? _finishOfferDismissedFor;
 
-  /// Whether the draft being sent had a non-null `Draft.repaired` at the
-  /// moment `send()` captured it — the draft itself is deleted before the
-  /// `meta` frame comes back, so this is the only place `chat_turn_sent`
-  /// can still read it from (research.md R-013).
-  bool? _pendingSendRepaired;
   Timer? _draftSaveDebounce;
   Timer? _rateLimitRetryTimer;
 
@@ -183,10 +171,6 @@ class DailySessionCubit extends Cubit<DailySessionState> {
       return;
     }
     emit(DailySessionState.reading(session));
-    _analyticsClient.emit(
-      EventName.dailyOpened,
-      props: <String, Object>{'problem_id': session.problem.id, 'is_repeat': session.isRepeat},
-    );
 
     // A session that is already over must never reopen as a live one.
     // Resuming today after finishing put the composer, the mic, the
@@ -299,7 +283,6 @@ class DailySessionCubit extends Cubit<DailySessionState> {
 
   /// A tap-to-fix glossary chip replaced part of the draft (FR-012a).
   void applyGlossaryChipEdit(String updatedText) {
-    _usedChipThisReview = true;
     updateDraftText(updatedText);
   }
 
@@ -361,12 +344,10 @@ class DailySessionCubit extends Cubit<DailySessionState> {
     if (current is! Composing && current is! WrappingUp && current is! FinishOffered) {
       return;
     }
-    _usedChipThisReview = false;
     await _sendDraft(_currentSession, Draft(text: text, inputMode: InputMode.text));
   }
 
   Future<void> _sendDraft(Session session, Draft draft) async {
-    final String recognised = draft.recognised ?? draft.text;
     final String rawText = draft.text.trim();
 
     if (rawText.length > _maxTurnChars) {
@@ -393,28 +374,11 @@ class DailySessionCubit extends Cubit<DailySessionState> {
     // spends no turn either. A short turn making one round trip is a far
     // better failure than a Send button that does nothing.
 
-    final bool repaired = draft.repaired != null;
-    final int charsChanged = _approximateCharsChanged(recognised, rawText);
-    if (charsChanged > 0 || _usedChipThisReview) {
-      _analyticsClient.emit(
-        EventName.transcriptEdited,
-        props: <String, Object>{
-          'chars_changed': charsChanged,
-          'used_chip': _usedChipThisReview,
-          'repaired': repaired,
-        },
-      );
-    }
-
     final InputMode mode = draft.inputMode;
     await _sessionRepository.deleteDraft(session);
     _pendingSendText = rawText;
     _pendingSendMode = mode;
-    _pendingSendRepaired = repaired;
     emit(DailySessionState.sending(session, rawText));
-    _sendStopwatch
-      ..reset()
-      ..start();
     await _runSend(session, rawText, mode);
   }
 
@@ -434,11 +398,7 @@ class DailySessionCubit extends Cubit<DailySessionState> {
     final InputMode mode = message.inputMode ?? InputMode.text;
     _pendingSendText = message.text;
     _pendingSendMode = mode;
-    _pendingSendRepaired = false;
     emit(DailySessionState.sending(session, message.text));
-    _sendStopwatch
-      ..reset()
-      ..start();
     await _runSend(session, message.text, mode, retryMessageId: message.id);
   }
 
@@ -467,9 +427,6 @@ class DailySessionCubit extends Cubit<DailySessionState> {
       // did not.
       final String? failedId = await _failedTurnId(current.session, text);
       emit(DailySessionState.sending(current.session, text));
-      _sendStopwatch
-        ..reset()
-        ..start();
       await _runSend(current.session, text, mode, retryMessageId: failedId);
       return;
     }
@@ -499,9 +456,6 @@ class DailySessionCubit extends Cubit<DailySessionState> {
       // (found on a physical device, 2026-09-25, after saving a key).
       final String? failedId = await _failedTurnId(updated, text);
       emit(DailySessionState.sending(updated, text));
-      _sendStopwatch
-        ..reset()
-        ..start();
       await _runSend(updated, text, mode, retryMessageId: failedId);
       return;
     }
@@ -524,19 +478,8 @@ class DailySessionCubit extends Cubit<DailySessionState> {
 
     final Result<HintRung> result = await _sessionRepository.pullHint(session);
     switch (result) {
-      case Ok<HintRung>(:final value):
+      case Ok<HintRung>():
         final Session refreshed = await _sessionRepository.watch(session.id).first;
-        if (value.exhausted) {
-          _analyticsClient.emit(EventName.hintLadderExhausted);
-        } else {
-          _analyticsClient.emit(
-            EventName.hintRevealed,
-            props: <String, Object>{
-              'hint_index': value.index,
-              'hints_remaining': refreshed.counters.hintsRemaining,
-            },
-          );
-        }
         emit(_reattachSession(before, refreshed));
       case Err<HintRung>(error: final SessionAlreadyJudged _):
         // FR-034 scenario 4, same as a stray turn: told the session is
@@ -606,18 +549,8 @@ class DailySessionCubit extends Cubit<DailySessionState> {
     // FR-048b: the reminder exists to prompt an unstarted day, not to nag
     // someone who already finished it.
     await _settingsRepository?.cancelTodaysReminder();
-    _analyticsClient.emit(
-      EventName.sessionEnded,
-      props: <String, Object>{'turn_count': updated.counters.turnIndex, 'ended_by': reason.wireName},
-    );
     // `SessionRepositoryImpl.endSession` already credited the streak
-    // transactionally, before this call returned (FR-036, Principle IV);
-    // this read is only for the event's own `streak_length` prop.
-    final int streakLength = (await _streakRepository.current()).currentLength;
-    _analyticsClient.emit(
-      EventName.streakAdvanced,
-      props: <String, Object>{'streak_length': streakLength},
-    );
+    // transactionally, before this call returned (FR-036, Principle IV).
     await _pursueAssessment(updated);
   }
 
@@ -660,9 +593,6 @@ class DailySessionCubit extends Cubit<DailySessionState> {
 
   Future<void> _sendSolutionRequest(Session session) async {
     emit(DailySessionState.sending(session, _solutionRequestText));
-    _sendStopwatch
-      ..reset()
-      ..start();
     await _runSend(
       session,
       _solutionRequestText,
@@ -675,10 +605,6 @@ class DailySessionCubit extends Cubit<DailySessionState> {
   /// in state: it changes once a day, at `endSession`, and every reader of
   /// it is a screen that has just been opened.
   Future<int> currentStreakLength() async => (await _streakRepository.current()).currentLength;
-
-  /// `share_card_shared`. The verdict screen holds no `AnalyticsClient` of
-  /// its own — every dependency on that screen arrives through this Cubit.
-  void recordShare() => _analyticsClient.emit(EventName.shareCardShared);
 
   /// Whether the Verdict screen should ask for notifications. True once
   /// per install, and only while they are blocked.
@@ -715,7 +641,6 @@ class DailySessionCubit extends Cubit<DailySessionState> {
     if (current is! Verdict) {
       return;
     }
-    _analyticsClient.emit(EventName.revealShown);
     emit(DailySessionState.revealed(current.session, current.assessment));
   }
 
@@ -746,10 +671,6 @@ class DailySessionCubit extends Cubit<DailySessionState> {
     final Assessment assessment = current is Verdict ? current.assessment : (current as Revealed).assessment;
 
     await _assessmentRepository.recordDispute(session.id);
-    _analyticsClient.emit(
-      EventName.assessmentDisputed,
-      props: <String, Object>{'verdict': assessment.verdict.name},
-    );
     final Session disputed = session.copyWith(disputed: true);
     emit(
       current is Revealed
@@ -780,19 +701,9 @@ class DailySessionCubit extends Cubit<DailySessionState> {
 
   Future<void> _pursueAssessment(Session session) async {
     emit(DailySessionState.judging(session));
-    final Stopwatch judgeStopwatch = Stopwatch()..start();
     final Result<Assessment> result = await _assessmentRepository.request(session);
-    judgeStopwatch.stop();
     switch (result) {
       case Ok<Assessment>(:final value):
-        _analyticsClient.emit(
-          EventName.assessmentShown,
-          props: <String, Object>{
-            'verdict': value.verdict.name,
-            'confidence': value.confidence,
-            'latency_ms': judgeStopwatch.elapsedMilliseconds,
-          },
-        );
         emit(DailySessionState.verdict(session, value));
       case Err<Assessment>(:final error):
         emit(DailySessionState.failure(session, error));
@@ -818,10 +729,6 @@ class DailySessionCubit extends Cubit<DailySessionState> {
     if (current is! FinishOffered) {
       return;
     }
-    _analyticsClient.emit(
-      EventName.finishOfferAccepted,
-      props: <String, Object>{'turn_index': current.session.counters.turnIndex},
-    );
     await endSessionUser();
   }
 
@@ -834,10 +741,6 @@ class DailySessionCubit extends Cubit<DailySessionState> {
     }
     final Session session = current.session;
     _finishOfferDismissedFor = session.id;
-    _analyticsClient.emit(
-      EventName.finishOfferDismissed,
-      props: <String, Object>{'turn_index': session.counters.turnIndex},
-    );
     final RuntimeConfig? config = _configOrNull;
     emit(
       config != null && session.counters.turnIndex >= config.chat.wrapUpAtTurn
@@ -923,7 +826,7 @@ class DailySessionCubit extends Cubit<DailySessionState> {
             partial += text;
             emit(DailySessionState.streaming(session, partial));
           case TurnEventMeta(:final counters):
-            _onTurnMeta(session: session, counters: counters, mode: mode);
+            _onTurnMeta(session: session, counters: counters);
         }
       }
     } on MissingMetaFailure {
@@ -939,28 +842,8 @@ class DailySessionCubit extends Cubit<DailySessionState> {
         return;
       }
       // TRIAL_CONSUMED and TRIAL_UNAVAILABLE are neither an error nor an
-      // outage — `key_prompt_shown`'s `trigger` prop is what tells the
-      // two apart in the BYOK funnel (SC-010, contracts/analytics-events.md),
-      // and both route straight into key entry (`DailySessionShell._routeFor`).
-      switch (e.error) {
-        case TrialConsumed():
-          _analyticsClient.emit(
-            EventName.keyPromptShown,
-            props: const <String, Object>{'trigger': 'trial_spent'},
-          );
-        case TrialUnavailable():
-          _analyticsClient.emit(
-            EventName.keyPromptShown,
-            props: const <String, Object>{'trigger': 'trial_unavailable'},
-          );
-        case TrialIpLimited():
-          _analyticsClient.emit(
-            EventName.keyPromptShown,
-            props: const <String, Object>{'trigger': 'trial_ip_limit'},
-          );
-        default:
-          break;
-      }
+      // outage — both route straight into key entry
+      // (`DailySessionShell._routeFor`).
       emit(DailySessionState.failure(session, e.error));
       // RATE_LIMITED reads as the conversation catching up, not a
       // failure the learner acts on (FR-045a) — "the same turn resumes
@@ -983,32 +866,10 @@ class DailySessionCubit extends Cubit<DailySessionState> {
   void _onTurnMeta({
     required Session session,
     required ServerCounters counters,
-    required InputMode mode,
   }) {
     final Session updated = session.copyWith(counters: counters);
-    _analyticsClient.emit(
-      EventName.chatTurnSent,
-      props: <String, Object>{
-        'turn_index': counters.turnIndex,
-        'input_mode': mode.name,
-        'duration_ms': _sendStopwatch.elapsedMilliseconds,
-        'path': session.path.name,
-        'repaired': _pendingSendRepaired ?? false,
-      },
-    );
-    if (counters.leakBlocked) {
-      _analyticsClient.emit(
-        EventName.tutorLeakBlocked,
-        props: <String, Object>{'turn_index': counters.turnIndex},
-      );
-    }
-    if (session.path == SessionPath.trial && counters.turnIndex == 1) {
-      _analyticsClient.emit(EventName.trialSessionStarted);
-    }
-    _sendStopwatch.stop();
     _pendingSendText = null;
     _pendingSendMode = null;
-    _pendingSendRepaired = null;
 
     // Cap first (an authoritative server signal that this was the
     // terminal turn), then the wrap-up threshold. Because `turnIndex`
@@ -1018,31 +879,15 @@ class DailySessionCubit extends Cubit<DailySessionState> {
     // before this one can emit `CapReached` — SC-017's "no learner
     // reaches the cap un-nudged" (T077).
     if (counters.sessionEnded == 'cap') {
-      if (session.path == SessionPath.trial) {
-        // The taster ran out — `DailySessionShell._routeFor` sends a
-        // trial-path `CapReached` to `/keys/wall`, "shown only after a
-        // completed session" (FR-005a). This *is* that completion, in
-        // the absence of the judge-driven `endSession` this phase does
-        // not yet build (Phase 6, T111).
-        _analyticsClient.emit(
-          EventName.trialSessionCompleted,
-          props: <String, Object>{'turn_count': counters.turnIndex},
-        );
-        _analyticsClient.emit(
-          EventName.keyPromptShown,
-          props: const <String, Object>{'trigger': 'trial_spent'},
-        );
-      }
+      // On the trial path `DailySessionShell._routeFor` sends a
+      // `CapReached` to `/keys/wall`, "shown only after a completed
+      // session" (FR-005a); this cap *is* that completion.
       emit(DailySessionState.capReached(updated));
       return;
     }
     // The finish offer outranks the wrap-up nudge: both offer Finish, and
     // this one says why (feature 005).
     if (counters.readyToFinish && _finishOfferDismissedFor != session.id) {
-      _analyticsClient.emit(
-        EventName.finishOfferShown,
-        props: <String, Object>{'turn_index': counters.turnIndex},
-      );
       emit(DailySessionState.finishOffered(updated));
       return;
     }
@@ -1194,7 +1039,6 @@ class DailySessionCubit extends Cubit<DailySessionState> {
   }
 
   void _emitReview(Session session, Draft draft) {
-    _usedChipThisReview = false;
     emit(DailySessionState.reviewingTranscript(session, draft));
     unawaited(_sessionRepository.saveDraft(session, draft));
   }
@@ -1232,19 +1076,5 @@ class DailySessionCubit extends Cubit<DailySessionState> {
       return window;
     }
     return window.substring(0, boundary + 1);
-  }
-
-  /// A cheap, non-cryptographic approximation of how much of the
-  /// recognised draft changed before send — enough for SC-003/SC-016's
-  /// analytics signal, not an edit-distance algorithm.
-  int _approximateCharsChanged(String recognised, String edited) {
-    final int shared = recognised.length < edited.length ? recognised.length : edited.length;
-    int changed = (recognised.length - edited.length).abs();
-    for (int i = 0; i < shared; i++) {
-      if (recognised[i] != edited[i]) {
-        changed++;
-      }
-    }
-    return changed;
   }
 }

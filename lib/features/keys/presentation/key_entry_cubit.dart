@@ -1,7 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../core/analytics/analytics_client.dart';
-import '../../../core/analytics/event_name.dart';
 import '../../../core/errors/result.dart';
 import '../domain/key_repository.dart';
 import '../domain/learner_key.dart';
@@ -13,23 +11,17 @@ import 'key_entry_state.dart';
 /// with the same [providers]/[providerId]/[value] the learner already
 /// had — nothing typed is ever lost to a bad key (US2 scenario 5).
 class KeyEntryCubit extends Cubit<KeyEntryState> {
-  KeyEntryCubit({required KeyRepository keyRepository, required List<String> providers, required AnalyticsClient analyticsClient})
+  KeyEntryCubit({required KeyRepository keyRepository, required List<String> providers})
       : _keyRepository = keyRepository,
-        _analyticsClient = analyticsClient,
         super(
           KeyEntryState.entering(
             providers: providers,
             providerId: providers.isEmpty ? '' : providers.first,
             value: '',
           ),
-        ) {
-    if (providers.isNotEmpty) {
-      _analyticsClient.emit(EventName.keyEntryStarted, props: <String, Object>{'provider': providers.first});
-    }
-  }
+        );
 
   final KeyRepository _keyRepository;
-  final AnalyticsClient _analyticsClient;
 
   void selectProvider(String providerId) {
     final KeyEntryState current = state;
@@ -40,7 +32,6 @@ class KeyEntryCubit extends Cubit<KeyEntryState> {
             : '';
     final List<String> providers = _providersOf(current);
     emit(KeyEntryState.entering(providers: providers, providerId: providerId, value: value));
-    _analyticsClient.emit(EventName.keyEntryStarted, props: <String, Object>{'provider': providerId});
   }
 
   void updateValue(String value) {
@@ -67,7 +58,6 @@ class KeyEntryCubit extends Cubit<KeyEntryState> {
     );
     switch (result) {
       case Ok<void>():
-        _analyticsClient.emit(EventName.keySaved, props: <String, Object>{'provider': providerId});
         final KeyEntryState saved = KeyEntryState.saved(providerId: providerId);
         emit(saved);
         return saved;

@@ -2,7 +2,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/analytics/analytics_client.dart';
 import '../../../core/config/remote_config_repository.dart';
 import '../../../core/di/service_locator.dart';
 import '../../../core/models/wire_enums.dart' hide Verdict;
@@ -37,7 +36,6 @@ class DailySessionShell extends StatelessWidget {
     required this.streakRepository,
     required this.recognitionService,
     required this.configRepository,
-    required this.analyticsClient,
     required this.micRationaleRepository,
     super.key,
   });
@@ -48,7 +46,6 @@ class DailySessionShell extends StatelessWidget {
   final StreakRepository streakRepository;
   final RecognitionService recognitionService;
   final RemoteConfigRepository configRepository;
-  final AnalyticsClient analyticsClient;
   final MicRationaleRepository micRationaleRepository;
 
   @override
@@ -60,7 +57,6 @@ class DailySessionShell extends StatelessWidget {
         streakRepository: streakRepository,
         recognitionService: recognitionService,
         configRepository: configRepository,
-        analyticsClient: analyticsClient,
         micRationaleRepository: micRationaleRepository,
         // Resolved here, inside `create:` — an allowed `sl<T>()` site
         // (`no_service_locator_outside_root`) — rather than threaded

@@ -9,17 +9,24 @@ import 'problem.dart';
 const String practiceCollection = 'practice';
 
 abstract interface class ProblemRepository {
-  /// Fetches the manifest and caches everything within the two-week
-  /// window, excluding `killed_problem_ids` (FR-035a, FR-040).
-  Future<void> prefetchManifest();
+  /// `GET /v1/daily` for [date]; caches the problem with `manifestDate = date`.
+  /// Throws `RelayException` on any relay failure.
+  Future<Problem> fetchDaily(String date);
+
+  /// The problem cached for [date] by an earlier [fetchDaily], or null.
+  Future<Problem?> cachedForDate(String date);
+
+  /// `GET /v1/practice`; caches the warm-up (`manifestDate = null`).
+  /// Throws `RelayException` on failure.
+  Future<void> fetchPractice();
 
   Future<Problem?> byId(String problemId);
 
-  /// Excludes [RuntimeConfig.killedProblemIds] and the warm-up
-  /// ([practiceCollection]) — what `DailyRepository` rotates through.
+  /// Cached, not in [RuntimeConfig.killedProblemIds], not the warm-up
+  /// ([practiceCollection]). Now used only by the key-check probe fallback.
   Future<List<Problem>> available(RuntimeConfig config);
 
-  /// The onboarding warm-up, or null when the manifest carries none.
+  /// The onboarding warm-up, or null when none is cached.
   Future<Problem?> practiceProblem();
 
   /// Whether anything at all is cached — what `seedGuard` checks alongside

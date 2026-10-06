@@ -15,6 +15,7 @@ import 'package:dry_run/features/chat/domain/hint_rung.dart';
 import 'package:dry_run/features/chat/domain/session.dart';
 import 'package:dry_run/features/chat/domain/turn_event.dart';
 import 'package:dry_run/features/problem/data/problem_repository_impl.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -45,7 +46,6 @@ void main() {
       ..cachedValue = const RuntimeConfig(
         minSupportedVersion: '1.0.0',
         killedProblemIds: <String>[],
-        contentManifestUrl: '/v1/content/manifest.json',
         chat: ChatConfig(turnCap: 12, wrapUpAtTurn: 9, minTurnChars: 8),
         trial: TrialConfig(turnCap: 4),
         keyedProviders: <String>['groq'],
@@ -65,6 +65,8 @@ void main() {
             collections: const <String>[],
             glossaryTerms: const <String>['hashmap'],
             hintCount: 3,
+            // As if `/v1/daily` had already served it for today.
+            manifestDate: Value(await timeSource.today()),
             fetchedAt: timeSource.utc,
           ),
         );
@@ -73,7 +75,7 @@ void main() {
       relayClient: relayClient,
       problemDao: db.problemDao,
       timeSource: timeSource,
-      configRepository: configRepository,
+      installRepository: FakeInstallRepository(),
     );
     repository = SessionRepositoryImpl(
       relayClient: relayClient,

@@ -69,7 +69,6 @@ class ShareCard extends StatefulWidget {
     required this.assessment,
     required this.streakLength,
     required this.problemTitle,
-    required this.onShared,
     super.key,
   });
 
@@ -79,11 +78,6 @@ class ShareCard extends StatefulWidget {
   /// What the day was actually about. The line the dead deep link used to
   /// occupy.
   final String problemTitle;
-
-  /// Emits `share_card_shared`. A callback rather than an `AnalyticsClient`
-  /// so this widget can sit on the verdict screen, which reaches analytics
-  /// through the session Cubit and holds no client of its own.
-  final VoidCallback onShared;
 
   @override
   State<ShareCard> createState() => _ShareCardState();
@@ -145,7 +139,6 @@ class _ShareCardState extends State<ShareCard> {
         ? const <XFile>[]
         : <XFile>[XFile.fromData(png, mimeType: 'image/png', name: AppBrand.shareImageName)];
     await SharePlus.instance.share(ShareParams(text: text, files: files));
-    widget.onShared();
     if (mounted) {
       setState(() => _sharing = false);
     }

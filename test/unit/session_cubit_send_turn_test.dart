@@ -3,7 +3,6 @@
 // turn drives: Composing → Recording → Recognising → ReviewingTranscript
 // → Sending → Streaming → Composing.
 import 'package:bloc_test/bloc_test.dart';
-import 'package:dry_run/core/analytics/event_name.dart';
 import 'package:dry_run/core/config/runtime_config.dart';
 import 'package:dry_run/core/models/wire_enums.dart';
 import 'package:dry_run/features/chat/domain/server_counters.dart';
@@ -15,7 +14,6 @@ import 'package:dry_run/features/problem/domain/problem.dart';
 import 'package:dry_run/features/voice/domain/recognition_event.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../fakes/fake_analytics_client.dart';
 import '../fakes/fake_assessment_repository.dart';
 import '../fakes/fake_streak_repository.dart';
 import '../fakes/fake_config_repository.dart';
@@ -54,7 +52,6 @@ void main() {
   late FakeSessionRepository sessionRepository;
   late FakeRecognitionService recognitionService;
   late FakeRemoteConfigRepository configRepository;
-  late FakeAnalyticsClient analyticsClient;
   late FakeMicRationaleRepository micRationaleRepository;
 
   setUp(() {
@@ -64,12 +61,10 @@ void main() {
       ..cachedValue = const RuntimeConfig(
         minSupportedVersion: '1.0.0',
         killedProblemIds: <String>[],
-        contentManifestUrl: '/v1/content/manifest.json',
         chat: ChatConfig(turnCap: 12, wrapUpAtTurn: 9, minTurnChars: 5),
         trial: TrialConfig(turnCap: 4),
         keyedProviders: <String>['groq'],
       );
-    analyticsClient = FakeAnalyticsClient();
     micRationaleRepository = FakeMicRationaleRepository();
   });
 
@@ -79,7 +74,6 @@ void main() {
         assessmentRepository: FakeAssessmentRepository(),
         recognitionService: recognitionService,
         configRepository: configRepository,
-        analyticsClient: analyticsClient,
         micRationaleRepository: micRationaleRepository,
       );
 
@@ -124,15 +118,6 @@ void main() {
       isA<Streaming>().having((Streaming s) => s.partialText, 'partialText', 'Tell me about your approach.'),
       isA<Composing>().having((Composing s) => s.session.counters.turnIndex, 'turnIndex', 1),
     ],
-    verify: (DailySessionCubit cubit) {
-      final (EventName, Map<String, Object>?)? turnSent = analyticsClient.emitted
-          .cast<(EventName, Map<String, Object>?)?>()
-          .firstWhere((event) => event!.$1 == EventName.chatTurnSent, orElse: () => null);
-      expect(turnSent, isNotNull, reason: 'chat_turn_sent must be emitted on a successful send (T081)');
-      expect(turnSent!.$2?['input_mode'], 'voice');
-      expect(turnSent.$2?['turn_index'], 1);
-      expect(turnSent.$2?['path'], 'trial');
-    },
   );
 
   blocTest<DailySessionCubit, DailySessionState>(

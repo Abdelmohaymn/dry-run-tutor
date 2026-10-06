@@ -18,7 +18,6 @@ import 'package:dry_run/features/chat/presentation/daily_session_state.dart';
 import 'package:dry_run/features/problem/domain/problem.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../../fakes/fake_analytics_client.dart';
 import '../../fakes/fake_assessment_repository.dart';
 import '../../fakes/fake_config_repository.dart';
 import '../../fakes/fake_mic_rationale_repository.dart';
@@ -70,7 +69,6 @@ void main() {
       recognitionService: FakeRecognitionService(),
       // The whole point: nothing cached, and `load()` throws for this fake.
       configRepository: FakeRemoteConfigRepository(),
-      analyticsClient: FakeAnalyticsClient(),
       micRationaleRepository: FakeMicRationaleRepository(),
     );
     addTearDown(cubit.close);

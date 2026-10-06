@@ -1,8 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../../core/db/app_database.dart';
 import '../../../core/db/dao/install_dao.dart';
+import '../../../core/device/device_id_platform.dart';
 import '../../../core/errors/relay_error.dart';
 import '../../../core/errors/result.dart';
 import '../../../core/network/dto/install_dto.dart';
@@ -11,11 +11,6 @@ import '../../../core/time/trusted_time_source.dart';
 import '../domain/install_identity.dart';
 import '../domain/install_repository.dart';
 
-/// `SharedPreferences` key holding a uuid that has been minted and posted
-/// but not yet confirmed by the relay — read back by [ensureIdentity] so a
-/// retry after a failed `POST /v1/install` sends the *same* uuid rather
-/// than farming a fresh taster each attempt (FR-001).
-const String _pendingUuidKey = 'onboarding.pending_install_uuid';
 const String _welcomeSeenKey = 'onboarding.welcome_seen';
 
 /// Set the moment the carousel hands off to the walkthrough, not when the
@@ -29,18 +24,18 @@ class InstallRepositoryImpl implements InstallRepository {
     required InstallDao installDao,
     required SharedPreferences prefs,
     required TrustedTimeSource timeSource,
-    Uuid? uuid,
+    required DeviceIdPlatform deviceIdPlatform,
   })  : _relayClient = relayClient,
         _installDao = installDao,
         _prefs = prefs,
         _timeSource = timeSource,
-        _uuid = uuid ?? const Uuid();
+        _deviceIdPlatform = deviceIdPlatform;
 
   final RelayClient _relayClient;
   final InstallDao _installDao;
   final SharedPreferences _prefs;
   final TrustedTimeSource _timeSource;
-  final Uuid _uuid;
+  final DeviceIdPlatform _deviceIdPlatform;
 
   @override
   Future<Result<InstallIdentity>> ensureIdentity() async {
@@ -49,19 +44,24 @@ class InstallRepositoryImpl implements InstallRepository {
       return Ok(InstallIdentity(installId: existing.installId, installUuid: existing.installUuid));
     }
 
-    final String installUuid = _prefs.getString(_pendingUuidKey) ?? _uuid.v4();
-    await _prefs.setString(_pendingUuidKey, installUuid);
+    final String? deviceId = await _deviceIdPlatform.androidId();
+    if (deviceId == null) {
+      return const Err(RelayError.badRequest());
+    }
 
     try {
-      final InstallResponseDto response = await _relayClient.install(installUuid);
+      final InstallResponseDto response = await _relayClient.install(deviceId);
+      // The relay answers with `<device_hash>.<sig>`; only the hash is kept.
+      // The raw Android ID is never stored or logged.
+      final String deviceHash = response.installId.split('.').first;
       await _installDao.write(
         InstallIdentityCompanion.insert(
-          installUuid: installUuid,
+          installUuid: deviceHash,
           installId: response.installId,
           mintedAt: (await _timeSource.now()).utc,
         ),
       );
-      return Ok(InstallIdentity(installId: response.installId, installUuid: installUuid));
+      return Ok(InstallIdentity(installId: response.installId, installUuid: deviceHash));
     } on RelayException catch (e) {
       return Err(e.error);
     } catch (_) {

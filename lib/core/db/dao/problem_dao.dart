@@ -6,14 +6,22 @@ import '../tables.dart';
 part 'problem_dao.g.dart';
 
 /// Data access for the public-half problem cache. `ProblemRepository`
-/// layers the manifest fetch, the two-week prefetch window (FR-035a), and
-/// the `killed_problem_ids` exclusion (FR-040) on top of this.
+/// layers the `/v1/daily` and `/v1/practice` fetches and the
+/// `killed_problem_ids` exclusion (FR-040) on top of this.
 @DriftAccessor(tables: [CachedProblems])
 class ProblemDao extends DatabaseAccessor<AppDatabase> with _$ProblemDaoMixin {
   ProblemDao(super.db);
 
   Future<CachedProblem?> byId(String problemId) {
     return (select(cachedProblems)..where((t) => t.problemId.equals(problemId)))
+        .getSingleOrNull();
+  }
+
+  /// The problem `/v1/daily` last served for [date] (`manifestDate`).
+  Future<CachedProblem?> byManifestDate(String date) {
+    return (select(cachedProblems)
+          ..where((t) => t.manifestDate.equals(date))
+          ..limit(1))
         .getSingleOrNull();
   }
 

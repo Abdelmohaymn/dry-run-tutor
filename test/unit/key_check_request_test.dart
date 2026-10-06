@@ -83,7 +83,6 @@ void main() {
         ..cachedValue = const RuntimeConfig(
           minSupportedVersion: '1.0.0',
           killedProblemIds: <String>[],
-          contentManifestUrl: '/v1/content/manifest.json',
           chat: ChatConfig(turnCap: 15, wrapUpAtTurn: 12, minTurnChars: 3),
           trial: TrialConfig(turnCap: 4),
           keyedProviders: <String>['groq'],
