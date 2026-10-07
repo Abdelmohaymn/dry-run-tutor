@@ -14,7 +14,7 @@ five tables (SC-002):
 | Table | Purpose | Rows |
 |---|---|---|
 | `config` | Remote config, one row | 1 |
-| `devices` | One row per phone: D7 cohort day, trial state, lifetime warm-up turns | 1 per device |
+| `devices` | One row per phone: D7 cohort day, trial state, lifetime warm-up turns, daily voice seconds used (cap-enforcing only; migration 0007) | 1 per device |
 | `device_day` | Per device × UTC day × problem counters; existence = "active that day" | ≤ 2 per device per active day |
 | `provider_day` | Operator spend per trial-pool member per UTC day | ≤ pool size per day |
 | `notify_signup` | Landing-site launch emails | unchanged |
@@ -48,10 +48,23 @@ CREATE TABLE devices (
   trial_date         TEXT,                           -- YYYY-MM-DD UTC the taster is pinned to
   trial_completed_at TEXT,                           -- ISO-8601; set after a successful trial judge
   trial_ip_hash      TEXT,                           -- hashIp(networkKey(ip)); per-network cap
-  practice_turns     INTEGER NOT NULL DEFAULT 0      -- lifetime warm-up turns
+  practice_turns     INTEGER NOT NULL DEFAULT 0,     -- lifetime warm-up turns
+  voice_date         TEXT,                           -- YYYY-MM-DD UTC the voice_seconds belong to (migration 0007)
+  voice_seconds      INTEGER NOT NULL DEFAULT 0      -- speech-to-text seconds used on voice_date (migration 0007)
 );
 CREATE INDEX devices_trial_ip ON devices (trial_ip_hash, trial_date);
 ```
+
+The two voice columns were added later by `worker/migrations/0007_voice_seconds.sql`
+(`ALTER TABLE devices ADD COLUMN ...`, so they sit after `practice_turns` in a
+migrated database). They are **cap-enforcing only**: a count of seconds and the
+UTC date it belongs to, enforcing the per-device daily speech-to-text cap.
+
+- `voice_date` NULL or different from today's UTC date means 0 seconds used.
+  The first clip of a new day overwrites both columns, so there is no cron and
+  no reset job.
+- No transcript and no audio is ever stored in D1 (or logged, or put in an
+  error body).
 
 Field mapping from `trial_consumed`:
 

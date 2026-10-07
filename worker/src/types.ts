@@ -7,6 +7,10 @@ export interface Env {
   // `secret_binding` in contracts/config.schema.json. TRIAL_KEY_GROQ is the
   // only one enabled by default (data-model.md §A5, §B8).
   TRIAL_KEY_GROQ: string;
+  // Operator Groq key for server-side speech-to-text (POST /v1/voice/transcribe).
+  // Used for every device, including learners with their own key; never
+  // returned to the app. Secret only (`wrangler secret put STT_KEY_GROQ`).
+  STT_KEY_GROQ: string;
   // Test-only second pool-member binding (worker/.dev.vars) — exercised by
   // trial-pool.test.ts / trial.test.ts, not part of the shipped default pool.
   TRIAL_KEY_TEST2?: string;

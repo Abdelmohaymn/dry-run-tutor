@@ -16,8 +16,20 @@ configRoute.get("/", async (c) => {
   const cfg = await getRuntimeConfig(c.env.DB);
   // `web` (feature 007) is the landing site's own levers; `rotation` is read
   // by GET /v1/daily (006). The app has no use for either, so neither leaves
-  // the Worker in this payload.
-  const { web: _web, rotation: _rotation, ...appCfg } = cfg;
+  // the Worker in this payload. `voice.model` (feature 008) is the Worker's
+  // own STT model choice, so it is dropped from the `voice` block too; an
+  // absent `voice` stays absent (voice off).
+  const { web: _web, rotation: _rotation, voice, ...rest } = cfg;
+  const appCfg = voice
+    ? {
+        ...rest,
+        voice: {
+          enabled: voice.enabled,
+          seconds_per_device: voice.seconds_per_device,
+          max_clip_seconds: voice.max_clip_seconds,
+        },
+      }
+    : rest;
   const body = JSON.stringify(appCfg);
   // A stable ETag over the served bytes, not a per-request random value —
   // it changes only when the lever payload itself changes.

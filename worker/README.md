@@ -69,6 +69,27 @@ Levers, one line each — full detail in `contracts/config.schema.json` and `spe
 | `rotation.start_problem_id` / `rotation.anchor_date` | The global daily pointer — see below. |
 | `ads.enabled` | `false` takes both ad surfaces off every install — see below. |
 | `trial.turn_cap` / `trial.ground_truth_tier` / `trial.condense` / `trial.daily_session_cap` / `trial.pool` | The trial funnel's own profile and provider pool. |
+| `voice.enabled` / `voice.seconds_per_device` / `voice.max_clip_seconds` | Server-side speech-to-text (`POST /v1/stt`): on/off, seconds per device per UTC day, longest clip. Absent means off. |
+
+### Voice lever
+
+Voice ships dormant: a config row without a `voice` block means `POST /v1/stt` answers 503 `VOICE_UNAVAILABLE` and every device uses on-device speech recognition. The Groq key is a Worker secret, set only with `npx wrangler secret put STT_KEY_GROQ --env <dev|prod>` (paste it interactively; never put it in a file, a command line, or `.dev.vars`).
+
+Turn voice on (300 seconds per device per UTC day, 120 seconds per clip):
+
+```sh
+npx wrangler d1 execute dry-run-dev --env dev --remote \
+  --command "UPDATE config SET payload = json_set(payload, '\$.voice', json('{\"enabled\":true,\"seconds_per_device\":300,\"max_clip_seconds\":120}')), updated_at = datetime('now') WHERE id = 1"
+```
+
+Kill switch. Every device falls back to on-device recognition on its next tap, with no release:
+
+```sh
+npx wrangler d1 execute dry-run-dev --env dev --remote \
+  --command "UPDATE config SET payload = json_set(payload, '\$.voice.enabled', json('false')), updated_at = datetime('now') WHERE id = 1"
+```
+
+Use `dry-run-prod` and `--env prod` for production, and enable the lever last, once the app release that uses it is live.
 
 ## The daily pointer (`rotation`)
 
@@ -120,4 +141,4 @@ npx wrangler deploy --env dev
 npx wrangler deploy --env prod
 ```
 
-Each environment has its own D1 database (`wrangler.jsonc`) and its own secrets (`wrangler secret put INSTALL_HMAC_SECRET --env dev`, one `TRIAL_KEY_*` per enabled pool member).
+Each environment has its own D1 database (`wrangler.jsonc`) and its own secrets (`wrangler secret put INSTALL_HMAC_SECRET --env dev`, one `TRIAL_KEY_*` per enabled pool member, and `STT_KEY_GROQ` for voice — set only via `wrangler secret put STT_KEY_GROQ --env dev`, never in a file).

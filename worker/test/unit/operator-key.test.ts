@@ -11,7 +11,7 @@ describe("operator credentials never appear in source", () => {
     const source: Record<string, string> = env.WORKER_SOURCE;
     const concatenated = Object.values(source).join("\n");
 
-    const candidateSecrets = [env.TRIAL_KEY_GROQ, env.TRIAL_KEY_TEST2].filter(
+    const candidateSecrets = [env.TRIAL_KEY_GROQ, env.TRIAL_KEY_TEST2, env.STT_KEY_GROQ].filter(
       (v): v is string => typeof v === "string" && v.length > 0,
     );
     expect(candidateSecrets.length).toBeGreaterThan(0);
@@ -39,6 +39,15 @@ describe("operator credentials never appear in source", () => {
       if (path === "routes/trial.ts") continue;
       expect(content).not.toMatch(/env\.TRIAL_KEY_\w+/);
       expect(content).not.toMatch(/c\.env\.TRIAL_KEY_\w+/);
+    }
+  });
+
+  it("env.STT_KEY_GROQ is referenced only in routes/stt.ts", () => {
+    const source: Record<string, string> = env.WORKER_SOURCE;
+    expect(source["routes/stt.ts"]).toMatch(/env\.STT_KEY_GROQ/);
+    for (const [path, content] of Object.entries(source)) {
+      if (path === "routes/stt.ts") continue;
+      expect(content, path).not.toMatch(/env\.STT_KEY_GROQ/);
     }
   });
 });

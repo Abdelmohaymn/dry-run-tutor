@@ -1,17 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { AppError, ERROR_CODES, retryableFor, statusFor, toResponse } from "../../src/lib/errors";
 
-// contracts/error-catalog.md — the closed set. Thirteen codes (eleven plus
-// feature 007's INVALID_EMAIL and the per-network TRIAL_IP_LIMIT), no more, and
+// contracts/error-catalog.md — the closed set. Sixteen codes (eleven plus
+// feature 007's INVALID_EMAIL and the per-network TRIAL_IP_LIMIT, plus feature
+// 008's three VOICE_* codes), no more, and
 // status/retryable must match the catalog row for row.
 
 describe("error code set", () => {
-  it("is closed at exactly thirteen codes", () => {
-    expect(ERROR_CODES.length).toBe(13);
-    expect(new Set(ERROR_CODES).size).toBe(13);
+  it("is closed at exactly sixteen codes", () => {
+    expect(ERROR_CODES.length).toBe(16);
+    expect(new Set(ERROR_CODES).size).toBe(16);
   });
 
-  it("contains exactly the thirteen named codes", () => {
+  it("contains exactly the sixteen named codes", () => {
     expect([...ERROR_CODES].sort()).toEqual(
       [
         "RATE_LIMITED",
@@ -27,6 +28,9 @@ describe("error code set", () => {
         "TRIAL_IP_LIMIT",
         "BAD_REQUEST",
         "INVALID_EMAIL",
+        "VOICE_UNAVAILABLE",
+        "VOICE_EXHAUSTED",
+        "VOICE_BUSY",
       ].sort(),
     );
   });
@@ -47,6 +51,9 @@ describe("status and retryable, row for row against error-catalog.md", () => {
     ["TRIAL_IP_LIMIT", 429, false],
     ["BAD_REQUEST", 400, false],
     ["INVALID_EMAIL", 400, false],
+    ["VOICE_UNAVAILABLE", 503, false],
+    ["VOICE_EXHAUSTED", 429, false],
+    ["VOICE_BUSY", 503, true],
   ];
 
   it.each(table)("%s -> %i, retryable=%s", (code, status, retryable) => {
@@ -57,6 +64,26 @@ describe("status and retryable, row for row against error-catalog.md", () => {
   it("TRIAL_UNAVAILABLE is 503 and NOT retryable, so a client cannot loop on it", () => {
     expect(statusFor("TRIAL_UNAVAILABLE")).toBe(503);
     expect(retryableFor("TRIAL_UNAVAILABLE")).toBe(false);
+  });
+});
+
+describe("voice codes", () => {
+  it("VOICE_BUSY is the only retryable voice code", () => {
+    expect(retryableFor("VOICE_BUSY")).toBe(true);
+    expect(retryableFor("VOICE_UNAVAILABLE")).toBe(false);
+    expect(retryableFor("VOICE_EXHAUSTED")).toBe(false);
+  });
+
+  it("builds the closed envelope for VOICE_BUSY", async () => {
+    const res = toResponse(new AppError("VOICE_BUSY"));
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({
+      error: {
+        code: "VOICE_BUSY",
+        message: "Voice transcription hit a temporary problem. Send the same clip again.",
+        retryable: true,
+      },
+    });
   });
 });
 

@@ -145,6 +145,56 @@ export async function setWebConfig(
     .run();
 }
 
+export const GROQ_STT_PATH = "/openai/v1/audio/transcriptions";
+
+/** A Groq `verbose_json` transcription body: the text and its measured length. */
+export function groqTranscriptionBody(text: string, duration: number) {
+  return { text, duration };
+}
+
+/**
+ * Feature 008. The seed migration's `config` row carries no `voice` block
+ * (voice is off by default), so every stt contract test that needs voice on
+ * writes one first — same D1-payload-edit pattern as setRepairConfig above.
+ */
+export async function setVoiceConfig(
+  overrides: Partial<{
+    enabled: boolean;
+    seconds_per_device: number;
+    max_clip_seconds: number;
+    model: string;
+  }> = {},
+): Promise<void> {
+  const row = await env.DB.prepare("SELECT payload FROM config WHERE id = 1").first<{
+    payload: string;
+  }>();
+  const cfg = JSON.parse(row!.payload);
+  cfg.voice = {
+    enabled: true,
+    seconds_per_device: 300,
+    max_clip_seconds: 120,
+    model: "whisper-large-v3-turbo",
+    ...overrides,
+  };
+  await env.DB.prepare("UPDATE config SET payload = ? WHERE id = 1")
+    .bind(JSON.stringify(cfg))
+    .run();
+}
+
+/** Sends one raw-audio POST /v1/stt. Pass `installId: null` to omit the header. */
+export async function postStt(
+  installId: string | null,
+  bytes: BodyInit,
+  opts: { contentType?: string; language?: string } = {},
+): Promise<Response> {
+  const { contentType = "audio/mp4", language } = opts;
+  const url = new URL("https://worker.test/v1/stt");
+  if (language !== undefined) url.searchParams.set("language", language);
+  const headers: Record<string, string> = { "content-type": contentType };
+  if (installId !== null) headers["X-Install-Id"] = installId;
+  return SELF.fetch(url.toString(), { method: "POST", headers, body: bytes });
+}
+
 export async function readChatSSE(res: Response): Promise<{ event: string; data: unknown }[]> {
   const text = await res.text();
   const frames: { event: string; data: unknown }[] = [];

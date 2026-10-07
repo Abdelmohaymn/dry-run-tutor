@@ -9,7 +9,8 @@
   // per trial pool member, each named by that member's `secret_binding` in
   // contracts/config.schema.json — TRIAL_KEY_GROQ at minimum. Trial path only,
   // never the learner-keyed path (FR-025). Also TURNSTILE_SECRET
-  // (feature 007, web-only routes).
+  // (feature 007, web-only routes), and STT_KEY_GROQ (operator Groq key for
+  // server-side speech-to-text, feature 008).
   "ratelimits": [
     { "name": "WEB_EVENT_RL", "namespace_id": "7003", "simple": { "limit": 30, "period": 60 } },
     { "name": "INSTALL_RL", "namespace_id": "7004", "simple": { "limit": 5, "period": 60 } }

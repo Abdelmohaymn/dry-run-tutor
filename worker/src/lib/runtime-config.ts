@@ -62,6 +62,20 @@ const repairSchema = z
   })
   .strict();
 
+/**
+ * Server-side speech-to-text (feature 008). Optional: a config written
+ * before this feature keeps parsing, and `voice` absent means voice is off.
+ * `model` is read by the Worker only and is stripped from GET /v1/config.
+ */
+const voiceSchema = z
+  .object({
+    enabled: z.boolean(),
+    seconds_per_device: z.number().int().min(0).max(3600),
+    max_clip_seconds: z.number().int().min(5).max(600),
+    model: z.string().default("whisper-large-v3-turbo"),
+  })
+  .strict();
+
 export const runtimeConfigSchema = z
   .object({
     min_supported_version: z.string().regex(/^\d+\.\d+\.\d+$/),
@@ -93,6 +107,13 @@ export const runtimeConfigSchema = z
     keyed_providers: z.array(z.enum(["groq", "openrouter", "gemini", "nebius"])).min(1).optional(),
     providers: z.record(z.string(), keyedProviderSchema).optional(),
     repair: repairSchema.optional(),
+    /**
+     * Server-side speech-to-text (feature 008). Optional; absent means
+     * voice is off, and the app keeps using the on-device recogniser.
+     * Read it through `voiceConfig()`, which also maps `enabled: false` to
+     * null.
+     */
+    voice: voiceSchema.optional(),
     /**
      * The global daily pointer (FR-035d). Present means every install —
      * new or old — is handed the SAME problem on a given day, computed
@@ -194,6 +215,11 @@ const webDefaults = runtimeConfigSchema.shape.web.unwrap().parse({});
 /** `cfg.web`, or the parsed defaults when a config written before feature 007 omits it. */
 export function webConfig(cfg: RuntimeConfig): NonNullable<RuntimeConfig["web"]> {
   return cfg.web ?? webDefaults;
+}
+
+/** `cfg.voice`, or null when the block is absent or `enabled` is false (voice off). */
+export function voiceConfig(cfg: RuntimeConfig): NonNullable<RuntimeConfig["voice"]> | null {
+  return cfg.voice && cfg.voice.enabled ? cfg.voice : null;
 }
 
 /** Reads and validates the single `config` row. Throws on a payload that fails the schema — an invalid config is never served. */

@@ -32,6 +32,12 @@ const LEVER_CONSUMERS: Record<string, { file: string; needle: string }[]> = {
   "trial.condense": [{ file: "routes/trial.ts", needle: "condenseEnabled: cfg.trial.condense" }],
   "trial.daily_session_cap": [{ file: "lib/trial-pool.ts", needle: "daily_session_cap" }],
   "trial.pool": [{ file: "lib/trial-pool.ts", needle: "trial.pool" }],
+  // Feature 008. `enabled` is read once, by voiceConfig(); the rest by the
+  // stt route. `model` is the Worker's own choice and is never served.
+  "voice.enabled": [{ file: "lib/runtime-config.ts", needle: "cfg.voice.enabled" }],
+  "voice.seconds_per_device": [{ file: "routes/stt.ts", needle: "voice.seconds_per_device" }],
+  "voice.max_clip_seconds": [{ file: "routes/stt.ts", needle: "voice.max_clip_seconds" }],
+  "voice.model": [{ file: "routes/stt.ts", needle: "voice.model" }],
 };
 
 // The two app-only levers: served verbatim, read by no worker/src/** module.

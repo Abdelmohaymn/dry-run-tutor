@@ -2,7 +2,7 @@
 
 **Feature**: 001-proxy-content-contract | **Date**: 2026-08-20
 
-Thirteen codes. **This list is closed.** `worker/src/lib/errors.ts` exports exactly these and nothing else; a test asserts the exported union has thirteen members. No provider error body, status line, or stack trace ever reaches the caller (FR-039, SC-011).
+Sixteen codes. **This list is closed.** `worker/src/lib/errors.ts` exports exactly these and nothing else; a test asserts the exported union has sixteen members. No provider error body, status line, or stack trace ever reaches the caller (FR-039, SC-011).
 
 ## Envelope
 
@@ -14,7 +14,7 @@ Every non-2xx response from every route, without exception:
 
 `message` is **written by us**, drawn from the table below, and is safe to show a learner as-is. It is never interpolated from an upstream response. `retry_after_ms` is present only when `retryable` is true and a delay is known.
 
-## The eleven
+## The sixteen
 
 | Code | HTTP | `retryable` | Raised when | Caller behaviour the contract promises | Spec |
 |---|---|---|---|---|---|
@@ -30,10 +30,13 @@ Every non-2xx response from every route, without exception:
 | `TRIAL_IP_LIMIT` | 429 | **false** | A NEW trial session from a network (keyed hash of `CF-Connecting-IP`) that has already started `trial.ip_daily_session_cap` sessions this UTC day. The app offers key entry, as for `TRIAL_CONSUMED`. |
 | `PROBLEM_KILLED` | 409 | **false** | `problem_id` is in `config.killed_problem_ids` | Fall back to another daily problem. | FR-033 |
 | `BAD_REQUEST` | 400 | **false** | Zod validation failure, bad/missing `X-Install-Id`, bad HMAC, unknown `problem_id` | A client bug. Message is generic; the specific field is **not** echoed, because echoing request fields is one of the ways a key ends up in a response body. | FR-024 |
+| `VOICE_UNAVAILABLE` | 503 | **false** | `POST /v1/voice` only. Voice is switched off in config (no `voice` block, or `enabled: false`), or Groq answered 429 or 401 (its own limit hit, or the operator key is misconfigured). Nothing is charged to the device. | Delete the clip, show the on-device fallback copy, and use on-device `speech_to_text` for the next 10 minutes. Not retryable. | 008 |
+| `VOICE_EXHAUSTED` | 429 | **false** | `POST /v1/voice` only. The device has already used its `voice.seconds_per_device` for the current UTC day. | Delete the clip and use on-device `speech_to_text` until UTC midnight. Not retryable. | 008 |
+| `VOICE_BUSY` | 503 | **true** | `POST /v1/voice` only. Groq answered 5xx, timed out, or returned a malformed body. Nothing is charged to the device. | Keep the recorded clip and offer **Try again**, which re-sends the same clip. Manual retry only. | 008 |
 
 ## Mapping upstream to ours
 
-`worker/src/lib/provider-groq.ts` is the only place a provider status is read. It returns our code, never theirs:
+`worker/src/lib/provider-groq.ts` is the place a provider status is read for chat and judge, and `worker/src/lib/stt-groq.ts` is the second, for voice transcription (feature 008). Each returns our code, never theirs. The chat/judge mapping:
 
 ```
 401, 403                          → INVALID_KEY
@@ -44,9 +47,18 @@ Every non-2xx response from every route, without exception:
 200 + unparseable / refusal       → UNCLEAR_RETRY
 ```
 
+The voice mapping in `stt-groq.ts` (operator key, never a learner key):
+
+```
+429, 401                          → VOICE_UNAVAILABLE   (Groq's own limit hit, or the operator key is misconfigured; nothing charged)
+408, 5xx, network error, timeout  → VOICE_BUSY          (retryable; nothing charged)
+200 + malformed body              → VOICE_BUSY
+400, 413, 415                     → BAD_REQUEST         (Groq cannot read the audio)
+```
+
 **On `/v1/trial` the first three rows do not apply, and this is the point.** There is no learner key on that path, so `INVALID_KEY` is unreachable; and a 429 or a quota signal from a pool member is **not** an outcome, it is a routing decision. `routes/trial.ts` catches `RATE_LIMITED` and `QUOTA_EXHAUSTED` from `provider.ts`, records a cooldown against that pool member, and retries the leg on the next eligible member (`data-model.md` §B8, FR-031c). Only when the candidate list is exhausted does anything reach the caller, and what reaches them is `TRIAL_UNAVAILABLE`. A learner must never see another learner's provider's rate limit.
 
-The provider's response body is read **only** to distinguish daily-quota from per-minute rate limiting on a 429, and a rejected key from any other bad request on a 400. Those two pattern tests are the only points where upstream text is inspected. It is never stored and never forwarded.
+The provider's response body is read **only** to distinguish daily-quota from per-minute rate limiting on a 429, and a rejected key from any other bad request on a 400. Those two pattern tests are the only points where upstream text is inspected. (`stt-groq.ts` inspects no upstream text at all, only the status.) It is never stored and never forwarded.
 
 ## Redaction obligation
 

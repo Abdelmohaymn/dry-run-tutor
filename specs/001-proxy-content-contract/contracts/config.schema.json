@@ -113,6 +113,18 @@
         "min_word_overlap": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.6, "description": "Guard 3. The guard that catches a model answering the problem instead of correcting the transcript." }
       }
     },
+    "voice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "seconds_per_device", "max_clip_seconds"],
+      "description": "Server-side speech-to-text (feature 008). Absent means voice is off and the app uses its on-device speech recognition, which is the pre-feature behaviour. `enabled: false` is the kill switch. The Worker reads this block from D1 on every request to enforce the per-device cap on the transcribe route. Served by GET /v1/config except for `model`, which is server-read only and stripped. The model name is a free-tier catalogue entry and will churn, which is why it is a D1 value and not a constant.",
+      "properties": {
+        "enabled": { "type": "boolean", "description": "false turns server-side transcription off for every device. The app falls back to on-device speech recognition." },
+        "seconds_per_device": { "type": "integer", "minimum": 0, "maximum": 3600, "description": "Seconds of audio each device may transcribe per UTC day, measured from the provider's own reported duration, never from the client. 0 refuses every clip." },
+        "max_clip_seconds": { "type": "integer", "minimum": 5, "maximum": 600, "description": "Longest single clip the Worker accepts. The app's recorder stops at this limit; the Worker allows a few seconds of slack." },
+        "model": { "type": "string", "default": "whisper-large-v3-turbo", "description": "Speech-to-text model name sent to the provider. Optional. SERVER-READ ONLY: stripped from GET /v1/config, so the app never receives it." }
+      }
+    },
     "trial": {
       "type": "object",
       "additionalProperties": false,

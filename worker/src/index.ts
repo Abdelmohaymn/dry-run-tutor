@@ -10,6 +10,7 @@ import { chatRoute } from "./routes/chat";
 import { judgeRoute } from "./routes/judge";
 import { repairRoute } from "./routes/repair";
 import { dailyRoute } from "./routes/daily";
+import { sttRoute } from "./routes/stt";
 import { practiceRoute } from "./routes/practice";
 import { trialRoute } from "./routes/trial";
 import { configRoute } from "./routes/config";
@@ -31,6 +32,8 @@ app.use("/v1/trial", installAuth);
 app.route("/v1/trial", trialRoute);
 app.use("/v1/daily", installAuth);
 app.route("/v1/daily", dailyRoute);
+app.use("/v1/stt", installAuth);
+app.route("/v1/stt", sttRoute);
 app.route("/v1/practice", practiceRoute);
 app.route("/v1/config", configRoute);
 // Website only: CORS-guarded, no install auth (feature 007).

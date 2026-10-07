@@ -14,6 +14,7 @@ declare module "cloudflare:test" {
     WORKER_SOURCE: Record<string, string>;
     INSTALL_HMAC_SECRET: string;
     TRIAL_KEY_GROQ: string;
+    STT_KEY_GROQ: string;
     TRIAL_KEY_TEST2?: string;
     /** harness project only — a real learner key, injected from process.env.GROQ_API_KEY at config-build time. */
     GROQ_API_KEY?: string;

@@ -98,4 +98,37 @@ describe("no D1 table ever holds a learner key, a message, a summary, or a reply
     expect(blob).not.toContain(TUTOR_REPLY);
     expect(blob).not.toContain(JUDGE_FEEDBACK);
   });
+
+  it("a /v1/stt call leaves neither the transcript nor the audio in any D1 table", async () => {
+    const TRANSCRIPT = "MARKER_STT_TRANSCRIPT_EXACT_PHRASE";
+    const AUDIO_MARKER = "MARKER_STT_AUDIO_BYTES_EXACT_PHRASE";
+
+    const row = await env.DB.prepare("SELECT payload FROM config WHERE id = 1").first<{ payload: string }>();
+    const cfg = JSON.parse(row!.payload);
+    cfg.voice = { enabled: true, seconds_per_device: 300, max_clip_seconds: 120 };
+    await env.DB.prepare("UPDATE config SET payload = ? WHERE id = 1").bind(JSON.stringify(cfg)).run();
+
+    const installId = await mintInstallId();
+
+    fetchMock
+      .get(GROQ_ORIGIN)
+      .intercept({ path: "/openai/v1/audio/transcriptions", method: "POST" })
+      .reply(200, JSON.stringify({ text: TRANSCRIPT, duration: 30 }), {
+        headers: { "content-type": "application/json" },
+      });
+    const res = await SELF.fetch("https://worker.test/v1/stt?language=en", {
+      method: "POST",
+      headers: { "X-Install-Id": installId, "content-type": "audio/mp4" },
+      body: new TextEncoder().encode(AUDIO_MARKER),
+    });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { text: string }).text).toBe(TRANSCRIPT);
+
+    // The call did charge the device (so the devices row was written), yet
+    // nothing in any table carries the content.
+    const blob = await dumpAllTables();
+    expect(blob).not.toContain(TRANSCRIPT);
+    expect(blob).not.toContain(AUDIO_MARKER);
+    expect(blob).not.toContain("MARKER_STT");
+  });
 });
