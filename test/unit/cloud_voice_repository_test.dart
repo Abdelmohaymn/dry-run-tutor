@@ -75,7 +75,8 @@ void main() {
   late Duration now;
 
   /// Outcomes the relay's next `stt` calls produce, in order. A
-  /// [SttResponseDto] is returned; anything else is thrown.
+  /// [SttResponseDto] is returned, a [Future] is awaited first (to hold an
+  /// upload in flight); anything else is thrown.
   late List<Object> outcomes;
   late List<Uint8List> sentAudio;
   late List<String?> sentLanguages;
@@ -111,7 +112,8 @@ void main() {
         Uint8List.fromList(inv.namedArguments[#audio] as Uint8List),
       );
       sentLanguages.add(inv.namedArguments[#language] as String?);
-      final Object next = outcomes.removeAt(0);
+      Object next = outcomes.removeAt(0);
+      if (next is Future<Object>) next = await next;
       if (next is SttResponseDto) return next;
       throw next;
     });
@@ -614,6 +616,75 @@ void main() {
 
       expect(recorder.stopCalls, 0);
       verifyNoUpload();
+    });
+  });
+
+  group('overlapping calls', () {
+    test('a second stop during the upload shares the first one', () async {
+      final Completer<Object> upload = Completer<Object>();
+      outcomes.add(upload.future);
+      final r = await startRecording();
+
+      final Future<void> first = repo.stop();
+      final Future<void> second = repo.stop();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      upload.complete(_ok('hello'));
+      await Future.wait(<Future<void>>[first, second]);
+      await r.done;
+
+      expect(recorder.stopCalls, 1);
+      expect(r.events.last, isA<FinalTextEvent>());
+      expect(clipsOnDisk(), isEmpty);
+    });
+
+    test('a new recording waits for the old one to be cancelled', () async {
+      recorder.cancelLatency = const Duration(milliseconds: 30);
+      final r1 = await startRecording();
+      final r2 = await startRecording();
+      await r1.done;
+      for (var i = 0; i < 100 && recorder.startCalls < 2; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+
+      expect(recorder.calls, <String>['start', 'cancel', 'start']);
+      expect(clipsOnDisk(), hasLength(1));
+      expect(clipsOnDisk().single.path, recorder.startedPath);
+
+      outcomes.add(_ok('second'));
+      await repo.stop();
+      await r2.done;
+      expect(r2.events.last, isA<FinalTextEvent>());
+    });
+
+    test('an upload that outlives a cancel leaves the next clip alone', () async {
+      final Completer<Object> stale = Completer<Object>();
+      outcomes
+        ..add(stale.future)
+        ..add(_transport);
+      await startRecording();
+      final Future<void> staleStop = repo.stop();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await repo.cancel();
+
+      final r2 = await startRecording();
+      await repo.stop();
+      await r2.done;
+      expect(repo.hasPendingClip, isTrue);
+      final String kept = clipsOnDisk().single.path;
+
+      stale.complete(_ok('too late'));
+      await staleStop;
+
+      expect(repo.hasPendingClip, isTrue);
+      expect(clipsOnDisk().map((File f) => f.path), <String>[kept]);
+    });
+
+    test('a missing mic permission sends later taps on-device', () async {
+      recorder.permission = false;
+      final r = await startRecording();
+      await r.done;
+
+      expect(await repo.nextClipLimit(), isNull);
     });
   });
 

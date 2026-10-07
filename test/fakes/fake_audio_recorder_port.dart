@@ -30,12 +30,19 @@ class FakeAudioRecorderPort implements AudioRecorderPort {
   int cancelCalls = 0;
   bool disposed = false;
 
+  /// How long [cancel] takes, like a real recorder releasing the mic.
+  Duration cancelLatency = Duration.zero;
+
+  /// Every start / stop / cancel, in the order each finished.
+  final List<String> calls = <String>[];
+
   @override
   Future<bool> hasPermission() async => permission;
 
   @override
   Future<void> start(String path) async {
     startCalls++;
+    calls.add('start');
     if (startError != null) throw startError!;
     startedPath = path;
     // The recorder creates the file as soon as it starts. Like the real one
@@ -50,6 +57,7 @@ class FakeAudioRecorderPort implements AudioRecorderPort {
   @override
   Future<String?> stop() async {
     stopCalls++;
+    calls.add('stop');
     final String? path = startedPath;
     if (stopReturnsNull || path == null) return null;
     await File(path).writeAsBytes(clipBytes);
@@ -59,6 +67,8 @@ class FakeAudioRecorderPort implements AudioRecorderPort {
   @override
   Future<void> cancel() async {
     cancelCalls++;
+    await Future<void>.delayed(cancelLatency);
+    calls.add('cancel');
   }
 
   @override

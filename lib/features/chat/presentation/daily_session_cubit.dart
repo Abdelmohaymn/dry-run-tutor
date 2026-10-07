@@ -1064,17 +1064,15 @@ class DailySessionCubit extends Cubit<DailySessionState> {
         _stopRecordingTicker();
         emit(DailySessionState.voiceUploadFailed(_currentSession));
       case RecognitionErrorEvent(:final reason) when CloudVoiceFailure.isCloud(reason):
-        // D4: a rejected clip or a revoked permission asks the learner to say
-        // it again; an unavailable or exhausted service says the phone's own
-        // recognition takes over.
+        // D4: a rejected clip asks the learner to say it again; a missing
+        // permission or an unavailable or exhausted service says the phone's
+        // own recognition takes over (the repository now answers on-device).
         _stopRecordingTicker();
         emit(
           DailySessionState.composing(
             _currentSession,
             null,
-            reason == CloudVoiceFailure.rejected || reason == CloudVoiceFailure.permission
-                ? cloudVoiceFailedNotice
-                : cloudVoiceFallbackNotice,
+            reason == CloudVoiceFailure.rejected ? cloudVoiceFailedNotice : cloudVoiceFallbackNotice,
           ),
         );
       case RecognitionErrorEvent() when event.isLanguageUnavailable:
@@ -1192,12 +1190,12 @@ class DailySessionCubit extends Cubit<DailySessionState> {
   /// free of `AppLocalizations` (which needs a `BuildContext`).
   static const String nothingHeardNotice = 'nothing_heard';
 
-  /// A cloud clip could not be used (rejected, or mic permission missing):
-  /// "please say it again".
+  /// A cloud clip could not be used (rejected): "please say it again".
   static const String cloudVoiceFailedNotice = 'cloud_voice_failed';
 
-  /// A cloud limit was hit (voice off, Groq's limit, or the device's seconds
-  /// used up): "say it again, your phone's recognition will take it from here".
+  /// A cloud limit was hit (voice off, Groq's limit, the device's seconds
+  /// used up, or mic permission missing): "say it again, your phone's
+  /// recognition will take it from here".
   static const String cloudVoiceFallbackNotice = 'cloud_voice_fallback';
 
   void _onRecordingTick() {

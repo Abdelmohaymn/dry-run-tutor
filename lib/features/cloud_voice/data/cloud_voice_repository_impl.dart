@@ -85,15 +85,17 @@ class CloudVoiceRepositoryImpl implements CloudVoiceRepository {
   /// when no cooldown is running. In memory only: a relaunch clears it.
   Duration? _cooldownStartedAt;
 
+  /// Set when the cloud path found the microphone permission missing. Mic
+  /// taps then go on-device, whose own flow handles the permission, until a
+  /// relaunch. In memory only.
+  bool _permissionDenied = false;
+
   /// The clip kept for "Try again" (or being uploaded right now).
   String? _pendingPath;
 
-  /// The file the recorder is writing to, while a recording is active.
-  String? _recordingPath;
-
-  StreamController<RecognitionEvent>? _controller;
-  StreamSubscription<double>? _levelSub;
-  Future<void>? _starting;
+  /// The current recording. Each [record] call gets its own, so a stale
+  /// start, stop or upload only ever touches its own state.
+  _Recording? _recording;
 
   static Duration Function() _stopwatchClock() {
     final Stopwatch stopwatch = Stopwatch()..start();
@@ -108,6 +110,7 @@ class CloudVoiceRepositoryImpl implements CloudVoiceRepository {
     try {
       if (hasPendingClip) return null;
       if (_inCooldown()) return null;
+      if (_permissionDenied) return null;
 
       final VoiceConfig? voice = _configRepository.cached()?.voice;
       if (voice == null || !voice.enabled) return null;
@@ -140,51 +143,65 @@ class CloudVoiceRepositoryImpl implements CloudVoiceRepository {
   @override
   Stream<RecognitionEvent> record({required Duration limit}) {
     // A new recording replaces any stale one; nothing is uploaded for it.
-    unawaited(_abandonRecording());
-
-    final StreamController<RecognitionEvent> controller = StreamController<RecognitionEvent>();
-    _controller = controller;
-    _starting = _start(controller);
-    return controller.stream;
+    // The new start waits for that teardown, so the old recording's cancel
+    // can never land on the new one.
+    final _Recording? previous = _recording;
+    final _Recording recording = _Recording(StreamController<RecognitionEvent>());
+    _recording = recording;
+    recording.starting = _start(recording, previous);
+    return recording.controller.stream;
   }
 
-  Future<void> _start(StreamController<RecognitionEvent> controller) async {
+  Future<void> _start(_Recording recording, _Recording? previous) async {
+    final StreamController<RecognitionEvent> controller = recording.controller;
     try {
+      if (previous != null) await _abandon(previous);
+      if (controller.isClosed) return; // cancelled before it began
       if (!await _recorder.hasPermission()) {
+        _permissionDenied = true;
         _emitAndClose(controller, const RecognitionErrorEvent(CloudVoiceFailure.permission, permanent: true));
         return;
       }
       final String tmp = await _tempDirPath();
       final String path = '$tmp/stt_${_uuid.v4()}.m4a';
-      _recordingPath = path;
+      recording.path = path;
+      recording.recorderActive = true;
       await _recorder.start(path);
-      if (controller.isClosed) return; // cancelled while starting
-      _levelSub = _recorder.levels().listen(
+      if (controller.isClosed) return; // cancelled while starting; _abandon cleans up
+      recording.levelSub = _recorder.levels().listen(
         (double level) {
           if (!controller.isClosed) controller.add(LevelEvent(level));
         },
         onError: (Object _) {},
       );
     } catch (_) {
-      await _deleteFile(_recordingPath);
-      _recordingPath = null;
+      recording.recorderActive = false;
+      await _deleteFile(recording.path);
+      recording.path = null;
       _emitAndClose(controller, const RecognitionErrorEvent(CloudVoiceFailure.rejected, permanent: true));
     }
   }
 
   @override
-  Future<void> stop() async {
-    final StreamController<RecognitionEvent>? controller = _controller;
-    if (controller == null || controller.isClosed) return;
+  Future<void> stop() {
+    final _Recording? recording = _recording;
+    if (recording == null || recording.controller.isClosed) return Future<void>.value();
+    // The cap's auto-stop and the user's tap can race: both share one stop.
+    return recording.stopping ??= _stop(recording);
+  }
 
+  Future<void> _stop(_Recording recording) async {
+    final StreamController<RecognitionEvent> controller = recording.controller;
+    String? path;
     try {
-      await _starting;
-      await _levelSub?.cancel();
-      _levelSub = null;
+      await recording.starting;
+      await recording.levelSub?.cancel();
+      recording.levelSub = null;
       if (controller.isClosed) return; // start failed or was cancelled
 
-      final String? path = await _recorder.stop();
-      _recordingPath = null;
+      recording.recorderActive = false;
+      path = await _recorder.stop();
+      recording.path = null;
       if (path == null || !await File(path).exists()) {
         await _deleteFile(path);
         _emitAndClose(controller, const RecognitionErrorEvent(CloudVoiceFailure.rejected, permanent: true));
@@ -192,28 +209,32 @@ class CloudVoiceRepositoryImpl implements CloudVoiceRepository {
       }
 
       _pendingPath = path;
-      final RecognitionEvent event = await _upload();
+      final RecognitionEvent event = await _upload(path);
       if (controller.isClosed) {
         // Cancelled while uploading: nothing may outlive the cancel.
-        await _deleteClip();
+        await _deleteClip(path);
         return;
       }
       _emitAndClose(controller, event);
     } catch (_) {
-      await _deleteClip();
+      if (path != null) await _deleteClip(path);
+      await _deleteFile(recording.path);
+      recording.path = null;
       _emitAndClose(controller, const RecognitionErrorEvent(CloudVoiceFailure.rejected, permanent: true));
     }
   }
 
   /// Uploads the pending clip and maps the outcome onto a [RecognitionEvent]
-  /// and the clip's fate. Shared by [stop] and [retryUpload].
-  Future<RecognitionEvent> _upload() async {
+  /// and the clip's fate. Shared by [stop] and [retryUpload]. Only [path] is
+  /// ever deleted, so an upload that outlives a cancel cannot touch a newer
+  /// clip.
+  Future<RecognitionEvent> _upload(String path) async {
     try {
-      final Uint8List audio = await File(_pendingPath!).readAsBytes();
+      final Uint8List audio = await File(path).readAsBytes();
 
       final Result<InstallIdentity> identity = await _installRepository.ensureIdentity();
       if (identity is! Ok<InstallIdentity>) {
-        await _deleteClip();
+        await _deleteClip(path);
         return _failure(CloudVoiceFailure.rejected);
       }
       final String language = _languageOf(await _spokenLanguageRepository.read());
@@ -225,7 +246,7 @@ class CloudVoiceRepositoryImpl implements CloudVoiceRepository {
         language: language,
       );
 
-      await _deleteClip();
+      await _deleteClip(path);
       await _persistQuota(response.secondsLeft, response.maxClipSeconds);
       return FinalTextEvent(response.text);
     } on SttRefusedException catch (e) {
@@ -233,11 +254,11 @@ class CloudVoiceRepositoryImpl implements CloudVoiceRepository {
         case SttRefusal.busy:
           return _failure(CloudVoiceFailure.retryable); // clip kept
         case SttRefusal.unavailable:
-          await _deleteClip();
+          await _deleteClip(path);
           _cooldownStartedAt = _monotonicNow();
           return _failure(CloudVoiceFailure.unavailable);
         case SttRefusal.exhausted:
-          await _deleteClip();
+          await _deleteClip(path);
           await _persistQuota(0, null);
           return _failure(CloudVoiceFailure.exhausted);
       }
@@ -245,20 +266,21 @@ class CloudVoiceRepositoryImpl implements CloudVoiceRepository {
       if (e.error is TransportFailure) {
         return _failure(CloudVoiceFailure.retryable); // clip kept
       }
-      await _deleteClip();
+      await _deleteClip(path);
       return _failure(CloudVoiceFailure.rejected);
     } catch (_) {
-      await _deleteClip();
+      await _deleteClip(path);
       return _failure(CloudVoiceFailure.rejected);
     }
   }
 
   @override
   Future<RecognitionEvent> retryUpload() {
-    if (_pendingPath == null) {
+    final String? path = _pendingPath;
+    if (path == null) {
       throw StateError('retryUpload() called with no pending clip');
     }
-    return _upload();
+    return _upload(path);
   }
 
   @override
@@ -266,7 +288,9 @@ class CloudVoiceRepositoryImpl implements CloudVoiceRepository {
 
   @override
   Future<void> cancel() async {
-    await _abandonRecording();
+    final _Recording? recording = _recording;
+    _recording = null;
+    if (recording != null) await _abandon(recording);
     await _deleteClip();
   }
 
@@ -277,7 +301,7 @@ class CloudVoiceRepositoryImpl implements CloudVoiceRepository {
       if (!await dir.exists()) return;
       await for (final FileSystemEntity entity in dir.list()) {
         if (entity is! File) continue;
-        if (entity.path == _pendingPath || entity.path == _recordingPath) continue;
+        if (entity.path == _pendingPath || entity.path == _recording?.path) continue;
         final String name = entity.uri.pathSegments.last;
         if (!_orphanClipName.hasMatch(name)) continue;
         try {
@@ -289,24 +313,28 @@ class CloudVoiceRepositoryImpl implements CloudVoiceRepository {
 
   // --- helpers -------------------------------------------------------------
 
-  /// Stops any active recording without uploading, deletes its file, and
-  /// closes the stream with no terminal event.
-  Future<void> _abandonRecording() async {
-    final StreamController<RecognitionEvent>? controller = _controller;
-    final String? recordingPath = _recordingPath;
-    _controller = null;
-    _recordingPath = null;
+  /// Stops [recording] without uploading, deletes its file, and closes its
+  /// stream with no terminal event. Closing first tells a start still in
+  /// flight to bail; waiting for that start means the recorder is only
+  /// cancelled once it is really running.
+  Future<void> _abandon(_Recording recording) async {
+    final StreamController<RecognitionEvent> controller = recording.controller;
+    if (!controller.isClosed) await controller.close();
+    try {
+      await recording.starting;
+    } catch (_) {}
 
-    await _levelSub?.cancel();
-    _levelSub = null;
+    await recording.levelSub?.cancel();
+    recording.levelSub = null;
 
-    if (controller != null && !controller.isClosed) {
+    if (recording.recorderActive) {
+      recording.recorderActive = false;
       try {
         await _recorder.cancel();
       } catch (_) {}
-      await controller.close();
     }
-    await _deleteFile(recordingPath);
+    await _deleteFile(recording.path);
+    recording.path = null;
   }
 
   void _emitAndClose(StreamController<RecognitionEvent> controller, RecognitionEvent event) {
@@ -318,10 +346,11 @@ class CloudVoiceRepositoryImpl implements CloudVoiceRepository {
   RecognitionErrorEvent _failure(String reason) =>
       RecognitionErrorEvent(reason, permanent: reason != CloudVoiceFailure.retryable);
 
-  /// Deletes the pending clip's file (errors ignored) and forgets it.
-  Future<void> _deleteClip() async {
-    final String? path = _pendingPath;
-    _pendingPath = null;
+  /// Deletes [path] (the pending clip when omitted), errors ignored, and
+  /// forgets it if it is still the pending clip.
+  Future<void> _deleteClip([String? path]) async {
+    path ??= _pendingPath;
+    if (path == _pendingPath) _pendingPath = null;
     await _deleteFile(path);
   }
 
@@ -357,4 +386,21 @@ class CloudVoiceRepositoryImpl implements CloudVoiceRepository {
     final String code = localeId.substring(0, 2).toLowerCase();
     return RegExp(r'^[a-z]{2}$').hasMatch(code) ? code : _defaultLanguage;
   }
+}
+
+/// One [CloudVoiceRepositoryImpl.record] call's state.
+class _Recording {
+  _Recording(this.controller);
+
+  final StreamController<RecognitionEvent> controller;
+
+  /// The file the recorder is writing to, until it stops.
+  String? path;
+
+  /// True from just before `start` until `stop` or `cancel` is called.
+  bool recorderActive = false;
+
+  StreamSubscription<double>? levelSub;
+  Future<void>? starting;
+  Future<void>? stopping;
 }
