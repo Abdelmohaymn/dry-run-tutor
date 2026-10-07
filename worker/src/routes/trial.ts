@@ -252,7 +252,9 @@ trialRoute.post("/", async (c) => {
           return { result, providerId: member.id, model: member.model };
         },
         onBeforeProviderCall: async () => {
-          await markTrialStarted(db, installId, trialStartedAt, body.problem_id, date, ipHash, cfg.trial.sessions_per_device);
+          if (!(await markTrialStarted(db, installId, trialStartedAt, body.problem_id, date, ipHash, cfg.trial.sessions_per_device))) {
+            throw new AppError("TRIAL_CONSUMED");
+          }
         },
         onProviderCallUnanswered: async () => {
           await releaseTrialStart(db, installId, trialStartedAt);
@@ -264,7 +266,9 @@ trialRoute.post("/", async (c) => {
 
   // mode === "judge"
   const trialStartedAt = nowIso();
-  await markTrialStarted(db, installId, trialStartedAt, body.problem_id, date, ipHash, cfg.trial.sessions_per_device);
+  if (!(await markTrialStarted(db, installId, trialStartedAt, body.problem_id, date, ipHash, cfg.trial.sessions_per_device))) {
+    throw new AppError("TRIAL_CONSUMED");
+  }
   let assessment;
   try {
     assessment = await runJudge(

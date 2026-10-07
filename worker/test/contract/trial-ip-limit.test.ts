@@ -24,7 +24,7 @@ async function seedSessions(ip: string, n: number) {
   const date = new Date().toISOString().slice(0, 10);
   for (let i = 0; i < n; i++) {
     await env.DB.prepare(
-      "INSERT INTO devices (device_hash, created_at, trial_started_at, trial_problem_id, trial_date, trial_ip_hash) VALUES (?1, ?2, ?2, 'vp-0001', ?3, ?4)",
+      "INSERT INTO devices (device_hash, created_at, trial_started_at, trial_problem_id, trial_date, trial_ip_hash, trial_day_date, trial_day_sessions) VALUES (?1, ?2, ?2, 'vp-0001', ?3, ?4, ?3, 1)",
     )
       .bind(randomHash(), new Date().toISOString(), date, ipHash)
       .run();

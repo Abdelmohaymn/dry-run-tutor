@@ -67,12 +67,12 @@ nothing to buy. This page describes exactly what the app handles and what leaves
 device.</p>
 
 <h2>Your voice</h2>
-<p>When you speak an answer, Dry Run records a short audio clip (up to two minutes) and
+<p>When you speak an answer, Dry Run records a short audio clip (the app shows the time limit as you speak) and
 sends it to our server, which forwards it to Groq's speech-to-text service and returns the
 text. Our server does not store or log the audio or the text. On your phone, the clip is
 kept in temporary storage only until it is transcribed, or until you discard it after a
-failed upload, and is then deleted. Each device can transcribe up to five minutes of audio
-this way per day (UTC); after that, or if Groq is busy, the app uses your phone's own speech
+failed upload, and is then deleted. Each device can transcribe a limited number of minutes of
+audio this way per day (UTC); after that, or if Groq is busy, the app uses your phone's own speech
 recognition instead. Groq handles the audio under its own privacy policy.</p>
 <p>That is a statement about this app, and not a claim that audio never leaves your phone.
 Android's speech recognition is documented as likely to stream audio to the device maker's

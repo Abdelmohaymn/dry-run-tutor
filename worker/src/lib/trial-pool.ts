@@ -351,6 +351,14 @@ export async function releasePracticeTurn(db: D1Database, installId: string): Pr
  * over by a DIFFERENT problem/day only while sessions_done + 1 (the one the
  * slot holds) is still below it; the takeover retires the old session into
  * trial_sessions_done and clears completed_at for the new one.
+ *
+ * Every start also adds one to today's trial_day_sessions (0009), which the
+ * daily caps sum.
+ *
+ * Returns false when the row was not written and does not already hold this
+ * session: another request took the device's last session between the
+ * route's mayClaimAnotherSession() check and this write. The caller must
+ * refuse rather than serve a session nothing recorded.
  */
 export async function markTrialStarted(
   db: D1Database,
@@ -360,8 +368,8 @@ export async function markTrialStarted(
   date: string,
   ipHash: string,
   sessionsPerDevice: number,
-): Promise<void> {
-  await db
+): Promise<boolean> {
+  const written = await db
     .prepare(
       // DO UPDATE in two cases only (SQLite evaluates every SET against the
       // pre-update row):
@@ -372,19 +380,32 @@ export async function markTrialStarted(
       //     has a session left under ?6. 0002's guarantee holds at the
       //     default of 1: then 0 + 1 < 1 is false, so a claimed row is never
       //     re-pointed. The same problem on the same day is never re-pointed.
-      `INSERT INTO devices (device_hash, created_at, trial_started_at, trial_problem_id, trial_date, trial_ip_hash)
-       VALUES (?1, ?2, ?2, ?3, ?4, ?5)
+      `INSERT INTO devices (device_hash, created_at, trial_started_at, trial_problem_id, trial_date, trial_ip_hash,
+                            trial_day_date, trial_day_sessions)
+       VALUES (?1, ?2, ?2, ?3, ?4, ?5, ?4, 1)
        ON CONFLICT(device_hash) DO UPDATE
          SET trial_started_at = ?2, trial_problem_id = ?3, trial_date = ?4, trial_ip_hash = ?5,
              trial_completed_at = NULL,
+             trial_day_sessions = CASE WHEN devices.trial_day_date IS ?4 THEN devices.trial_day_sessions ELSE 0 END + 1,
+             trial_day_date = ?4,
              trial_sessions_done = devices.trial_sessions_done
                + CASE WHEN devices.trial_problem_id IS NULL AND devices.trial_completed_at IS NULL THEN 0 ELSE 1 END
          WHERE (devices.trial_problem_id IS NULL AND devices.trial_completed_at IS NULL)
             OR (NOT (devices.trial_problem_id IS ?3 AND devices.trial_date IS ?4)
-                AND devices.trial_sessions_done + 1 < ?6)`,
+                AND devices.trial_sessions_done + 1 < ?6)
+       RETURNING device_hash`,
     )
     .bind(installId, startedAt, problemId, date, ipHash, sessionsPerDevice)
-    .run();
+    .first();
+  if (written) return true;
+
+  // Not written: fine only when the slot already holds this very session
+  // (a later turn, or a judge call, of the session in flight).
+  const row = await db
+    .prepare("SELECT trial_problem_id, trial_date FROM devices WHERE device_hash = ?1")
+    .bind(installId)
+    .first<{ trial_problem_id: string | null; trial_date: string | null }>();
+  return row?.trial_problem_id === problemId && row.trial_date === date;
 }
 
 /**
@@ -415,7 +436,9 @@ export async function ipSessionGateOk(cfg: RuntimeConfig, db: D1Database, ipHash
   const cap = cfg.trial.ip_daily_session_cap;
   if (cap <= 0) return true;
   const row = await db
-    .prepare("SELECT COUNT(*) AS n FROM devices WHERE trial_ip_hash = ?1 AND trial_date = ?2")
+    .prepare(
+      "SELECT COALESCE(SUM(trial_day_sessions), 0) AS n FROM devices WHERE trial_ip_hash = ?1 AND trial_day_date = ?2",
+    )
     .bind(ipHash, date)
     .first<{ n: number }>();
   return (row?.n ?? 0) < cap;
@@ -435,12 +458,16 @@ export async function ipSessionGateOk(cfg: RuntimeConfig, db: D1Database, ipHash
  *
  * UPDATE, never DELETE (006): the `devices` row also holds `created_at` and
  * `practice_turns` and must survive.
+ *
+ * Takes back the start from today's trial_day_sessions (0009). trial_ip_hash
+ * is kept: it still attributes any earlier sessions today to this network.
  */
 export async function releaseTrialStart(db: D1Database, installId: string, startedAt: string): Promise<void> {
   await db
     .prepare(
       `UPDATE devices
-         SET trial_started_at = NULL, trial_problem_id = NULL, trial_date = NULL, trial_ip_hash = NULL
+         SET trial_started_at = NULL, trial_problem_id = NULL, trial_date = NULL,
+             trial_day_sessions = MAX(0, trial_day_sessions - 1)
        WHERE device_hash = ?1 AND trial_started_at = ?2 AND trial_completed_at IS NULL`,
     )
     .bind(installId, startedAt)
@@ -457,13 +484,10 @@ export async function markTrialCompleted(db: D1Database, installId: string, comp
 /** New sessions started today, across all installs — data-model.md §B8's `sessionsStartedToday()`. */
 export async function countSessionsStartedToday(db: D1Database, date: string): Promise<number> {
   const row = await db
-    // `problem_id IS NOT NULL`: a row written by the walkthrough alone has
-    // not started a session, and must not count against the operator's cap
-    // on how many tasters begin today.
-    .prepare(
-      "SELECT COUNT(*) AS n FROM devices WHERE trial_started_at LIKE ?1 AND trial_problem_id IS NOT NULL",
-    )
-    .bind(`${date}%`)
+    // Only markTrialStarted() writes trial_day_sessions, so a row the
+    // walkthrough alone created counts 0 against the operator's cap.
+    .prepare("SELECT COALESCE(SUM(trial_day_sessions), 0) AS n FROM devices WHERE trial_day_date = ?1")
+    .bind(date)
     .first<{ n: number }>();
   return row?.n ?? 0;
 }
