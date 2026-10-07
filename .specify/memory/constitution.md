@@ -1,5 +1,78 @@
 <!--
 SYNC IMPACT REPORT (latest)
+Version change: 3.0.0 → 4.0.0
+Rationale: MAJOR. Principle VII is redefined in a backward-incompatible way.
+           It said "This app MUST NOT record, buffer, store, upload, or receive
+           audio itself, and MUST NOT add a speech service to its own
+           architecture". Feature 008-voice-groq-stt does exactly that: the app
+           records a clip and uploads it to our relay (POST /v1/stt), which
+           forwards it to Groq Whisper on an operator key. Principle VII is
+           rewritten to permit this under tight limits, and O5, Principle VI and
+           Principle VIII are amended so the four articles agree.
+           Occasion (stated plainly, not dressed up as product insight): the app
+           is a Nebius hackathon entry and its users are the hackathon judges.
+           Cost and abuse risk are judged at that scale. The on-device
+           recogniser mangles developer jargon (Principle V rationale) and Groq
+           Whisper transcribes it far better. Not justified by D7 (Governance).
+           Behaviour approved by the owner 2026-10-07 (D1-D4); text pending
+           owner read. Do not merge to main or deploy until the owner has read
+           this text (tasks/plans/PLAN_01_VOICE_GROQ_STT.md, Phase 0).
+
+Modified principles:
+  - Principle VII: "This App Never Handles Audio…" → "This App Handles Audio
+    Only to Transcribe It — Under a Cap, Never Kept; the User Is Told Plainly
+    What Does". The app MAY record a clip only to send it to our relay for
+    transcription. Audio is held only in an app-cache temp file, kept until the
+    clip is transcribed, discarded by the user, or refused for good, and is never
+    stored by the relay or logged. The fallback is the platform recogniser. The
+    plain-language disclosure duty and the Play Data Safety duty are kept and
+    widened to name the relay and Groq.
+  - O5 (speech-to-text placement): "the platform recogniser, no POST
+    /v1/transcribe" → the platform recogniser, plus POST /v1/stt on an
+    operator Groq key under a per-device daily cap. Any limit (the device cap,
+    Groq's own limit, voice switched off, no network) falls back to the platform
+    recogniser (D4).
+  - Principle VI, "Two kinds of key": "The developer's key (trial tier only)" →
+    the developer's key is used for the trial tier and for capped speech-to-text
+    for EVERY device, including learners who brought their own key (D1). The
+    rule that it MUST NOT appear in the app, in source, or in a build artifact is
+    unchanged. The user's-key rule is unchanged.
+  - Principle VIII, "Offline Never Punishes the User": "never a lost turn or
+    recording" and "may never lose a recording" hold for transient failures: the
+    clip is kept and the user retries it without speaking again (D2). One case
+    relaxes this: a clip refused for good (VOICE_UNAVAILABLE, VOICE_EXHAUSTED or
+    BAD_REQUEST) is deleted and the user says it again. Offline at mic tap uses
+    the platform recogniser, so recording still works with no network.
+
+Not modified, but read against this amendment:
+  - Principle X (zero developer cost, constraint 2 "user MUST NEVER be able to
+    incur a charge"): the operator Groq key is a developer-side cost. It stays
+    inside Principle X only while the key is on a free tier or a hard spending
+    limit, and the per-device cap (default 300 s per UTC day, 120 s per clip,
+    remote-configurable, off by default) bounds it. If that stops being true,
+    this is a Principle X question, not a VII one. Owner to confirm.
+  - Principle I (voice-first), V (transcript always shown and editable): the
+    cloud transcript goes through the same mandatory review step.
+
+Added sections: none. Removed sections: none.
+
+Source of record: ../docs/constitution.md (outside this repo) MUST receive the
+  same change. Per the amendment procedure it is amended there first; the owner
+  copies this amendment there.
+
+Deferred / follow-up TODOs:
+  - Owner reads this text and records approval in
+    tasks/plans/PLAN_01_VOICE_GROQ_STT.md Notes, before any merge or deploy.
+  - Apply this amendment to ../docs/constitution.md (owner).
+  - Play Data Safety declaration and the in-app mic rationale and privacy page
+    must be rewritten to match (plan Phase 7.5 and Phase 9.1) before release.
+  - Older reports below are history; the 1.0.1 line "The app still handles no
+    audio itself" and the 3.0.0 text are superseded by this one where they
+    conflict.
+-->
+
+<!--
+SYNC IMPACT REPORT (3.0.0)
 Version change: 2.0.0 → 3.0.0
 Rationale: MAJOR. The first-party analytics event stream is removed. Quality
            Gates required analytics on POST /v1/event; Principles I and X each
@@ -224,19 +297,45 @@ away.
 
 Two kinds of key, two rules:
 
-- The developer's key (trial tier only) MUST NOT appear in the app, in source,
-  or in a build artifact.
+- The developer's key MUST NOT appear in the app, in source, or in a build
+  artifact. It is used for the trial tier and for capped speech-to-text
+  (Principle VII), the latter for every device, including learners who brought
+  their own key. The app is a Nebius hackathon entry used by the judges, and cost
+  and abuse are judged at that scale. The speech-to-text use is bounded by a
+  per-device daily cap that the server enforces and remote config can change.
 - The user's key lives in Android secure storage, travels per-request over TLS,
   is used once, and MUST NEVER be persisted server-side — not in a database, a
   log, an error trace, or a crash report. Key-header redaction is a Phase 1
   task, not later hardening.
 
-### VII. This App Never Handles Audio; the User Is Told Plainly What Does
+### VII. This App Handles Audio Only to Transcribe It — Under a Cap, Never Kept; the User Is Told Plainly What Does
 
-Speech-to-text is delegated entirely to the platform's own recognition service.
-This app MUST NOT record, buffer, store, upload, or receive audio itself, and
-MUST NOT add a speech service to its own architecture — it receives text and
-sound levels from the platform, never bytes.
+Speech-to-text has two engines, chosen at mic tap:
+
+- **The relay (cloud).** The app MAY record a clip only to send it to our relay
+  (`POST /v1/stt`) for transcription. The relay forwards it to a speech service
+  on the developer's key and returns text. This is permitted only under all of:
+  - Audio is held only in an app-cache temp file. It is kept until the clip is
+    transcribed, discarded by the user, or refused for good (Principle VIII),
+    and then deleted. It MUST NOT be uploaded anywhere but our relay, and MUST
+    NOT be kept for any other purpose.
+  - The relay MUST NOT store audio or transcript text, and MUST NOT log either,
+    in a database, a log, or an error body.
+  - Each device has a per-day cap on speech seconds, enforced by the relay on
+    the speech service's own measured duration, with a per-clip maximum. Both
+    are remote-configurable. If no `voice` configuration is present, cloud
+    speech is off.
+  - The cloud path is chosen only when voice is enabled, the phone is online,
+    and the device has seconds left.
+- **The platform recogniser (fallback).** Otherwise, and whenever any limit is
+  hit (the device cap, the speech service's own limit, voice switched off, no
+  network), speech-to-text is delegated to the platform's own recognition
+  service, and the app receives text and sound levels from the platform, never
+  bytes (D4).
+
+Audio is not held beyond that. The app MUST NOT add a speech service beyond the
+one relay route, MUST NOT stream audio anywhere else, and MUST NOT keep a library
+of recordings. The onboarding walkthrough uses the platform recogniser only.
 
 The platform recogniser MAY send audio to the device maker's service. Android's
 own documentation says `SpeechRecognizer` "is likely to stream audio to remote
@@ -246,26 +345,39 @@ empty on OPPO/realme/OnePlus `oemminimal` builds, and `EXTRA_PREFER_OFFLINE` is
 documented as possibly having "no effect". Requiring a hard on-device guarantee
 therefore meant no voice at all on a large share of Android devices.
 
-This MUST be stated in plain language on the mic-permission rationale screen —
-naming the platform as the recogniser rather than implying the audio stays put —
-and Play Data Safety MUST be declared truthfully for what this app collects,
-which is no audio. It MUST NOT be declared as "audio never leaves the device".
+This MUST be stated in plain language on the mic-permission rationale screen and
+the privacy page — naming both the relay and the speech service it forwards to,
+and the platform as the fallback recogniser, rather than implying the audio
+stays put. Play Data Safety MUST be declared truthfully for what this app sends,
+which includes short audio clips sent for transcription and not retained by us.
+It MUST NOT be declared as "audio never leaves the device" or as "no audio".
 
 Conversation text DOES go to the AI provider on the user's key and is not
-retained after the response. That distinction — this app takes text, the
-platform takes the audio — MUST be stated honestly rather than blurred. Mic
-permission is requested at first record with context, never at launch.
+retained after the response. Audio clips go to our relay and on to the speech
+service, and are not retained by the relay. That distinction MUST be stated
+honestly rather than blurred. Mic permission is requested at first record with
+context, never at launch.
 
 ### VIII. Offline Never Punishes the User
 
 Chat requires the network per turn; there is no offline tutor, and that is an
 accepted constraint. What MUST still hold:
 
-- Recording and transcription work offline; only the send fails.
+- Recording and transcription work offline (the platform recogniser takes over
+  when the phone is offline at mic tap); only the send fails.
 - A failed send is a retryable message bubble, never a lost turn or recording.
+- A failed cloud upload (no network, dropped or timed-out upload, or a
+  retryable `VOICE_BUSY` answer) keeps the recorded clip. The user sees a polite
+  message with **Try again** and **Discard**, and **Try again** re-uploads the
+  same clip; the user is never made to speak again when it can be avoided (D2).
+  Retries are manual only.
+- One case relaxes "never lose a recording": a clip the relay refuses for good —
+  `VOICE_UNAVAILABLE`, `VOICE_EXHAUSTED` or `BAD_REQUEST` — is deleted, and the
+  user says it again (on the platform recogniser after a limit is hit).
 - The streak is credited when the user ends the session, offline or not. The
   assessment queues and runs on reconnect.
-- No connectivity failure may ever break a streak or lose a recording.
+- No connectivity failure may ever break a streak or lose a recording; a
+  refused-for-good clip is not a connectivity failure.
 
 ### IX. Trusted Time, Never the Device Clock
 
@@ -416,4 +528,4 @@ Complexity MUST be justified against the D7 bar. Runtime development guidance
 lives in `docs/PLAN.md` (phases and DoDs) and `docs/design.md` (architecture);
 neither may contradict this document.
 
-**Version**: 3.0.0 | **Ratified**: 2026-08-13 | **Last Amended**: 2026-10-06
+**Version**: 4.0.0 | **Ratified**: 2026-08-13 | **Last Amended**: 2026-10-07
