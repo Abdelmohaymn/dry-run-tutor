@@ -1,8 +1,9 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import {
-  chargeVoiceSeconds,
   getVoiceSecondsUsed,
+  reserveVoiceSeconds,
+  settleVoiceSeconds,
   voiceSecondsLeft,
 } from "../../src/lib/voice-quota";
 
@@ -73,63 +74,46 @@ describe("voiceSecondsLeft()", () => {
   });
 });
 
-describe("chargeVoiceSeconds()", () => {
-  it("creates the device row on first charge and returns the charged seconds", async () => {
+describe("reserveVoiceSeconds()", () => {
+  it("creates the device row on the first hold", async () => {
     const id = freshDevice();
-    const total = await chargeVoiceSeconds(env.DB, id, TODAY, 30, CAP, CREATED_AT);
-    expect(total).toBe(30);
-    expect(await storedRow(id)).toEqual({ voice_date: TODAY, voice_seconds: 30 });
-    expect(await getVoiceSecondsUsed(env.DB, id, TODAY)).toBe(30);
+    expect(await reserveVoiceSeconds(env.DB, id, TODAY, 120, CAP, CREATED_AT)).toBe(true);
+    expect(await storedRow(id)).toEqual({ voice_date: TODAY, voice_seconds: 120 });
   });
 
-  it("accumulates across charges on the same day, RETURNING the new total each time", async () => {
-    const id = freshDevice();
-    expect(await chargeVoiceSeconds(env.DB, id, TODAY, 30, CAP, CREATED_AT)).toBe(30);
-    expect(await chargeVoiceSeconds(env.DB, id, TODAY, 45, CAP, CREATED_AT)).toBe(75);
-    expect(await chargeVoiceSeconds(env.DB, id, TODAY, 5, CAP, CREATED_AT)).toBe(80);
-    expect(await storedRow(id)).toEqual({ voice_date: TODAY, voice_seconds: 80 });
-  });
-
-  it("accumulates onto an existing row that has a voice count for today", async () => {
+  it("stacks holds while seconds are left, then refuses without changing the row", async () => {
     const id = freshDevice();
     await seedDevice(id, TODAY, 100);
-    expect(await chargeVoiceSeconds(env.DB, id, TODAY, 20, CAP, CREATED_AT)).toBe(120);
+    expect(await reserveVoiceSeconds(env.DB, id, TODAY, 120, CAP, CREATED_AT)).toBe(true);
+    expect(await reserveVoiceSeconds(env.DB, id, TODAY, 120, CAP, CREATED_AT)).toBe(true);
+    expect((await storedRow(id))?.voice_seconds).toBe(340);
+    expect(await reserveVoiceSeconds(env.DB, id, TODAY, 120, CAP, CREATED_AT)).toBe(false);
+    expect((await storedRow(id))?.voice_seconds).toBe(340);
   });
 
-  it("never exceeds the cap on an existing row", async () => {
+  it("refuses a device already at the cap", async () => {
     const id = freshDevice();
-    await seedDevice(id, TODAY, 290);
-    expect(await chargeVoiceSeconds(env.DB, id, TODAY, 60, CAP, CREATED_AT)).toBe(CAP);
-    expect((await storedRow(id))?.voice_seconds).toBe(CAP);
-    // Already at the cap: another charge stays at the cap.
-    expect(await chargeVoiceSeconds(env.DB, id, TODAY, 10, CAP, CREATED_AT)).toBe(CAP);
-    expect(voiceSecondsLeft(CAP, await getVoiceSecondsUsed(env.DB, id, TODAY))).toBe(0);
-  });
-
-  it("never exceeds the cap on the first charge for a new device", async () => {
-    const id = freshDevice();
-    expect(await chargeVoiceSeconds(env.DB, id, TODAY, 500, CAP, CREATED_AT)).toBe(CAP);
+    await seedDevice(id, TODAY, CAP);
+    expect(await reserveVoiceSeconds(env.DB, id, TODAY, 120, CAP, CREATED_AT)).toBe(false);
     expect((await storedRow(id))?.voice_seconds).toBe(CAP);
   });
 
-  it("rolls over on a new day: resets the old count and charges fresh", async () => {
-    const id = freshDevice();
-    await seedDevice(id, YESTERDAY, 280);
-    expect(await chargeVoiceSeconds(env.DB, id, TODAY, 15, CAP, CREATED_AT)).toBe(15);
-    expect(await storedRow(id)).toEqual({ voice_date: TODAY, voice_seconds: 15 });
-  });
+  it("rolls over a stale or NULL voice_date", async () => {
+    const stale = freshDevice();
+    await seedDevice(stale, YESTERDAY, 300);
+    expect(await reserveVoiceSeconds(env.DB, stale, TODAY, 120, CAP, CREATED_AT)).toBe(true);
+    expect(await storedRow(stale)).toEqual({ voice_date: TODAY, voice_seconds: 120 });
 
-  it("rolls over a NULL voice_date row", async () => {
-    const id = freshDevice();
-    await seedDevice(id, null, 0);
-    expect(await chargeVoiceSeconds(env.DB, id, TODAY, 12, CAP, CREATED_AT)).toBe(12);
-    expect(await storedRow(id)).toEqual({ voice_date: TODAY, voice_seconds: 12 });
+    const empty = freshDevice();
+    await seedDevice(empty, null, 0);
+    expect(await reserveVoiceSeconds(env.DB, empty, TODAY, 120, CAP, CREATED_AT)).toBe(true);
+    expect(await storedRow(empty)).toEqual({ voice_date: TODAY, voice_seconds: 120 });
   });
 
   it("does not overwrite created_at of an existing device", async () => {
     const id = freshDevice();
     await seedDevice(id, null, 0);
-    await chargeVoiceSeconds(env.DB, id, TODAY, 5, CAP, "2030-01-01T00:00:00.000Z");
+    await reserveVoiceSeconds(env.DB, id, TODAY, 5, CAP, "2030-01-01T00:00:00.000Z");
     const row = await env.DB.prepare("SELECT created_at FROM devices WHERE device_hash = ?1")
       .bind(id)
       .first<{ created_at: string }>();
@@ -139,7 +123,38 @@ describe("chargeVoiceSeconds()", () => {
   it("keeps devices independent", async () => {
     const a = freshDevice();
     const b = freshDevice();
-    await chargeVoiceSeconds(env.DB, a, TODAY, 100, CAP, CREATED_AT);
+    await reserveVoiceSeconds(env.DB, a, TODAY, 100, CAP, CREATED_AT);
     expect(await getVoiceSecondsUsed(env.DB, b, TODAY)).toBe(0);
+  });
+});
+
+describe("settleVoiceSeconds()", () => {
+  it("swaps the hold for the billed seconds", async () => {
+    const id = freshDevice();
+    await reserveVoiceSeconds(env.DB, id, TODAY, 120, CAP, CREATED_AT);
+    expect(await settleVoiceSeconds(env.DB, id, TODAY, 120, 30)).toBe(30);
+    expect(await storedRow(id)).toEqual({ voice_date: TODAY, voice_seconds: 30 });
+  });
+
+  it("refunds the hold when 0 is billed", async () => {
+    const id = freshDevice();
+    await seedDevice(id, TODAY, 40);
+    await reserveVoiceSeconds(env.DB, id, TODAY, 120, CAP, CREATED_AT);
+    expect(await settleVoiceSeconds(env.DB, id, TODAY, 120, 0)).toBe(40);
+  });
+
+  it("keeps another request's hold intact", async () => {
+    const id = freshDevice();
+    await reserveVoiceSeconds(env.DB, id, TODAY, 120, CAP, CREATED_AT);
+    await reserveVoiceSeconds(env.DB, id, TODAY, 120, CAP, CREATED_AT);
+    expect(await settleVoiceSeconds(env.DB, id, TODAY, 120, 30)).toBe(150);
+    expect(await settleVoiceSeconds(env.DB, id, TODAY, 120, 50)).toBe(80);
+  });
+
+  it("does nothing once the day has rolled over", async () => {
+    const id = freshDevice();
+    await seedDevice(id, YESTERDAY, 120);
+    expect(await settleVoiceSeconds(env.DB, id, TODAY, 120, 30)).toBe(0);
+    expect(await storedRow(id)).toEqual({ voice_date: YESTERDAY, voice_seconds: 120 });
   });
 });

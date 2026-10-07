@@ -26,8 +26,8 @@ read it.
 | 200 | `{ "text": string, "seconds_left": int >= 0, "max_clip_seconds": int }`, with `cache-control: private, no-store` |
 | `VOICE_UNAVAILABLE` | HTTP 503, `retryable: false`. Voice is off or absent, or Groq refused the key (429 rate limit, 401). Nothing is charged. The app falls back to on-device (D4) |
 | `VOICE_BUSY` | HTTP 503, `retryable: true`. Groq had a transient failure (5xx, timeout, malformed body). Nothing is charged. The app keeps the clip and offers Try again (D2) |
-| `VOICE_EXHAUSTED` | HTTP 429, `retryable: false`. `seconds_left <= 0` before the call. Groq is not called |
-| `BAD_REQUEST` | Missing or invalid install id, bad content type, bad size or language, Groq could not read the audio (400/413/415, not charged), or a clip longer than `max_clip_seconds + 5` (charged) |
+| `VOICE_EXHAUSTED` | HTTP 429, `retryable: false`. `seconds_left <= 0` before the call, counting holds for clips still at Groq. Groq is not called |
+| `BAD_REQUEST` | Missing or invalid install id, bad content type, bad size or language, or Groq could not read the audio (400/413/415, not charged) |
 
 Every error uses the existing envelope
 (`{ "error": { "code", "message", "retryable" } }`). The three `VOICE_*` codes are new
@@ -43,14 +43,20 @@ audio are never written to D1, logs, or error bodies.
 2. `used = voice-quota.getVoiceSecondsUsed(db, device_hash, utcDate())`.
 3. `left <= 0` -> `VOICE_EXHAUSTED` (no Groq call, before the body is read).
 4. Validate content type + language + size (<= `MAX_STT_BYTES`) -> `BAD_REQUEST`.
-5. `stt-groq.transcribeWithGroq(STT_KEY_GROQ, model, audio, verbose_json)` ->
+5. `voice-quota.reserveVoiceSeconds(..., max_clip_seconds, cap)`: one statement that
+   holds a full clip's seconds only if today's total (holds included) is below `cap`.
+   Refused -> `VOICE_EXHAUSTED` (no Groq call). Concurrent requests each take a hold, so
+   they cannot all pass on the same reading.
+6. `stt-groq.transcribeWithGroq(STT_KEY_GROQ, model, audio, verbose_json)` ->
    `POST https://api.groq.com/openai/v1/audio/transcriptions` (multipart):
-   - Groq 429 / 401 -> `VOICE_UNAVAILABLE` (nothing charged)
-   - Groq 400 / 413 / 415 -> `BAD_REQUEST` (nothing charged)
-   - Groq 5xx / timeout / malformed body -> `VOICE_BUSY`, retryable (nothing charged)
-6. `duration > max_clip_seconds + 5` -> charge, then `BAD_REQUEST`.
-7. `newUsed = chargeVoiceSeconds(..., ceil(duration), cap)` (atomic, `MIN(cap, ...)`).
-   Billable = `Math.ceil(duration)`; if Groq omits `duration`, charge `max_clip_seconds`.
+   - Groq 429 / 401 -> `VOICE_UNAVAILABLE` (hold refunded)
+   - Groq 400 / 413 / 415 -> `BAD_REQUEST` (hold refunded)
+   - Groq 5xx / timeout / malformed body -> `VOICE_BUSY`, retryable (hold refunded)
+7. `newUsed = settleVoiceSeconds(..., held, ceil(duration))` swaps the hold for the
+   measured length; if Groq omits `duration`, charge `max_clip_seconds`. Not clamped: the
+   last clip of the day may push the total past `cap`. A clip longer than
+   `max_clip_seconds` (should not happen; the recorder stops at the limit) is charged in
+   full and its text is still returned, since Groq has already been paid for it.
 8. `200 { text, seconds_left: cap - newUsed, max_clip_seconds }`.
 
 ---
@@ -64,7 +70,7 @@ audio are never written to D1, logs, or error bodies.
 | Groq 429 (Groq's own limit hit) or Groq 401 (key misconfigured) | `VOICE_UNAVAILABLE` 503, nothing charged | Deleted | "Sorry, we couldn't transcribe that one. Please tap the mic and say it again — your phone's speech recognition will take it from here." | On-device for 10 min |
 | Voice switched off in config | `VOICE_UNAVAILABLE` 503 | Deleted | Same as the row above | On-device for 10 min; the next launch reads the new config and stays on-device |
 | Device's 300 s already used (stale local count, e.g. reinstall) | `VOICE_EXHAUSTED` 429 | Deleted | Same as the row above | On-device until UTC midnight |
-| Clip longer than `max_clip_seconds + 5` (should not happen; the recorder stops at the limit), or Groq can't read the audio (Groq 400/413/415) | `BAD_REQUEST` 400 | Deleted | "Sorry, we couldn't transcribe that one. Please tap the mic and say it again." | Cloud if seconds remain |
+| Groq can't read the audio (Groq 400/413/415) | `BAD_REQUEST` 400 | Deleted | "Sorry, we couldn't transcribe that one. Please tap the mic and say it again." | Cloud if seconds remain |
 
 A retry that comes back with a non-retryable answer follows that answer's row (clip
 deleted, fallback). Retries are manual only: no automatic re-send, and the app's Dio has

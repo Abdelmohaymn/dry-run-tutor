@@ -2,7 +2,8 @@
 // The body is the raw audio clip. The Worker forwards it to Groq Whisper on
 // the operator key and charges the device's daily voice seconds from Groq's
 // own measured duration. Step order matters: nothing reaches Groq unless voice
-// is on, the device has seconds left, and the request is well formed.
+// is on, the device has seconds left, the request is well formed, and a full
+// clip's worth of seconds is held for it.
 //
 // Privacy: neither the audio nor the transcript is logged, stored or put in an
 // error. The transcript only travels back in the `text` field of the 200.
@@ -10,17 +11,18 @@ import { Hono } from "hono";
 import type { Env, Variables } from "../types";
 import { AppError } from "../lib/errors";
 import { getRuntimeConfig, voiceConfig } from "../lib/runtime-config";
-import { chargeVoiceSeconds, getVoiceSecondsUsed, voiceSecondsLeft } from "../lib/voice-quota";
+import {
+  getVoiceSecondsUsed,
+  reserveVoiceSeconds,
+  settleVoiceSeconds,
+  voiceSecondsLeft,
+} from "../lib/voice-quota";
 import { parseAudioType, transcribeWithGroq } from "../lib/stt-groq";
 import { nowIso, utcDate } from "../lib/time";
 
 export const sttRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 const MAX_STT_BYTES = 4 * 1024 * 1024;
-
-// Slack over `max_clip_seconds` for recorder stop latency before a clip is
-// treated as over-length.
-const CLIP_ALLOWANCE_SECONDS = 5;
 
 const LANGUAGE_PATTERN = /^[a-z]{2}$/;
 
@@ -58,23 +60,35 @@ sttRoute.post("/", async (c) => {
     throw new AppError("BAD_REQUEST");
   }
 
-  // 5. Transcribe. Groq failures throw VOICE_UNAVAILABLE / VOICE_BUSY /
-  // BAD_REQUEST and charge nothing.
-  const { text, durationSeconds } = await transcribeWithGroq({
-    apiKey: c.env.STT_KEY_GROQ,
-    model: voice.model,
-    audio,
-    contentType,
-    language,
-  });
-
-  // 6-7. Charge Groq's measured length (the full clip limit when Groq omitted
-  // it), then refuse a clip that overran the limit.
-  const billable = Math.ceil(durationSeconds ?? voice.max_clip_seconds);
-  const newUsed = await chargeVoiceSeconds(c.env.DB, deviceHash, today, billable, cap, nowIso());
-  if (durationSeconds !== null && durationSeconds > voice.max_clip_seconds + CLIP_ALLOWANCE_SECONDS) {
-    throw new AppError("BAD_REQUEST");
+  // 5. Hold a full clip's seconds. The hold is the real gate: step 3 only
+  // saves reading the body when the device is plainly out.
+  const reserved = voice.max_clip_seconds;
+  if (!(await reserveVoiceSeconds(c.env.DB, deviceHash, today, reserved, cap, nowIso()))) {
+    throw new AppError("VOICE_EXHAUSTED");
   }
+
+  // 6. Transcribe. Groq failures throw VOICE_UNAVAILABLE / VOICE_BUSY /
+  // BAD_REQUEST and the hold is refunded.
+  let result: Awaited<ReturnType<typeof transcribeWithGroq>>;
+  try {
+    result = await transcribeWithGroq({
+      apiKey: c.env.STT_KEY_GROQ,
+      model: voice.model,
+      audio,
+      contentType,
+      language,
+    });
+  } catch (err) {
+    await settleVoiceSeconds(c.env.DB, deviceHash, today, reserved, 0);
+    throw err;
+  }
+  const { text, durationSeconds } = result;
+
+  // 7. Swap the hold for Groq's measured length (the full clip limit when Groq
+  // omitted it). A clip that overran the limit is charged in full and its
+  // transcript is still returned: Groq has already been paid for it.
+  const billable = Math.ceil(durationSeconds ?? voice.max_clip_seconds);
+  const newUsed = await settleVoiceSeconds(c.env.DB, deviceHash, today, reserved, billable);
 
   // 8.
   return c.json(

@@ -147,7 +147,7 @@ describe("POST /v1/stt — transcription and the daily allowance", () => {
     expect((await voiceRow(installId))!.voice_seconds).toBe(300);
   });
 
-  it("(g) overrun: 250 used, a 70 s clip still returns text, seconds_left 0, D1 holds 300", async () => {
+  it("(g) overrun: 250 used, a 70 s clip still returns text, seconds_left 0, D1 holds 320", async () => {
     const installId = await mintInstallId();
     await setVoiceConfig();
     await setUsage(installId, todayUtc(), 250);
@@ -161,7 +161,7 @@ describe("POST /v1/stt — transcription and the daily allowance", () => {
       seconds_left: 0,
       max_clip_seconds: 120,
     });
-    expect((await voiceRow(installId))!.voice_seconds).toBe(300);
+    expect((await voiceRow(installId))!.voice_seconds).toBe(320);
   });
 
   it("(h) rollover: yesterday's 300 used seconds do not count today", async () => {
@@ -192,7 +192,7 @@ describe("POST /v1/stt — transcription and the daily allowance", () => {
     // 55 used of a cap of 60.
     expect(((await second.json()) as { seconds_left: number }).seconds_left).toBe(5);
 
-    // Used (55) + a further 10 s exceeds the lowered cap, so the total clamps at 60.
+    // Used (55) + a further 10 s passes the lowered cap: the clip is served and charged.
     groqOk("three", 10);
     const third = await postStt(installId, AUDIO);
     expect(((await third.json()) as { seconds_left: number }).seconds_left).toBe(0);
@@ -245,16 +245,32 @@ describe("POST /v1/stt — Groq failures charge nothing", () => {
     expect(await voiceRow(installId)).toEqual({ voice_date: todayUtc(), voice_seconds: 65 });
   });
 
-  it("(j) a clip over max_clip_seconds + 5 -> 400 BAD_REQUEST, and the seconds are charged", async () => {
+  it("(j) a clip over max_clip_seconds is charged in full and its text is still returned", async () => {
     const installId = await mintInstallId();
     await setVoiceConfig();
     groqOk("far too long", 130);
 
     const res = await postStt(installId, AUDIO);
 
-    expect(res.status).toBe(400);
-    expect((await errorOf(res)).code).toBe("BAD_REQUEST");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      text: "far too long",
+      seconds_left: 170,
+      max_clip_seconds: 120,
+    });
     expect(await voiceRow(installId)).toEqual({ voice_date: todayUtc(), voice_seconds: 130 });
+  });
+
+  it("(j2) a hold in flight counts against the next request", async () => {
+    const installId = await mintInstallId();
+    await setVoiceConfig();
+    // 190 used + one 120 s hold already taken by a request still at Groq.
+    await setUsage(installId, todayUtc(), 310);
+
+    const res = await postStt(installId, AUDIO);
+
+    expect(res.status).toBe(429);
+    expect((await errorOf(res)).code).toBe("VOICE_EXHAUSTED");
   });
 });
 

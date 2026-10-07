@@ -32,28 +32,57 @@ export function voiceSecondsLeft(cap: number, used: number): number {
 }
 
 /**
- * Adds `billable` seconds to today's total, creating the device row if needed
- * and resetting the count when the stored date is not today. The total is
- * clamped at `cap`. Returns the new `voice_seconds`.
+ * Holds `seconds` of today's allowance before the Groq call, creating the
+ * device row if needed and resetting the count when the stored date is not
+ * today. The check and the hold are one statement, so requests that arrive
+ * together cannot all pass on the same "seconds left" reading. Returns false,
+ * holding nothing, when the device has no seconds left.
+ *
+ * The total is not clamped here: a held amount may push it past `cap` until
+ * {@link settleVoiceSeconds} swaps it for the measured length.
  */
-export async function chargeVoiceSeconds(
+export async function reserveVoiceSeconds(
   db: D1Database,
   deviceHash: string,
   today: string,
-  billable: number,
+  seconds: number,
   cap: number,
   createdAt: string,
-): Promise<number> {
+): Promise<boolean> {
   const row = await db
     .prepare(
       `INSERT INTO devices (device_hash, created_at, voice_date, voice_seconds)
-       VALUES (?1, ?5, ?2, MIN(?4, ?3))
+       VALUES (?1, ?5, ?2, ?3)
        ON CONFLICT(device_hash) DO UPDATE SET
-         voice_seconds = MIN(?4, CASE WHEN devices.voice_date = ?2 THEN devices.voice_seconds ELSE 0 END + ?3),
+         voice_seconds = CASE WHEN devices.voice_date = ?2 THEN devices.voice_seconds ELSE 0 END + ?3,
          voice_date    = ?2
+       WHERE CASE WHEN devices.voice_date = ?2 THEN devices.voice_seconds ELSE 0 END < ?4
        RETURNING voice_seconds`,
     )
-    .bind(deviceHash, today, billable, cap, createdAt)
+    .bind(deviceHash, today, seconds, cap, createdAt)
+    .first<{ voice_seconds: number }>();
+  return row !== null;
+}
+
+/**
+ * Replaces a hold from {@link reserveVoiceSeconds} with the seconds actually
+ * billed (0 refunds it). Does nothing if the day has rolled over since the
+ * hold. Returns the new `voice_seconds`, never negative.
+ */
+export async function settleVoiceSeconds(
+  db: D1Database,
+  deviceHash: string,
+  today: string,
+  reserved: number,
+  billable: number,
+): Promise<number> {
+  const row = await db
+    .prepare(
+      `UPDATE devices SET voice_seconds = MAX(0, voice_seconds - ?3 + ?4)
+       WHERE device_hash = ?1 AND voice_date = ?2
+       RETURNING voice_seconds`,
+    )
+    .bind(deviceHash, today, reserved, billable)
     .first<{ voice_seconds: number }>();
   return row?.voice_seconds ?? 0;
 }
