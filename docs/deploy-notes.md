@@ -2,6 +2,20 @@
 
 Commits `7494005` and `c941e05`. Do these in order, from `worker/`.
 
+## Every deploy: from the main checkout only
+
+Deploy from this working copy (`dry-run-tutor/worker`), never from a fresh
+clone, a CI runner or a `git worktree`. Problems from `vp-0004` on are
+untracked (`.gitignore`), so they exist only here; `npm run build:content`
+compiles whatever is in `content/problems/`, and a deploy from anywhere else
+ships only the 4 tracked problems and drops the rest from prod.
+
+Before deploying, check the build line names more than 4 problems:
+
+```bash
+npm run build:content   # "built N problem(s)": N must be more than 4 once vp-0004 exists
+```
+
 ## 1. Apply migration 0010 to the prod D1
 
 ```bash

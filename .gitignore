@@ -54,3 +54,13 @@ __pycache__/
 
 # Local agent plans and progress notes (tasks/plans, tasks/STATE.md)
 /tasks/
+
+# Problems: only vp-0000..0003 are public. Newer ones stay on the deploy
+# machine (docs/deploy-notes.md).
+content/problems/*.json
+!content/problems/vp-000[0-3].json
+tools/ref-solutions/*.py
+!tools/ref-solutions/vp-000[0-3].py
+
+# Hackathon planning notes: local only.
+hackathon/
