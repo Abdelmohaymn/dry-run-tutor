@@ -68,6 +68,24 @@ describe("POST /v1/chat — provider errors surface as SSE error frames, never s
     expect(meta.turn_index).toBe(1);
   });
 
+  it("an empty reply (reasoning spent the whole max_tokens) is UNCLEAR_RETRY and the turn is refunded", async () => {
+    const installId = await mintInstallId();
+    fetchMock
+      .get(GROQ_ORIGIN)
+      .intercept({ path: GROQ_CHAT_PATH, method: "POST" })
+      .reply(200, groqStreamBody(""), { headers: { "content-type": "text/event-stream" } });
+    const frames = await readChatSSE(await sendTurn(installId, "hello"));
+    expect(frames.some((f) => f.event === "token")).toBe(false);
+    expect((frames.find((f) => f.event === "error")!.data as { error: { code: string } }).error.code).toBe("UNCLEAR_RETRY");
+
+    fetchMock
+      .get(GROQ_ORIGIN)
+      .intercept({ path: GROQ_CHAT_PATH, method: "POST" })
+      .reply(200, groqStreamBody("a real reply"), { headers: { "content-type": "text/event-stream" } });
+    const retryFrames = await readChatSSE(await sendTurn(installId, "hello again"));
+    expect((retryFrames.find((f) => f.event === "meta")!.data as { turn_index: number }).turn_index).toBe(1);
+  });
+
   it("a malformed/unparseable provider stream surfaces as UNCLEAR_RETRY", async () => {
     const installId = await mintInstallId();
     fetchMock

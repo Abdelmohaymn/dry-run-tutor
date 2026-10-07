@@ -99,6 +99,96 @@
           "text": "Yeah that's too slow. I used a hint and it mentioned remembering what I've seen -- so let me store each value and its index in a hash map as I go, and check for the complement before inserting. That's one pass, O(n) time and space."
         }
       ]
+    },
+    {
+      "problem_id": "vp-0001",
+      "id": "paraphrase_optimal",
+      "kind": "paraphrase_optimal",
+      "expected_verdicts": [
+        "pass",
+        "strong_pass"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "two loops is too slow for ten million"
+        },
+        {
+          "role": "tutor",
+          "text": "Right. For one number, what are you looking for?"
+        },
+        {
+          "role": "user",
+          "text": "the other number has to be target minus this one. so as I walk the list I keep everything I've seen in a dictionary from the value to where it was, and for each number I first check if target minus it is in there, and if yes I return the two places, otherwise I put the current one in. that's linear"
+        }
+      ]
+    },
+    {
+      "problem_id": "vp-0001",
+      "id": "egyptian_optimal",
+      "kind": "egyptian_optimal",
+      "expected_verdicts": [
+        "pass",
+        "strong_pass"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "اللوبين جوه بعض هيبقوا n تربيع، بطيء أوي مع عشرة مليون"
+        },
+        {
+          "role": "tutor",
+          "text": "صح. لكل رقم إنت بتدور على إيه؟"
+        },
+        {
+          "role": "user",
+          "text": "بدور على target ناقص الرقم. فهمشي على الليست مرة واحدة، وأخزن كل رقم شفته في dictionary، الـ key هو الرقم والـ value هو مكانه. لكل رقم أشوف الأول هل target ناقصه موجود، لو موجود أرجع المكانين، لو لأ أضيفه. كده O(n)"
+        }
+      ]
+    },
+    {
+      "problem_id": "vp-0001",
+      "id": "nonreference_binary_search",
+      "kind": "nonreference_binary_search",
+      "expected_verdicts": [
+        "pass"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "two loops is n squared, too slow"
+        },
+        {
+          "role": "tutor",
+          "text": "Right. So what would let you avoid the inner loop?"
+        },
+        {
+          "role": "user",
+          "text": "I'd make a list of value and original position pairs, sort it by value, then for each element binary search for target minus its value in the sorted list, skipping itself, and return the two original positions. That's n log n, fine for ten million in a second"
+        }
+      ]
+    },
+    {
+      "problem_id": "vp-0001",
+      "id": "acceptable_two_pointer_with_indices",
+      "kind": "acceptable_two_pointer_with_indices",
+      "expected_verdicts": [
+        "pass"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "I'd sort, but keep each value with its original index, so pairs of value and index"
+        },
+        {
+          "role": "tutor",
+          "text": "Okay, and then?"
+        },
+        {
+          "role": "user",
+          "text": "then one pointer at the start, one at the end. if the sum is too small move the left one right, too big move the right one left, when it matches I return the two original indices. n log n for the sort"
+        }
+      ]
     }
   ]
 }

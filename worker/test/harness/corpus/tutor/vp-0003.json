@@ -36,6 +36,34 @@
         "what do you mean by two pointers exactly?"
       ],
       "never_say_term": "two pointers"
+    },
+    {
+      "id": "S3_reask_after_answer",
+      "kind": "regression",
+      "history": [
+        {
+          "role": "user",
+          "text": "I go through the words in order and return the first one that's a palindrome, or empty string if none"
+        },
+        {
+          "role": "tutor",
+          "text": "Yes -- that's it. How do you check that a single word is a palindrome?"
+        },
+        {
+          "role": "user",
+          "text": "compare the first letter with the last, then the second with the second to last, moving inwards, and stop as soon as they differ"
+        },
+        {
+          "role": "tutor",
+          "text": "Good. And how would you compare the characters without building a reversed copy?"
+        },
+        {
+          "role": "user",
+          "text": "that's what I just said, I walk i from the start and j from the end toward each other, no copy at all"
+        }
+      ],
+      "must_not_match": "without (building|making) a reversed copy|how (would|do) you compare the characters",
+      "why": "asks again how to compare the characters / how to check a word / about stopping early; does not acknowledge the learner was right"
     }
   ]
 }

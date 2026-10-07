@@ -76,7 +76,10 @@
         ],
         "time": "O(n log n)",
         "space": "O(n)",
-        "verdict": "acceptable"
+        "verdict": "acceptable",
+        "requires": [
+          "index_storage"
+        ]
       },
       {
         "key": "brute_force",
@@ -115,9 +118,7 @@
           "complement",
           "hash map",
           "hashmap",
-          "lookup table",
-          "dictionary",
-          "map"
+          "lookup table"
         ]
       },
       {
@@ -146,10 +147,10 @@
           "What would you need to keep next to each value so you can say where it came from?"
         ],
         "never_say": [
-          "index",
-          "indices",
+          "store the index",
+          "index as the value",
           "position as the value",
-          "store the index"
+          "indices as values"
         ]
       },
       {
@@ -162,10 +163,9 @@
           "Does the order of your two operations - checking, and recording - matter when the value repeats?"
         ],
         "never_say": [
-          "duplicate",
-          "duplicates",
-          "repeated value",
-          "check before insert"
+          "check before insert",
+          "check before inserting",
+          "repeated value"
         ]
       }
     ],
@@ -186,7 +186,7 @@
       },
       {
         "key": "insert_before_check",
-        "text": "Inserting the current value into the map before checking for its complement",
+        "text": "Inserting the current value into the map before looking up its partner",
         "why_it_fails": "When the target is exactly twice the current value, the element matches itself and you return the same position twice",
         "counter_question": "What happens when the number you're standing on is exactly half the target?",
         "failing_case": "nums = [3, 5], target = 6 - insert the 3 first and it finds itself, returning position 0 twice"

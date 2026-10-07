@@ -5,7 +5,7 @@
 import { z } from "zod";
 import type { Problem } from "../../../tools/problem-types";
 import { AppError } from "./errors";
-import { mapVerdict, type JudgeOutput, type Verdict } from "./verdict-map";
+import { mapVerdict, requiredKeysFor, type JudgeOutput, type Verdict } from "./verdict-map";
 import { takeCompleteSentence } from "./leak-filter";
 import { JUDGE_FEEDBACK_FALLBACK } from "../prompts/judge";
 
@@ -49,6 +49,10 @@ export interface Assessment {
   feedback: string;
   editorial: string;
 }
+
+/** judge prompt: "Below 0.6 means you are genuinely unsure". */
+const UNSURE_CONFIDENCE = 0.6;
+const PASSING: ReadonlySet<Verdict> = new Set(["pass", "strong_pass"]);
 
 export interface JudgePostprocessResult {
   assessment: Assessment;
@@ -128,8 +132,17 @@ export function postprocessJudge(raw: unknown, problem: Problem): JudgePostproce
     verdict: out.verdict,
   };
 
-  // Step 3: verdict override. The mapped value always wins.
-  const mapped = mapVerdict(repaired, problem);
+  // Step 3: verdict override. The mapped value wins, with one exception:
+  // below the prompt's own "genuinely unsure" line, the map may not lift
+  // the verdict to a pass the model itself did not give. "um, numbers,
+  // digits, add, I guess loop?" was credited with the loop approach and
+  // one insight at confidence 0.5, model verdict borderline, and mapped to
+  // pass (review F3 follow-up, 2026-10-07).
+  const fullyMapped = mapVerdict(repaired, problem);
+  const mapped =
+    out.confidence < UNSURE_CONFIDENCE && PASSING.has(fullyMapped) && !PASSING.has(out.verdict)
+      ? out.verdict
+      : fullyMapped;
   const verdictOverridden = mapped !== out.verdict;
 
   // Step 4: hedge check. On a hit, the WHOLE feedback string is replaced.
@@ -173,7 +186,7 @@ export function postprocessJudge(raw: unknown, problem: Problem): JudgePostproce
 export function isSelfContradictory(assessment: Assessment, problem: Problem): boolean {
   const approach = problem.private.reference_approaches.find((a) => a.key === assessment.matched_approach);
   if (!approach) return false;
-  const required = problem.private.key_insights.filter((i) => i.required).map((i) => i.key);
+  const required = [...requiredKeysFor(problem, approach.key)];
   const allRequiredHit = required.length > 0 && required.every((k) => assessment.insights_hit.includes(k));
   const goodApproach = approach.verdict === "optimal" || approach.verdict === "acceptable";
   return (goodApproach && assessment.insights_hit.length === 0) || (!goodApproach && allRequiredHit);

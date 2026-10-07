@@ -9,6 +9,13 @@ export interface Approach {
   time: string;
   space: string;
   verdict: "optimal" | "acceptable" | "suboptimal" | "wrong";
+  /**
+   * The insight keys THIS approach needs for a pass. Absent means the
+   * problem's `required: true` insights. An acceptable approach must list
+   * only what it needs, or a perfect explanation of it is capped at
+   * borderline (review F3).
+   */
+  requires?: string[];
 }
 
 export interface Insight {

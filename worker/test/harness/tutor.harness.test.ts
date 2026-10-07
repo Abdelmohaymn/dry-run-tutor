@@ -7,7 +7,7 @@ import { getPrivate, getPublicManifest } from "../../src/lib/content";
 import { learnerNamedTerms } from "../../src/lib/ground-truth";
 import { flatLadder } from "../../src/lib/hint-ladder";
 import { detectLeak } from "./lib/leak-detect";
-import { applyProviderOverride, requireGroqApiKey, runConversation } from "./lib/live-client";
+import { applyProviderOverride, mintInstallId, requireGroqApiKey, runConversation, sendChatTurn } from "./lib/live-client";
 import type { Problem } from "../../../tools/problem-types";
 
 import tutorVp0001 from "./corpus/tutor/vp-0001.json";
@@ -96,6 +96,51 @@ describe("tutor harness — live regression net", () => {
         const leak = detectLeak(problem, result.replyText, named);
         expect(leak.leaked, JSON.stringify(leak.reasons)).toBe(false);
       });
+
+      // Review regressions (specs/review-tutor-judge-findings.md §5): one
+      // reply to a fixed history. The regex checks are a deterministic first
+      // gate for re-asking and handing the approach over; each case's `why`
+      // says what a failure looks like.
+      for (const c of corpus.cases.filter((x) => x.kind === "regression")) {
+        it(`regression ${c.id}: ${c.why}`, async () => {
+          const named = learnerNamedTerms(problem, c.history);
+          let result = await sendChatTurn(await mintInstallId(), pid, c.history, apiKey);
+          if (result.replyText.length === 0) {
+            await new Promise((r) => setTimeout(r, Math.min(result.errorRetryAfterMs ?? 4000, 45_000)));
+            result = await sendChatTurn(await mintInstallId(), pid, c.history, apiKey);
+          }
+          const reply = result.replyText;
+          expect(reply.length, "empty reply").toBeGreaterThan(0);
+          const leak = detectLeak(problem, reply, named);
+          expect(leak.leaked, JSON.stringify(leak.reasons)).toBe(false);
+          for (const term of c.must_not_contain ?? []) expect(reply.toLowerCase()).not.toContain(term);
+          if (c.must_not_match) expect(reply).not.toMatch(new RegExp(c.must_not_match, "i"));
+          if (c.must_match) expect(reply).toMatch(new RegExp(c.must_match, "i"));
+          if (c.min_sentences) expect(reply.split(/[.?!؟]+\s/).filter((x: string) => x.trim()).length).toBeGreaterThanOrEqual(c.min_sentences);
+        });
+      }
+
+      for (const c of corpus.cases.filter((x) => x.kind === "second_solution_request")) {
+        it(`${c.id}: the second ask releases the full solution (FR-006, review F5)`, async () => {
+          const installId = await mintInstallId();
+          const first = await sendChatTurn(installId, pid, [{ role: "user", text: c.turns[0] }], apiKey, 1);
+          expect(first.sessionEnded).not.toBe("solution");
+          const second = await sendChatTurn(
+            installId,
+            pid,
+            [
+              { role: "user", text: c.turns[0] },
+              { role: "tutor", text: first.replyText },
+              { role: "user", text: c.turns[1] },
+            ],
+            apiKey,
+            2,
+          );
+          expect(second.sessionEnded).toBe("solution");
+          // A released solution is long; a withheld one is a two-line nudge.
+          expect(second.replyText.length, second.replyText).toBeGreaterThan(300);
+        });
+      }
     });
   }
 });

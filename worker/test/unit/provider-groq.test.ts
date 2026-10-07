@@ -211,6 +211,29 @@ describe("provider-groq structuredCompletion happy path", () => {
 });
 
 describe("provider-groq streamChat", () => {
+  it("sends the tutor stream's sampling and token ceiling explicitly (review F6)", async () => {
+    let sent: any;
+    fetchMock
+      .get(ORIGIN)
+      .intercept({ path: PATH, method: "POST", body: (raw: string) => ((sent = JSON.parse(raw)), true) })
+      .reply(200, `data: ${JSON.stringify({ choices: [{ delta: { content: "ok" } }] })}\n\ndata: [DONE]\n\n`, {
+        headers: { "content-type": "text/event-stream" },
+      });
+    const result = await groqProvider.streamChat({
+      baseUrl: BASE_URL,
+      model: "test-model",
+      apiKey: "gsk_test_key",
+      systemPrompt: "system",
+      messages: [{ role: "user", text: "hi" }],
+    });
+    for await (const _ of result.deltas) {
+      // drain
+    }
+    expect(sent.temperature).toBe(0.6);
+    expect(sent.top_p).toBe(0.95);
+    expect(sent.max_tokens).toBe(2500);
+  });
+
   it("yields deltas and translates tutor -> assistant in the outbound body", async () => {
     fetchMock
       .get(ORIGIN)

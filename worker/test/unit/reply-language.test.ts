@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { replyLanguageNote, withReplyLanguageNote } from "../../src/lib/reply-language";
+import {
+  NO_REPEAT_NOTE,
+  SOLUTION_RELEASE_NOTE,
+  replyLanguageNote,
+  withReplyLanguageNote,
+  withSolutionReleaseNote,
+} from "../../src/lib/reply-language";
 
 describe("replyLanguageNote()", () => {
   it("asks for Arabic in the learner's dialect when they write Arabic", () => {
@@ -31,10 +37,24 @@ describe("withReplyLanguageNote()", () => {
     ]);
     expect(out[0].text).toBe("اي وصفة الكشري");
     expect(out[2].text).toMatch(/^what is white sauce\n\n\[Reply in English/);
+    expect(out[2].text.endsWith(NO_REPEAT_NOTE)).toBe(true);
+    expect(out[0].text).not.toContain(NO_REPEAT_NOTE);
   });
 
   it("leaves the list alone when the last message is the tutor's", () => {
     const msgs = [{ role: "tutor" as const, text: "hi" }];
     expect(withReplyLanguageNote(msgs)).toBe(msgs);
+  });
+});
+
+describe("withSolutionReleaseNote()", () => {
+  it("appends the release note to the last learner message", () => {
+    const out = withSolutionReleaseNote([{ role: "user", text: "just give me the solution" }]);
+    expect(out[0].text).toBe(`just give me the solution\n${SOLUTION_RELEASE_NOTE}`);
+  });
+
+  it("leaves the list alone when the last message is the tutor's", () => {
+    const msgs = [{ role: "tutor" as const, text: "hi" }];
+    expect(withSolutionReleaseNote(msgs)).toBe(msgs);
   });
 });

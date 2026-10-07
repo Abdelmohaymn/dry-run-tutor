@@ -1,7 +1,10 @@
-// Feature 005, specs/005-finish-offer. Decides whether the learner has
-// already explained every required key insight, so the app can offer to
-// finish. Runs alongside the tutor reply and never fails the turn: any
-// error, refusal or malformed answer is "not ready".
+// Feature 005, specs/005-finish-offer. Decides which key insights the
+// learner has already stated (prompt v2). The server derives two things
+// from the answer: whether every required insight is in (the finish
+// offer), and which insights' never_say words the leak filter may stop
+// blocking (review F4, replacing the word-overlap guess). Runs alongside
+// the tutor reply and never fails the turn: any error, refusal or
+// malformed answer is "nothing new reached".
 //
 // Input is the problem, the private key insights and the learner's own
 // turns. The tutor's turns are left out on purpose: a tutor that names an
@@ -23,21 +26,24 @@ export type FinishCheckCall = (
  */
 export const FINISH_CHECK_MAX_TOKENS = 1500;
 
-export const FINISH_CHECK_SCHEMA = {
-  name: "finish_check",
-  schema: {
-    type: "object",
-    properties: { ready: { type: "boolean" } },
-    required: ["ready"],
-    additionalProperties: false,
-  },
-};
+/** Strict schema: `reached` may only name this problem's insight keys. */
+export function finishCheckSchema(problem: Problem): { name: string; schema: Record<string, unknown> } {
+  return {
+    name: "finish_check",
+    schema: {
+      type: "object",
+      properties: {
+        reached: { type: "array", items: { type: "string", enum: problem.private.key_insights.map((i) => i.key) } },
+      },
+      required: ["reached"],
+      additionalProperties: false,
+    },
+  };
+}
 
-/** The user message: problem, insights, then the learner's words only. */
+/** The user message: problem, insights by key, then the learner's words only. */
 export function buildFinishCheckInput(problem: Problem, history: Turn[]): string {
-  const insights = problem.private.key_insights
-    .map((i) => `- [${i.required ? "required" : "optional"}] ${i.text}`)
-    .join("\n");
+  const insights = problem.private.key_insights.map((i) => `- ${i.key}: ${i.text}`).join("\n");
   const learner = history
     .filter((t) => t.role === "user")
     .map((t, n) => `${n + 1}. ${t.text}`)
@@ -54,29 +60,42 @@ export function buildFinishCheckInput(problem: Problem, history: Turn[]): string
   ].join("\n");
 }
 
+export interface FinishCheckResult {
+  /** Every `required: true` insight is in `reached`. */
+  ready: boolean;
+  /** Authored insight keys the learner has stated, per this check. */
+  reached: string[];
+}
+
+/** `null` when the check failed or answered nothing usable. */
 export async function runFinishCheck(
   problem: Problem,
   history: Turn[],
   call: FinishCheckCall,
-): Promise<boolean> {
+): Promise<FinishCheckResult | null> {
   try {
-    const { result } = await call(
-      FINISH_CHECK_PROMPT,
-      buildFinishCheckInput(problem, history),
-      FINISH_CHECK_SCHEMA,
-    );
-    const json = result.json as { ready?: unknown } | undefined;
-    return json?.ready === true;
+    const { result } = await call(FINISH_CHECK_PROMPT, buildFinishCheckInput(problem, history), finishCheckSchema(problem));
+    const json = result.json as { reached?: unknown } | undefined;
+    if (!Array.isArray(json?.reached)) return null;
+    const authored = new Set(problem.private.key_insights.map((i) => i.key));
+    const reached = [...new Set(json.reached.filter((k): k is string => typeof k === "string" && authored.has(k)))];
+    return { ready: isReady(problem, reached), reached };
   } catch {
-    return false;
+    return null;
   }
 }
 
-/** Resolves to `false` if [check] has not settled within [ms]. */
-export function withinMs(check: Promise<boolean>, ms: number): Promise<boolean> {
+/** Ready = every required insight reached. A problem with none is never ready. */
+export function isReady(problem: Problem, reached: readonly string[]): boolean {
+  const required = problem.private.key_insights.filter((i) => i.required).map((i) => i.key);
+  return required.length > 0 && required.every((k) => reached.includes(k));
+}
+
+/** Resolves to `null` if [check] has not settled within [ms]. */
+export function withinMs<T>(check: Promise<T | null>, ms: number): Promise<T | null> {
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<boolean>((resolve) => {
-    timer = setTimeout(() => resolve(false), ms);
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), ms);
   });
   return Promise.race([check, timeout]).finally(() => clearTimeout(timer));
 }

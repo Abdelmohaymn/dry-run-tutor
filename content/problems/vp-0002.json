@@ -64,7 +64,10 @@
         ],
         "time": "O(log num) rounds, shrinking fast each round",
         "space": "O(1)",
-        "verdict": "acceptable"
+        "verdict": "acceptable",
+        "requires": [
+          "process_shrinks_fast"
+        ]
       },
       {
         "key": "string_conversion_sum",
@@ -93,7 +96,7 @@
     "key_insights": [
       {
         "key": "digital_root_congruence",
-        "text": "A number and the sum of its digits always leave the same remainder when divided by 9, because every power of ten is exactly one more than a multiple of nine. Repeating the digit-sum process just keeps landing on that same remainder class until it reaches its single-digit representative.",
+        "text": "A number and its digit sum leave the same remainder when divided by nine, because ten is one more than nine.",
         "required": true,
         "hints": [
           "Every time you sum the digits, does the result relate to the original number in some fixed, reusable way?",
@@ -110,7 +113,7 @@
       },
       {
         "key": "nine_maps_to_nine",
-        "text": "A positive multiple of nine has to reduce to 9, not 0 -- plain remainder-by-nine collapses those two different single-digit answers into one, so the formula needs a small adjustment for that case.",
+        "text": "Multiples of nine must give 9, not 0, so the plain remainder by nine needs a fix for them.",
         "required": true,
         "hints": [
           "Test your idea by hand on a number that is exactly a multiple of nine. Does your formula give the digit you expect?",
@@ -118,7 +121,6 @@
           "Plain remainder-by-nine gives zero for every multiple of nine. Is zero ever the right single-digit answer for a positive input?"
         ],
         "never_say": [
-          "off by one",
           "num minus one",
           "special case for nine",
           "multiple of nine maps to nine"
@@ -126,7 +128,7 @@
       },
       {
         "key": "process_shrinks_fast",
-        "text": "Summing the digits of a multi-digit number always produces something strictly smaller, so the repeated process is guaranteed to reach a single digit quickly rather than looping unpredictably.",
+        "text": "Each digit sum is much smaller than the number, so the loop reaches one digit after just a few rounds.",
         "required": false,
         "hints": [
           "If you keep summing digits over and over, is there any risk the number could grow, or stay the same size forever?",
@@ -142,7 +144,7 @@
       },
       {
         "key": "zero_is_its_own_answer",
-        "text": "Zero has no digits to add up in any meaningful sense, so it's a base case that returns itself rather than something the general loop or formula naturally falls out of.",
+        "text": "Zero is already a single digit, so the answer for zero is zero itself.",
         "required": false,
         "hints": [
           "What does your approach do differently, if anything, for the smallest possible input?",
@@ -150,9 +152,7 @@
           "Zero is already a single digit before any summing happens at all -- does your code path recognize that up front?"
         ],
         "never_say": [
-          "base case",
           "zero returns itself",
-          "handled separately",
           "short-circuit for zero"
         ]
       }
@@ -167,7 +167,7 @@
       },
       {
         "key": "plain_mod_nine",
-        "text": "Using the formula num mod 9 directly, without adjusting for multiples of nine",
+        "text": "Using the remainder after dividing by nine directly, without adjusting for multiples of nine",
         "why_it_fails": "A positive multiple of nine's digital root is 9, not 0, so plain remainder-by-nine gives the wrong single-digit answer for exactly that family of inputs",
         "counter_question": "What does your formula give back for an input of 9, or 18? Is that the single-digit answer you'd expect?",
         "failing_case": "num = 18 -> 18 mod 9 = 0, but summing the digits of 18 gives 9, which is already a single digit, so the correct answer is 9, not 0"

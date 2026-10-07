@@ -30,12 +30,26 @@ function approachVerdictOf(problem: Problem, approachKey: string): string | unde
  * either confirm this reading or add a dedicated `edge_cases_hit` field.
  */
 function raisedAnEdgeCase(out: JudgeOutput, problem: Problem): boolean {
-  const requiredKeys = new Set(problem.private.key_insights.filter((i) => i.required).map((i) => i.key));
+  const requiredKeys = requiredKeysFor(problem, out.matched_approach);
   return out.insights_hit.some((k) => !requiredKeys.has(k));
 }
 
+/**
+ * The insights a pass needs ON THE APPROACH THE LEARNER TOOK: the
+ * approach's own `requires` when authored, else the problem's
+ * `required: true` set. `required` describes the optimal approach, so
+ * without `requires` a perfect explanation of an acceptable approach was
+ * capped at borderline on every model (review F3, 2026-10-07).
+ */
+export function requiredKeysFor(problem: Problem, approachKey: string): Set<string> {
+  const approach = problem.private.reference_approaches.find((a) => a.key === approachKey);
+  return new Set(
+    approach?.requires ?? problem.private.key_insights.filter((i) => i.required).map((i) => i.key),
+  );
+}
+
 export function mapVerdict(out: JudgeOutput, problem: Problem): Verdict {
-  const requiredKeys = new Set(problem.private.key_insights.filter((i) => i.required).map((i) => i.key));
+  const requiredKeys = requiredKeysFor(problem, out.matched_approach);
   const hitSet = new Set(out.insights_hit);
   const allRequiredHit = [...requiredKeys].every((k) => hitSet.has(k));
   // §B4: a wrong_turns_taken entry "breaks correctness" when it names a key
@@ -43,6 +57,12 @@ export function mapVerdict(out: JudgeOutput, problem: Problem): Verdict {
   // exactly the pseudocode's approachVerdictOf(problem, wt) == "wrong".
   const brokeCorrectness = out.wrong_turns_taken.some((wt) => approachVerdictOf(problem, wt) === "wrong");
 
+  // No insight stated at all: the matched approach is the model's only
+  // evidence, so its own "unclear" or "incorrect" stands. Without these two
+  // rows a garbled turn that brushed an approach name mapped to likely_tle,
+  // and a wrong idea no reference covers mapped to unclear (review F8).
+  if (out.insights_hit.length === 0 && out.verdict === "unclear") return "unclear";
+  if (out.matched_approach === "none" && out.insights_hit.length === 0 && out.verdict === "incorrect") return "incorrect";
   if (out.matched_approach === "none" && out.insights_hit.length === 0) return "unclear";
   if (out.matched_verdict === "wrong" || brokeCorrectness) return "incorrect";
   if (out.matched_verdict === "suboptimal") return "likely_tle";

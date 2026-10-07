@@ -94,7 +94,8 @@
         "properties": {
           "model": { "type": "string" },
           "condense_model": { "type": "string" },
-          "repair_model": { "type": "string" }
+          "repair_model": { "type": "string" },
+          "structured_extra_body": { "type": "object", "description": "Extra request-body fields sent on this provider's STRUCTURED calls only (judge, finish check), never on the tutor stream. Nemotron needs {\"chat_template_kwargs\": {\"enable_thinking\": false}}: with thinking on, 19% of assessments came back hollow and the judge took 3.4x as long (specs/review-tutor-judge-findings.md F2). Keep thinking ON for the tutor stream." }
         }
       },
       "default": {}
@@ -170,7 +171,8 @@
               "model": { "type": "string" },
               "daily_token_budget": { "type": "integer", "minimum": 0, "description": "Input+output tokens this member may spend per UTC day on the trial path. Set BELOW the provider's published daily allowance, never equal to it — the last call before the ceiling must be one we declined, not one they refused." },
               "structured_output": { "type": "boolean", "description": "True only if this member genuinely supports strict json_schema decoding. THE JUDGE LEG IS ELIGIBLE ONLY ON TRUE (O3). Do not set true on a claim of 'JSON mode'; that is not the same guarantee, and FR-014's structural impossibility rests on this being strict." },
-                    "cooldown_ms": { "type": "integer", "minimum": 1000, "default": 60000, "description": "How long a member is skipped after it returns a rate limit. A 429 on the trial path routes to the next member; it never reaches the caller (FR-031c)." }
+                    "cooldown_ms": { "type": "integer", "minimum": 1000, "default": 60000, "description": "How long a member is skipped after it returns a rate limit. A 429 on the trial path routes to the next member; it never reaches the caller (FR-031c)." },
+              "structured_extra_body": { "type": "object", "description": "Extra request-body fields sent on this member's STRUCTURED calls only (judge, finish check), never on the tutor stream. Nemotron needs {\"chat_template_kwargs\": {\"enable_thinking\": false}}: with thinking on, 19% of assessments came back hollow and the judge took 3.4x as long (specs/review-tutor-judge-findings.md F2). Keep thinking ON for the tutor stream." }
             }
           },
           "default": [

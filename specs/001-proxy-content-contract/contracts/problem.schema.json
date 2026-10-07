@@ -241,6 +241,11 @@
             "suboptimal",
             "wrong"
           ]
+        },
+        "requires": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+          "description": "Insight keys this approach needs for a pass. Absent means the problem's required:true insights. An acceptable approach must list only the insights it actually needs: required:true describes the optimal approach, and without this a perfect explanation of an acceptable approach can never map above borderline (verdict-map.ts; review F3)."
         }
       }
     },

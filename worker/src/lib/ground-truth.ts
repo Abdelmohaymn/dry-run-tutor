@@ -1,11 +1,13 @@
 // data-model.md §B3. The chat ground-truth slice. Zero hint ladders and
-// zero insight `text` are ever in this slice — unreached insight KEYS only,
-// so the tutor knows what is left without holding the words that resolve
-// it (FR-002, FR-003, FR-003d, FR-010).
+// zero insight `text` are ever in this slice (FR-002, FR-003, FR-003d,
+// FR-010), and since tutor prompt v7 no insight keys either: which
+// insights the learner has stated comes from the progress check
+// (finish-check.ts), and only the leak filter uses it.
 import type { Approach, Problem, WrongTurn } from "../../../tools/problem-types";
 import type { RuntimeConfig } from "./runtime-config";
 import type { Turn } from "./schemas";
 import { isMisspelling, normalise, tightMatch, wholeWordMatch } from "./text-match";
+import { requiredKeysFor } from "./verdict-map";
 
 function learnerTurns(messages: Turn[]): Turn[] {
   return messages.filter((m) => m.role === "user");
@@ -35,10 +37,9 @@ function recentLearnerText(messages: Turn[], n: number): string {
 // is data-model.md §B3's score() pseudocode taken literally; the
 // pseudocode itself doesn't filter stopwords, and following it literally
 // is what let this leak through — a live-model harness run against real
-// content is what caught it, not the synthetic unit tests. §B3's
-// reachedInsightKeys() feeds directly into leak-filter.ts's blocked-term
-// exclusion, so a false "reached" isn't just a mis-narrowed prompt, it is
-// a leak-filter bypass (Constitution III).
+// content is what caught it, not the synthetic unit tests. score() now
+// only narrows Tier B and spots repeated wrong turns; "reached" comes
+// from the progress check (review F4).
 const STOPWORDS = new Set([
   "a", "an", "the", "and", "or", "but", "if", "then", "so", "of", "to", "in",
   "on", "at", "by", "for", "with", "as", "is", "are", "was", "were", "be",
@@ -69,25 +70,7 @@ function approachText(approach: Approach): string {
 }
 
 /**
- * THE definition of "already hit". Two callers must not disagree: this
- * slice's unreached-key list, and §B1's `insightsAlreadyHit` — that is why
- * it is one function.
- */
-export function reachedInsightKeys(problem: Problem, messages: Turn[], cfg: RuntimeConfig): Set<string> {
-  const learnerText = allLearnerText(messages);
-  const reached = new Set<string>();
-  for (const insight of problem.private.key_insights) {
-    const subjectText = `${insight.key} ${insight.text}`;
-    if (score(subjectText, learnerText) >= cfg.trim.narrow_margin) {
-      reached.add(insight.key);
-    }
-  }
-  return reached;
-}
-
-/**
- * FR-004a. A SEPARATE predicate from reachedInsightKeys(): naming a term is
- * not having the idea. Unblocks WORDS the learner has themselves used,
+ * FR-004a. Naming a term is not having the idea. Unblocks WORDS the learner has themselves used,
  * never marks an insight reached.
  */
 export function learnerNamedTerms(problem: Problem, messages: Turn[]): Set<string> {
@@ -138,8 +121,6 @@ export interface GroundTruthSlice {
   statement: string;
   constraints: string[];
   approaches: { key: string; name: string; verdict: Approach["verdict"] }[];
-  /** UNREACHED keys only. No text, no hints. */
-  insightKeys: string[];
   wrongTurns: { key: string; text: string; counter_question: string }[];
   /** Tier B. Sketch of each narrowed family — never sent for a family the learner has not narrowed to. */
   sketches: { key: string; name: string; sketch: string[] }[];
@@ -160,11 +141,6 @@ export function selectSlice(
   cfg: RuntimeConfig,
   tier: "A" | "AB" = "AB",
 ): GroundTruthSlice {
-  const reached = reachedInsightKeys(problem, messages, cfg);
-  const insightKeys = problem.private.key_insights
-    .map((i) => i.key)
-    .filter((key) => !reached.has(key));
-
   const approaches = problem.private.reference_approaches.map((a) => ({
     key: a.key,
     name: a.name,
@@ -182,7 +158,6 @@ export function selectSlice(
       statement: problem.public.statement,
       constraints: problem.public.constraints,
       approaches,
-      insightKeys,
       wrongTurns,
       sketches: [],
       failingCases: [],
@@ -209,7 +184,6 @@ export function selectSlice(
     statement: problem.public.statement,
     constraints: problem.public.constraints,
     approaches,
-    insightKeys,
     wrongTurns,
     sketches,
     failingCases,
@@ -227,7 +201,16 @@ export function selectSlice(
 export interface JudgeSlice {
   statement: string;
   constraints: string[];
-  approaches: { key: string; name: string; sketch: string[]; time: string; space: string; verdict: Approach["verdict"] }[];
+  approaches: {
+    key: string;
+    name: string;
+    sketch: string[];
+    time: string;
+    space: string;
+    verdict: Approach["verdict"];
+    /** The insight keys this approach needs for a pass (verdict-map.ts requiredKeysFor). */
+    needs: string[];
+  }[];
   insights: { key: string; text: string; required: boolean }[];
   wrongTurns: { key: string; text: string; why_it_fails: string; counter_question: string }[];
   edgeCases: string[];
@@ -244,6 +227,7 @@ export function judgeSlice(problem: Problem): JudgeSlice {
       time: a.time,
       space: a.space,
       verdict: a.verdict,
+      needs: [...requiredKeysFor(problem, a.key)],
     })),
     insights: problem.private.key_insights.map((i) => ({
       key: i.key,
@@ -268,7 +252,8 @@ export function renderJudgeGroundTruth(slice: JudgeSlice): string {
   lines.push("");
   lines.push("Reference approaches:");
   for (const a of slice.approaches) {
-    lines.push(`- ${a.key} — ${a.name} (${a.verdict}, time ${a.time}, space ${a.space}):`);
+    const needs = a.needs.length > 0 ? `needs insights: ${a.needs.join(", ")}` : "needs no key insight";
+    lines.push(`- ${a.key} — ${a.name} (${a.verdict}, time ${a.time}, space ${a.space}; ${needs}):`);
     for (const step of a.sketch) lines.push(`  - ${step}`);
   }
   lines.push("");
@@ -300,12 +285,11 @@ export function renderGroundTruth(slice: GroundTruthSlice): string {
   lines.push("");
   lines.push("Reference approaches (name and verdict only — no detail unless narrowed below):");
   for (const a of slice.approaches) lines.push(`- ${a.name} (${a.verdict})`);
-  lines.push("");
-  lines.push(
-    slice.insightKeys.length > 0
-      ? `Insights the learner has not yet reached (by key only — do not say these words): ${slice.insightKeys.join(", ")}`
-      : "The learner has reached every key insight.",
-  );
+  // No insight list. Told which authored insights were still open and to
+  // steer by them, the tutor pulled learners on a valid unlisted approach
+  // toward the reference one, describing it in plain words the leak filter
+  // cannot catch (review F1, 2026-10-07). The tutor reads the conversation
+  // itself.
   lines.push("");
   lines.push("Known wrong turns:");
   for (const w of slice.wrongTurns) {

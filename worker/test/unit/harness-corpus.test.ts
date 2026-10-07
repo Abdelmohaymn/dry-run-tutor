@@ -29,13 +29,16 @@ const REQUIRED_TUTOR_KINDS = [
   "concept_question",
 ];
 const REQUIRED_JUDGE_KINDS = ["optimal", "suboptimal", "wrong", "garbled", "explored_then_landed"];
+// Added by the 2026-10-07 review (specs/review-tutor-judge-findings.md §5):
+// fixed-history regressions and the two-ask release.
+const OPTIONAL_TUTOR_KINDS = ["regression", "second_solution_request"];
 
 // T090 originally required a corpus for every problem in content/problems/.
 // Only the seed problems (vp-0000 to vp-0003) have one; problems added
 // later ship without, so this checks the corpora that exist rather than
 // failing for every problem that has none. A corpus that does exist must
 // still be complete: five tutor conversations and five tagged judge
-// conversations.
+// conversations, plus any extra regression cases.
 describe("harness corpus is well-formed for every problem that has one", () => {
   const problemIds = getPublicManifest().problems.map((p) => p.id);
 
@@ -46,10 +49,14 @@ describe("harness corpus is well-formed for every problem that has one", () => {
       for (const required of REQUIRED_TUTOR_KINDS) {
         expect(kinds, `missing tutor case kind "${required}" for ${pid}`).toContain(required);
       }
-      expect(corpus.cases.length).toBe(REQUIRED_TUTOR_KINDS.length);
       for (const c of corpus.cases) {
-        expect(Array.isArray(c.turns)).toBe(true);
-        expect(c.turns.length).toBeGreaterThan(0);
+        expect([...REQUIRED_TUTOR_KINDS, ...OPTIONAL_TUTOR_KINDS]).toContain(c.kind);
+        if (c.kind === "regression") {
+          expect(c.history.at(-1).role, `${c.id} must end on the learner`).toBe("user");
+        } else {
+          expect(Array.isArray(c.turns)).toBe(true);
+          expect(c.turns.length).toBeGreaterThan(0);
+        }
       }
     });
   }
@@ -65,7 +72,7 @@ describe("harness corpus is well-formed for every problem that has one", () => {
       for (const required of REQUIRED_JUDGE_KINDS) {
         expect(kinds, `missing judge case kind "${required}" for ${pid}`).toContain(required);
       }
-      expect(corpus.cases.length).toBe(REQUIRED_JUDGE_KINDS.length);
+      expect(new Set(corpus.cases.map((c) => c.id ?? c.kind)).size, "duplicate judge case id").toBe(corpus.cases.length);
       for (const c of corpus.cases) {
         expect(Array.isArray(c.expected_verdicts)).toBe(true);
         expect(c.expected_verdicts.length).toBeGreaterThan(0);

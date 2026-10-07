@@ -19,6 +19,7 @@ const approachShape = z
     time: z.string(),
     space: z.string(),
     verdict: z.string(),
+    requires: z.array(z.string()).optional(),
   })
   .strict();
 

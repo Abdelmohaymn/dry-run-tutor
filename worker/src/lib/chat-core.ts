@@ -12,21 +12,22 @@ import type { RuntimeConfig } from "./runtime-config";
 import {
   assertNotJudged,
   readCounters,
+  recordReachedKeys,
   refundTurn,
   releaseSolution,
   reserveTurn,
   revealNextHint,
   type TurnCounterKey,
 } from "./turn-cap";
-import { learnerNamedTerms, reachedInsightKeys, renderGroundTruth, selectSlice } from "./ground-truth";
-import { runFinishCheck, withinMs, type FinishCheckCall } from "./finish-check";
+import { learnerNamedTerms, renderGroundTruth, selectSlice } from "./ground-truth";
+import { isReady, runFinishCheck, withinMs, type FinishCheckCall } from "./finish-check";
 import { condense, type CondenseCallOptions } from "./condense";
 import { blockedTermsIn, buildBlockedTerms, cleanLead } from "./leak-filter";
 import { LADDER_EXHAUSTED, flatLadder, nextHint } from "./hint-ladder";
 import { LADDER_EXHAUSTED_LINE, LEAK_BLOCKED_FALLBACK, TUTOR_PROMPT, WRAP_UP_SENTENCE, rewriteNote } from "../prompts/tutor";
 import { writeDone, writeError, writeMeta, writeToken, type MetaFramePayload } from "./sse";
 import type { Provider, ProviderMessage, StreamChatResult } from "./provider";
-import { withReplyLanguageNote } from "./reply-language";
+import { withReplyLanguageNote, withSolutionReleaseNote } from "./reply-language";
 import type { Problem } from "../../../tools/problem-types";
 
 export interface ChatTurnDeps {
@@ -198,7 +199,7 @@ export async function runConversationalTurn(
         .replace("{{WRAP_UP}}", wrapUp)
         .replace("{{GROUND_TRUTH}}", groundTruthText);
 
-      const providerMessages: ProviderMessage[] = withReplyLanguageNote(
+      const withNotes = withReplyLanguageNote(
         condensed.summary
           ? [
               {
@@ -209,18 +210,20 @@ export async function runConversationalTurn(
             ]
           : condensed.verbatim,
       );
+      const providerMessages: ProviderMessage[] = released ? withSolutionReleaseNote(withNotes) : withNotes;
 
       if (deps.onBeforeProviderCall) {
         await deps.onBeforeProviderCall();
       }
 
       // Started before the tutor call so the two run side by side; awaited
-      // only after the reply has gone out (feature 005).
+      // only after the reply has gone out (feature 005). It also runs after
+      // "Keep going": its reached keys feed the leak filter (below), and
+      // only the offer itself is withheld.
       const finishOffer = deps.cfg.finish_offer;
       const finishCheck =
         deps.finishCheck &&
         finishOffer.enabled &&
-        !body.finish_offer_dismissed &&
         sessionEnded === null &&
         reserved.turnIndex >= finishOffer.min_turn
           ? withinMs(
@@ -229,7 +232,13 @@ export async function runConversationalTurn(
             )
           : null;
 
-      const reachedKeys = reachedInsightKeys(problem, learnerHistory, deps.cfg);
+      // The insights the progress check found stated on EARLIER turns (this
+      // turn's check is still running). It replaced the word-overlap guess,
+      // which caught 62% of paraphrases and none in Arabic, and marked a
+      // different insight 42% of the time, unblocking words the learner
+      // never said (review F4, 2026-10-07). A word the learner used
+      // themselves is still unblocked at once (learnerNamedTerms).
+      const reachedKeys = new Set(reserved.reachedKeys);
       const named = learnerNamedTerms(problem, learnerHistory);
       const blockedTerms = buildBlockedTerms(problem, reachedKeys, named, released ? "solution" : null);
 
@@ -265,9 +274,19 @@ export async function runConversationalTurn(
         fallbackSent = rewrite === null && lead.trim() === "";
       }
 
-      if (reply !== "") {
-        tokenEmitted = true;
-        await writeToken(stream, reply);
+      // A reasoning model that spent its whole max_tokens thinking answers
+      // nothing. That is a turn the provider never answered, so it is
+      // refunded below rather than spent on silence.
+      if (reply.trim() === "") {
+        throw new AppError("UNCLEAR_RETRY");
+      }
+      tokenEmitted = true;
+      await writeToken(stream, reply);
+
+      const checked = finishCheck ? await finishCheck : null;
+      const reachedNow = [...new Set([...reserved.reachedKeys, ...(checked?.reached ?? [])])];
+      if (checked) {
+        await recordReachedKeys(deps.db, key, reserved.reachedKeys, checked.reached);
       }
 
       const meta: MetaFramePayload = {
@@ -279,7 +298,7 @@ export async function runConversationalTurn(
         summary_covers: condensed.called ? condensed.covered : undefined,
         session_ended: sessionEnded,
         leak_blocked: fallbackSent,
-        ready_to_finish: finishCheck ? await finishCheck : undefined,
+        ready_to_finish: finishCheck && !body.finish_offer_dismissed ? isReady(problem, reachedNow) : undefined,
       };
       await writeMeta(stream, meta);
       await writeDone(stream);

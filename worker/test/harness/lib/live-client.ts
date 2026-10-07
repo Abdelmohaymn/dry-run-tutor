@@ -21,7 +21,9 @@ export function requireGroqApiKey(): string {
  * seed row — set both HARNESS_PROVIDER and HARNESS_MODEL to opt in. Left
  * unset, the seeded default (groq) runs as normal. Useful for verifying
  * the harness against a different learner key when the usual one is
- * rate-limited, without ever committing a provider swap.
+ * rate-limited, without ever committing a provider swap. Set
+ * HARNESS_STRUCTURED_EXTRA_BODY (JSON) too when the provider needs extra
+ * fields on structured calls, as Nemotron does.
  */
 export async function applyProviderOverride(db: D1Database): Promise<void> {
   const provider = env.HARNESS_PROVIDER;
@@ -32,6 +34,16 @@ export async function applyProviderOverride(db: D1Database): Promise<void> {
   const cfg = JSON.parse(row.payload);
   cfg.provider = provider;
   cfg.model = model;
+  // The structured-call body (judge) production sends to this provider —
+  // without it a Nemotron run measures thinking-on assessments that users
+  // no longer get (review F2).
+  if (env.HARNESS_STRUCTURED_EXTRA_BODY) {
+    cfg.providers = cfg.providers ?? {};
+    cfg.providers[provider] = {
+      ...(cfg.providers[provider] ?? {}),
+      structured_extra_body: JSON.parse(env.HARNESS_STRUCTURED_EXTRA_BODY),
+    };
+  }
   await db
     .prepare("UPDATE config SET payload = ?1, updated_at = datetime('now') WHERE id = 1")
     .bind(JSON.stringify(cfg))
@@ -86,6 +98,7 @@ export async function sendChatTurn(
   problemId: string,
   messages: Turn[],
   apiKey: string,
+  solutionRequestCount?: number,
 ): Promise<LiveChatResult> {
   const res = await SELF.fetch("https://worker.test/v1/chat", {
     method: "POST",
@@ -94,7 +107,7 @@ export async function sendChatTurn(
       "X-User-Key": apiKey,
       "content-type": "application/json",
     },
-    body: JSON.stringify({ problem_id: problemId, messages }),
+    body: JSON.stringify({ problem_id: problemId, messages, solution_request_count: solutionRequestCount }),
   });
   const frames = parseChatSSE(await res.text());
   const errorFrame = frames.find((f) => f.event === "error")?.data as

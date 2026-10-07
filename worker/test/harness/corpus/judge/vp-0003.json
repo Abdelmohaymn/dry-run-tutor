@@ -99,6 +99,28 @@
           "text": "I used a hint about the front and back -- so two pointers, one starting at each end of the word, stepping inward and comparing characters, no extra copy needed. Scan the words in order and return the first one that passes."
         }
       ]
+    },
+    {
+      "problem_id": "vp-0003",
+      "id": "acceptable_reverse_compare",
+      "kind": "acceptable_reverse_compare",
+      "expected_verdicts": [
+        "pass"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "I go through the words in order and for each one I check if it equals its reverse, word == word[::-1], and return the first that does, else empty string"
+        },
+        {
+          "role": "tutor",
+          "text": "How expensive is that check?"
+        },
+        {
+          "role": "user",
+          "text": "each reverse is linear in the word length, so overall it's total characters, at most 100 by 100 so it's instant"
+        }
+      ]
     }
   ]
 }

@@ -21,6 +21,8 @@ declare module "cloudflare:test" {
     /** harness project only — optional provider/model override for a harness run, see live-client.ts applyProviderOverride(). */
     HARNESS_PROVIDER?: string;
     HARNESS_MODEL?: string;
+    /** harness project only — JSON copied into the override provider's structured_extra_body. */
+    HARNESS_STRUCTURED_EXTRA_BODY?: string;
     INSTALL_RL: RateLimit;
     // Feature 007, web-only routes.
     WEB_EVENT_RL: RateLimit;

@@ -66,14 +66,14 @@ describe("finish offer — ready_to_finish on the meta frame", () => {
   it("is true when the check answers ready", async () => {
     await setFinishOffer();
     mockTutor();
-    mockFinishCheck({ status: 200, body: groqCompletionBody('{"ready":true}') });
+    mockFinishCheck({ status: 200, body: groqCompletionBody('{"reached":["complement_lookup","index_storage"]}') });
     expect((await chat()).ready_to_finish).toBe(true);
   });
 
   it("is false when the check answers not ready", async () => {
     await setFinishOffer();
     mockTutor();
-    mockFinishCheck({ status: 200, body: groqCompletionBody('{"ready":false}') });
+    mockFinishCheck({ status: 200, body: groqCompletionBody('{"reached":["single_pass"]}') });
     expect((await chat()).ready_to_finish).toBe(false);
   });
 
@@ -86,10 +86,10 @@ describe("finish offer — ready_to_finish on the meta frame", () => {
     expect(meta.turn_index).toBe(1);
   });
 
-  it("sends the learner's turns only, never the tutor's, with a strict boolean schema", async () => {
+  it("sends the learner's turns only, never the tutor's, with a strict reached-keys schema", async () => {
     await setFinishOffer();
     mockTutor();
-    const seen = mockFinishCheck({ status: 200, body: groqCompletionBody('{"ready":false}') });
+    const seen = mockFinishCheck({ status: 200, body: groqCompletionBody('{"reached":["single_pass"]}') });
     await chat({}, [
       { role: "user", text: "Two loops over every pair?" },
       { role: "tutor", text: "TUTOR_ONLY_PHRASE about a lookup" },
@@ -98,24 +98,70 @@ describe("finish offer — ready_to_finish on the meta frame", () => {
     const user = seen.body.messages.find((m: any) => m.role === "user").content as string;
     expect(user).toContain(LEARNER);
     expect(user).not.toContain("TUTOR_ONLY_PHRASE");
-    expect(seen.body.response_format.json_schema.schema.required).toEqual(["ready"]);
+    const schema = seen.body.response_format.json_schema.schema;
+    expect(schema.required).toEqual(["reached"]);
+    expect(schema.properties.reached.items.enum).toEqual(["complement_lookup", "single_pass", "index_storage", "duplicates_ok"]);
   });
 
   it.each([
-    ["disabled in config", { enabled: false }, {}],
-    ["before min_turn", { min_turn: 2 }, {}],
-    ["after Keep going", {}, { finish_offer_dismissed: true }],
-  ])("runs no check and leaves the field off when %s", async (_label, cfg, extra) => {
+    ["disabled in config", { enabled: false }],
+    ["before min_turn", { min_turn: 2 }],
+  ])("runs no check and leaves the field off when %s", async (_label, cfg) => {
     await setFinishOffer(cfg);
     mockTutor();
-    const meta = await chat(extra);
+    const meta = await chat();
     expect(meta).not.toHaveProperty("ready_to_finish");
+  });
+
+  it("after Keep going, still checks (the leak filter needs the keys) but leaves the field off", async () => {
+    await setFinishOffer();
+    mockTutor();
+    const seen = mockFinishCheck({ status: 200, body: groqCompletionBody('{"reached":["complement_lookup","index_storage"]}') });
+    const meta = await chat({ finish_offer_dismissed: true });
+    expect(seen.body).toBeDefined();
+    expect(meta).not.toHaveProperty("ready_to_finish");
+  });
+
+  it("drops keys the problem does not author", async () => {
+    await setFinishOffer();
+    mockTutor();
+    mockFinishCheck({ status: 200, body: groqCompletionBody('{"reached":["complement_lookup","made_up_key"]}') });
+    expect((await chat()).ready_to_finish).toBe(false);
+  });
+
+  it("stores the reached keys, and the next turn stops blocking those insights' words", async () => {
+    await setFinishOffer();
+    const installId = await mintInstallId();
+    const send = async (messages: { role: string; text: string }[]) => {
+      const res = await SELF.fetch("https://worker.test/v1/chat", {
+        method: "POST",
+        headers: { "X-Install-Id": installId, "X-User-Key": "gsk_test_learner_key", "content-type": "application/json" },
+        body: JSON.stringify({ problem_id: "vp-0001", messages }),
+      });
+      return readChatSSE(res);
+    };
+
+    // Turn 1: the check finds complement_lookup stated in the learner's own words.
+    mockTutor();
+    mockFinishCheck({ status: 200, body: groqCompletionBody('{"reached":["complement_lookup"]}') });
+    const turn1 = [{ role: "user", text: "for each number the partner is target minus it, I look it up fast" }];
+    await send(turn1);
+    const row = await env.DB.prepare("SELECT reached_keys FROM device_day WHERE device_hash = ?1").bind(installId.split(".")[0]).first<{ reached_keys: string }>();
+    expect(JSON.parse(row!.reached_keys)).toEqual(["complement_lookup"]);
+
+    // Turn 2: a reply naming "hash map" (complement_lookup's never_say) is
+    // no longer blocked, though the learner never said the words.
+    mockTutor("Yes -- a hash map does that. What does it need to hold?");
+    mockFinishCheck({ status: 200, body: groqCompletionBody('{"reached":[]}') });
+    const frames = await send([...turn1, { role: "tutor", text: "Yes. How?" }, { role: "user", text: "keep the seen ones somewhere" }]);
+    const text = frames.filter((f) => f.event === "token").map((f) => (f.data as { text: string }).text).join("");
+    expect(text).toContain("hash map");
   });
 
   it("makes the finish-check call on the keyed path and reports it", async () => {
     await setFinishOffer();
     mockTutor();
-    mockFinishCheck({ status: 200, body: groqCompletionBody('{"ready":true}') });
+    mockFinishCheck({ status: 200, body: groqCompletionBody('{"reached":["complement_lookup","index_storage"]}') });
     const meta = await chat();
     expect(meta.ready_to_finish).toBe(true);
   });
@@ -125,7 +171,7 @@ describe("finish offer — trial path", () => {
   it("runs on the operator pool, spends the trial budget", async () => {
     await setFinishOffer();
     mockTutor();
-    mockFinishCheck({ status: 200, body: groqCompletionBody('{"ready":true}', { prompt_tokens: 300, completion_tokens: 40 }) });
+    mockFinishCheck({ status: 200, body: groqCompletionBody('{"reached":["complement_lookup","index_storage"]}', { prompt_tokens: 300, completion_tokens: 40 }) });
     const date = new Date().toISOString().slice(0, 10);
     const before = await env.DB.prepare("SELECT COALESCE(SUM(tokens_spent),0) AS t FROM provider_day WHERE date = ?1").bind(date).first<{ t: number }>();
 

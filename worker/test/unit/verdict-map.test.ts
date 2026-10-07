@@ -126,3 +126,37 @@ describe("mapVerdict() — judge-spec.md §5, first match wins", () => {
     expect(result).not.toBe("incorrect");
   });
 });
+
+// Review F3 / F8, 2026-10-07.
+describe("mapVerdict() — per-approach requires and zero-evidence rows", () => {
+  it("an acceptable approach explained in full maps to pass, though the optimal approach's required insight is absent", () => {
+    // vp-0001 sort_two_pointer requires only index_storage.
+    expect(
+      mapVerdict(out({ matched_approach: "sort_two_pointer", matched_verdict: "acceptable", insights_hit: ["index_storage"] }), problem),
+    ).toBe("pass");
+  });
+
+  it("an acceptable approach missing its own requirement is still borderline", () => {
+    expect(
+      mapVerdict(out({ matched_approach: "sort_two_pointer", matched_verdict: "acceptable", insights_hit: ["single_pass"] }), problem),
+    ).toBe("borderline");
+  });
+
+  it("an approach without requires falls back to the problem's required insights", () => {
+    expect(
+      mapVerdict(out({ matched_approach: "hashmap", matched_verdict: "optimal", insights_hit: ["index_storage"] }), problem),
+    ).toBe("borderline");
+  });
+
+  it("a matched approach with no insight stated keeps the model's own unclear", () => {
+    expect(
+      mapVerdict(out({ matched_approach: "brute_force", matched_verdict: "suboptimal", insights_hit: [], verdict: "unclear" }), problem),
+    ).toBe("unclear");
+  });
+
+  it("no approach matched, no insight, and the model says incorrect -> incorrect, not unclear", () => {
+    expect(
+      mapVerdict(out({ matched_approach: "none", matched_verdict: "none", insights_hit: [], verdict: "incorrect" }), problem),
+    ).toBe("incorrect");
+  });
+});

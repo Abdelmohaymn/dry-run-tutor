@@ -97,6 +97,9 @@ export default defineWorkersConfig(async () => {
           // leave unset and the seeded default (groq) is used as normal.
           HARNESS_PROVIDER: process.env.HARNESS_PROVIDER ?? "",
           HARNESS_MODEL: process.env.HARNESS_MODEL ?? "",
+          // JSON, e.g. {"chat_template_kwargs":{"enable_thinking":false}} for
+          // Nemotron: the structured-call body production sends (review F2).
+          HARNESS_STRUCTURED_EXTRA_BODY: process.env.HARNESS_STRUCTURED_EXTRA_BODY ?? "",
         },
       },
     },

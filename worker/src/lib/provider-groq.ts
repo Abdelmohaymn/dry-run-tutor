@@ -24,6 +24,17 @@ import type {
 // observed live. At 30s that discovery cost the learner half a minute on
 // EVERY assessment before the healthy member was even tried.
 const REQUEST_TIMEOUT_MS = 15_000;
+
+// The tutor stream's sampling and ceiling, sent explicitly (review F6,
+// 2026-10-07). Before, neither was sent, so the reply ran at each
+// provider's default and a reasoning model had no bound on hidden tokens.
+// 0.6 / 0.95 scored as well as the default on the review's scenarios
+// (27/30) with shorter replies. 2500 sits well above the longest reply
+// plus reasoning seen (about 1,200 tokens); it bounds a runaway, it does
+// not trim a normal reply.
+const STREAM_TEMPERATURE = 0.6;
+const STREAM_TOP_P = 0.95;
+const STREAM_MAX_TOKENS = 2500;
 const DAILY_QUOTA_PATTERN = /daily|quota/i;
 // Gemini's OpenAI-compatible endpoint rejects a bad or expired key with a
 // 400 ("Please pass a valid API key", or reason API_KEY_INVALID) where
@@ -163,6 +174,9 @@ async function streamChat(params: StreamChatParams): Promise<StreamChatResult> {
       messages: toProviderMessages(params.systemPrompt, params.messages),
       stream: true,
       stream_options: { include_usage: true },
+      temperature: STREAM_TEMPERATURE,
+      top_p: STREAM_TOP_P,
+      max_tokens: STREAM_MAX_TOKENS,
     }),
   });
 

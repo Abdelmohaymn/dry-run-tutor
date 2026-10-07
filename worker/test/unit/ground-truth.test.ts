@@ -4,7 +4,6 @@ import { getPrivate, getPublicManifest } from "../../src/lib/content";
 import {
   isRepeatedWrongTurn,
   learnerNamedTerms,
-  reachedInsightKeys,
   score,
   selectSlice,
 } from "../../src/lib/ground-truth";
@@ -23,48 +22,38 @@ function userTurn(text: string): Turn {
   return { role: "user", text };
 }
 
-describe("learnerNamedTerms() vs reachedInsightKeys() — FR-004a", () => {
-  it("naming a never_say term unblocks the term without reaching its insight", async () => {
-    const problem = getPrivate("vp-0001")!;
-    const pub = getPublicManifest().problems.find((p) => p.id === "vp-0001")!;
-    const full: Problem = { public: pub, private: problem };
-    const cfg = await getRuntimeConfig(env.DB);
-
-    // Deliberately just the bare term: any filler word risks a coincidental
-    // token overlap with the insight's own scoring text (e.g. "a", "you")
-    // pushing score() over cfg.trim.narrow_margin on its own, which would
-    // confound this test's isolation of the two predicates.
-    const messages: Turn[] = [userTurn("hashmap")];
-
-    const named = learnerNamedTerms(full, messages);
-    expect(named.has("hashmap")).toBe(true);
-
-    const reached = reachedInsightKeys(full, messages, cfg);
-    expect(reached.has("complement_lookup")).toBe(false);
-  });
-
-  it("a term the learner never used appears in neither set", async () => {
-    const problem = getPrivate("vp-0001")!;
-    const pub = getPublicManifest().problems.find((p) => p.id === "vp-0001")!;
-    const full: Problem = { public: pub, private: problem };
-    const cfg = await getRuntimeConfig(env.DB);
-
-    const messages: Turn[] = [userTurn("I would check every pair with two nested loops")];
-
-    const named = learnerNamedTerms(full, messages);
-    expect(named.has("hashmap")).toBe(false);
-    expect(named.has("hash map")).toBe(false);
-
-    const reached = reachedInsightKeys(full, messages, cfg);
-    expect(reached.has("complement_lookup")).toBe(false);
-  });
-});
-
-describe("learnerNamedTerms() — typos and the words inside a named term", () => {
+describe("learnerNamedTerms() — FR-004a", () => {
   const full = (): Problem => ({
     public: getPublicManifest().problems.find((p) => p.id === "vp-0001")!,
     private: getPrivate("vp-0001")!,
   });
+
+  it("naming a never_say term unblocks the term", () => {
+    expect(learnerNamedTerms(full(), [userTurn("hashmap")]).has("hashmap")).toBe(true);
+  });
+
+  it("a term the learner never used is not named", () => {
+    const named = learnerNamedTerms(full(), [userTurn("I would check every pair with two nested loops")]);
+    expect(named.has("hashmap")).toBe(false);
+    expect(named.has("hash map")).toBe(false);
+  });
+});
+
+describe("learnerNamedTerms() — typos and the words inside a named term", () => {
+  // vp-0001 with two short terms put back ("map", "index"): the content no
+  // longer blocks those ordinary words (validator rule 15), but the
+  // matching rules they exercise still apply to any short term.
+  const full = (): Problem => {
+    const priv = getPrivate("vp-0001")!;
+    const extra: Record<string, string[]> = { complement_lookup: ["map"], index_storage: ["index"] };
+    return {
+      public: getPublicManifest().problems.find((p) => p.id === "vp-0001")!,
+      private: {
+        ...priv,
+        key_insights: priv.key_insights.map((i) => ({ ...i, never_say: [...i.never_say, ...(extra[i.key] ?? [])] })),
+      },
+    };
+  };
 
   it("a swapped-letter typo names the term, its spelling variant, and the short word inside it", () => {
     const named = learnerNamedTerms(full(), [userTurn("I store in hashamp after I check")]);
@@ -108,28 +97,12 @@ describe("selectSlice() never leaks private fields, for every seed problem at ev
         expect(serialised).not.toContain("model_answer");
         expect(serialised).not.toContain("grading_note");
         expect(serialised).not.toContain("hints");
-        // no insight `text` — only `insightKeys` (keys only)
+        // no insight `text`, and since tutor prompt v7 no insight keys
         for (const insight of problem.private.key_insights) {
-          if (slice.insightKeys.includes(insight.key)) {
-            expect(serialised).not.toContain(insight.text);
-          }
+          expect(serialised).not.toContain(insight.text);
         }
       }
     }
-  });
-
-  it("an insight the learner has demonstrably reached drops out of insightKeys", async () => {
-    const cfg = await getRuntimeConfig(env.DB);
-    const pub = getPublicManifest().problems.find((p) => p.id === "vp-0001")!;
-    const full: Problem = { public: pub, private: getPrivate("vp-0001")! };
-
-    const messages: Turn[] = [
-      userTurn(
-        "I would walk the list once and for each element compute the target minus that element, its complement, and check if the complement is already in a map",
-      ),
-    ];
-    const slice = selectSlice(full, messages, 1, cfg);
-    expect(slice.insightKeys).not.toContain("complement_lookup");
   });
 });
 
@@ -146,17 +119,6 @@ describe("score() ignores stopwords — regression, found via the live tutor har
       "index_storage The map has to store positions, not just presence, because the answer is positions";
     const learnerText = "what is a hashmap actually?";
     expect(score(insightText, learnerText)).toBe(0);
-  });
-
-  it("reachedInsightKeys() does not falsely mark an insight reached from a concept question alone", async () => {
-    const cfg = await getRuntimeConfig(env.DB);
-    const pub = getPublicManifest().problems.find((p) => p.id === "vp-0001")!;
-    const full: Problem = { public: pub, private: getPrivate("vp-0001")! };
-    const messages: Turn[] = [userTurn("what is a hashmap actually?")];
-
-    const reached = reachedInsightKeys(full, messages, cfg);
-    expect(reached.has("index_storage")).toBe(false);
-    expect(reached.size).toBe(0);
   });
 
   it("genuine content-word overlap still scores above zero", () => {

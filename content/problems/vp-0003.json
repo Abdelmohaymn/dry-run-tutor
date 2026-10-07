@@ -68,7 +68,10 @@
         ],
         "time": "O(n times m)",
         "space": "O(m) per check, for the reversed copy",
-        "verdict": "acceptable"
+        "verdict": "acceptable",
+        "requires": [
+          "scan_in_array_order"
+        ]
       },
       {
         "key": "collect_all_then_first",
@@ -97,7 +100,7 @@
     "key_insights": [
       {
         "key": "scan_in_array_order",
-        "text": "The word 'first' refers strictly to array index -- you have to check words left to right and return on the earliest one that qualifies, not search everywhere and pick the longest or the most obvious one.",
+        "text": "First means earliest in the list, so check the words in order and return the first palindrome, not the longest one.",
         "required": true,
         "hints": [
           "If more than one word in the list happens to qualify, which one does the problem actually want back?",
@@ -105,14 +108,13 @@
           "Walk the list from the very first word onward, and return the moment one qualifies -- don't look ahead first."
         ],
         "never_say": [
-          "left to right",
           "first match",
           "stop at first"
         ]
       },
       {
         "key": "two_pointer_no_copy",
-        "text": "You can check whether a single word reads the same forwards and backwards without allocating a reversed copy of it, by walking two positions inward from both ends at once.",
+        "text": "You can check a word without reversing it by comparing characters from both ends, moving inward.",
         "required": true,
         "hints": [
           "Do you actually need to build a whole new string to compare against the original, or could you compare characters directly?",
@@ -122,13 +124,12 @@
         "never_say": [
           "two pointer",
           "two pointers",
-          "front and back",
-          "converge"
+          "front and back"
         ]
       },
       {
         "key": "bail_on_first_mismatch",
-        "text": "While checking a single word, you can stop the moment you find one pair of characters that doesn't match -- there's no need to keep comparing the rest of that word once it's already disqualified.",
+        "text": "Stop checking a word as soon as one pair of characters does not match.",
         "required": false,
         "hints": [
           "Once you find one pair of characters in a word that don't match each other, do you need to keep checking the rest of that word?",
@@ -138,13 +139,12 @@
         "never_say": [
           "early exit",
           "short circuit",
-          "stop early",
-          "break out"
+          "stop early"
         ]
       },
       {
         "key": "constraints_are_forgiving",
-        "text": "With at most a hundred words of at most a hundred characters each, essentially any correct approach runs instantly -- this problem is really testing clarity and correctness, not micro-optimization.",
+        "text": "At most a hundred words of a hundred letters, so any correct approach is fast enough.",
         "required": false,
         "hints": [
           "Given how small the list and the words are allowed to be, how much does the exact approach you pick actually matter for speed?",
@@ -152,7 +152,6 @@
           "At a hundred words of a hundred characters each, you're looking at at most about ten thousand character comparisons total either way."
         ],
         "never_say": [
-          "small enough",
           "constraints are tiny",
           "doesn't matter here",
           "fast enough anyway"

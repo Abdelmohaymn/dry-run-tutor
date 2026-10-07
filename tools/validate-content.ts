@@ -1,5 +1,5 @@
 #!/usr/bin/env -S node
-// tools/validate-content.ts. Rules 0-10 from data-model.md §A1, plus 11 and 12.
+// tools/validate-content.ts. Rules 0-10 from data-model.md §A1, plus 11 to 16.
 // Rules 1-3 and 5-9 are a line-by-line port of tools/validate-content.py.
 // Rules 0, 4 and 10 are new. Rule 10 (no private field reachable from the
 // built manifest) is asserted over BUILD OUTPUT, not a single authored file
@@ -24,6 +24,16 @@ export interface ValidationResult {
 }
 
 const VERDICT_COVERAGE_NEEDED = ["optimal", "suboptimal", "wrong"] as const;
+
+/** Rule 15: single words too ordinary to block (normalised). */
+const COMMON_WORDS = new Set([
+  "index", "indices", "map", "set", "list", "array", "loop", "sort", "sorted", "first",
+  "dictionary", "dict", "hash", "duplicate", "duplicates", "base case", "converge",
+  "left to right", "break out", "small enough", "off by one", "handled separately",
+]);
+
+/** Rule 16. */
+const MAX_INSIGHT_WORDS = 25;
 
 /** `leak-filter.ts`'s own normalisation, kept in step by hand: lowercase, every non-alphanumeric collapsed to one space. */
 function normaliseForMatch(text: string): string {
@@ -162,6 +172,54 @@ export function validateOne(raw: unknown): ValidationResult {
   for (const tag of pub.tags) {
     if (!/^[a-z]+( [a-z]+)*$/.test(tag)) {
       failures.push({ rule: 12, message: `tag '${tag}' must be lowercase words split by single spaces, like 'two pointers'` });
+    }
+  }
+
+  // rule 13 — every acceptable approach says which insights IT needs.
+  // `required: true` describes the optimal approach; without `requires` a
+  // perfect explanation of an acceptable one maps to borderline on every
+  // model (review F3, 2026-10-07).
+  const insightKeys = new Set(priv.key_insights.map((i) => i.key));
+  for (const approach of priv.reference_approaches) {
+    if (approach.verdict === "acceptable" && approach.requires === undefined) {
+      failures.push({ rule: 13, message: `acceptable approach '${approach.key}' must author 'requires' (the insight keys it needs)` });
+    }
+    for (const key of approach.requires ?? []) {
+      if (!insightKeys.has(key)) {
+        failures.push({ rule: 13, message: `approach '${approach.key}' requires unknown insight '${key}'` });
+      }
+    }
+  }
+
+  // rule 14 — the tutor's own slice must not hold a blocked word. Wrong
+  // turns and their counter-questions are rendered into every tutor prompt;
+  // vp-0002 handed the tutor "num mod 9" while blocking "mod 9" (review F9).
+  const allNeverSay = priv.key_insights.flatMap((i) => i.never_say);
+  for (const wrongTurn of priv.common_wrong_turns) {
+    const sliceText = normaliseForMatch(`${wrongTurn.text} ${wrongTurn.counter_question}`);
+    for (const term of allNeverSay) {
+      if (wholeWordIn(sliceText, normaliseForMatch(term))) {
+        failures.push({ rule: 14, message: `wrong turn '${wrongTurn.key}' text or counter_question uses never_say term '${term}' -- it is sent to the tutor` });
+      }
+    }
+  }
+
+  // rule 15 — never_say names an insight; it is not ordinary vocabulary.
+  // `index` alone fired on 29 of 47 blocked tutor drafts in the review (F7).
+  for (const insight of priv.key_insights) {
+    for (const term of insight.never_say) {
+      if (COMMON_WORDS.has(normaliseForMatch(term))) {
+        failures.push({ rule: 15, message: `insight '${insight.key}' never_say term '${term}' is ordinary vocabulary -- block a phrase that names the insight instead` });
+      }
+    }
+  }
+
+  // rule 16 — insight text is one short sentence in a learner's words.
+  // Editorial-length text read like the reveal and matched everything.
+  for (const insight of priv.key_insights) {
+    const words = insight.text.trim().split(/\s+/).length;
+    if (words > MAX_INSIGHT_WORDS) {
+      failures.push({ rule: 16, message: `insight '${insight.key}' text has ${words} words; keep it to ${MAX_INSIGHT_WORDS}, in the words a learner would say` });
     }
   }
 

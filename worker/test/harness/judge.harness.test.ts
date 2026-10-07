@@ -78,6 +78,14 @@ describe("judge harness — live regression net (SC-004, SC-005)", () => {
             expect(insightKeys.has(key)).toBe(true);
           }
 
+          // Review F2: a hollow assessment (feedback "" or "..") is what
+          // structured calls with Nemotron's thinking on produced 12% of the
+          // time. Set HARNESS_STRUCTURED_EXTRA_BODY to match production.
+          expect((assessment.feedback as string).replace(/[.\s]/g, "").length, "hollow feedback").toBeGreaterThan(0);
+          if (c.expected_verdicts.includes("pass")) {
+            expect((assessment.insights_hit as string[]).length, "pass expected but no insight credited").toBeGreaterThan(0);
+          }
+
           // FR-021b, Constitution IV: no unhedged verdict word in feedback.
           const lowered = (assessment.feedback as string).toLowerCase();
           expect(COPULA_ADJACENT.test(lowered)).toBe(false);

@@ -1,6 +1,8 @@
-# Judge system prompt — v3
+# Judge system prompt — v4
 
 **Status**: authored 2026-08-20. Its §5 verdict-mapping table is inlined into `data-model.md` §B4 so this feature needs nothing outside the repo. **Supersedes `judge-spec.md` §4 v1**, which was written for a single transcript and is explicitly marked there as needing a rewrite for conversations before Phase 1 ships. This is that rewrite.
+
+**v4, 2026-10-07** — CREDIT AND ITS LIMITS: the borderline cap now follows the insights the learner's OWN approach needs, listed per approach in `{{GROUND_TRUTH}}` (an approach's authored `requires`, else the problem's required insights). A perfect explanation of an acceptable approach was capped at borderline on every model, because `required` describes the optimal one. And a conversation too thin to show an approach is unclear: "um, numbers, digits, add, I guess loop?" was read as the loop approach (`specs/review-tutor-judge-findings.md` F3, F8).
 
 **v3, 2026-09-04** — two clauses in CREDIT AND ITS LIMITS, both raised from a real assessment on a physical device. (1) An approach outside `reference_approaches` was being judged as though being unlisted were a defect; the prompt already told the model to fall back to insights, but nothing said the fallback was not a penalty, and `verdict-map.ts` then mapped `matched_verdict: "none"` to `unclear` regardless of how much the learner reached. Both halves are fixed — see the mapping's own note. (2) Complexity was checked against "the reference", which is wrong when the learner is on a slower but correct approach: a sound `O(n log n)` claim about a sort-based idea was recorded as `mismatched`, so the same slowness counted once through `matched_verdict` and again through `complexity.assessment`. It is now checked against the approach they actually described.
 
@@ -37,7 +39,7 @@ AN APPROACH THAT IS NOT IN THE GROUND TRUTH IS NOT THEREBY WRONG. The reference 
 
 Do not require them to state complexity unless the stated constraints make it load-bearing. If they do state it, check it against THE APPROACH THEY ACTUALLY DESCRIBED, not against the fastest one on file. "mismatched" means the complexity they stated does not describe their own idea. A correct O(n log n) claim about a sort-based approach is "correct" even when an O(n) reference exists — the approach being slower than optimal is what matched_verdict is for, and recording it twice punishes it twice.
 
-A required insight that is genuinely absent caps the verdict at borderline, however confident the rest of the conversation sounds.
+An insight that the approach they took needs (each reference approach lists the insights it needs) that is genuinely absent caps the verdict at borderline, however confident the rest of the conversation sounds. A conversation too thin to show an approach at all is unclear, not borderline: naming a technique is not describing it.
 
 If they took a known wrong turn and never came back from it, name it in wrong_turns_taken. If they took it and then abandoned it, do not.
 
@@ -97,7 +99,7 @@ Here is where that lands against the reference approach — have a look at the w
 
 1. **Refusal / malformed / non-JSON** → `UNCLEAR_RETRY`. Never surface a provider body (FR-039).
 2. **Insight coverage repair** — any authored insight key absent from both lists is appended to `insights_missed`; any key in either list that is not authored is dropped. Both are recorded as prompt drift (FR-017).
-3. **Verdict override** — `mapVerdict()` per `data-model.md` §B4. The mapped value wins and the discrepancy is recorded (FR-019).
+3. **Verdict override** — `mapVerdict()` per `data-model.md` §B4. The mapped value wins and the discrepancy is recorded (FR-019). Two amendments from the 2026-10-07 review (`specs/review-tutor-judge-findings.md` F3, F8): "every required insight hit" is measured against the matched approach's own `requires` when the problem authors one, so an acceptable approach explained in full maps to `pass`; and when **no** insight was hit, the model's own `unclear` stands, as does its `incorrect` when it matched no approach, ahead of every other row. Finally, when the model's `confidence` is below 0.6 the map may not lift the verdict to `pass` or `strong_pass` if the model's own verdict was neither.
 4. **Hedge check** — `feedback` is scanned for an **unhedged** verdict word. The terms are `FORBIDDEN_FEEDBACK_TERMS = ["correct", "incorrect", "wrong", "right", "perfect"]`, and a term counts **only** when it is asserted of the learner's work, which is fixed by exactly two patterns, applied case-insensitively to the **lowercased feedback with its punctuation intact**:
 
    - **copula-adjacent** — `\b(is|isn'?t|was|wasn'?t|are|aren'?t|that'?s|this is|it'?s|you'?re|we'?re|were|be|been|being)\s+(not\s+|quite\s+|entirely\s+|really\s+|totally\s+){0,2}(correct|incorrect|wrong|right|perfect)\b`

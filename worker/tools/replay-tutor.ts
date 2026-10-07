@@ -17,7 +17,7 @@
 import { readFileSync } from "node:fs";
 import { setDefaultAutoSelectFamilyAttemptTimeout } from "node:net";
 import { getPrivate, getPublicManifest } from "../src/lib/content";
-import { learnerNamedTerms, reachedInsightKeys, renderGroundTruth, selectSlice } from "../src/lib/ground-truth";
+import { learnerNamedTerms, renderGroundTruth, selectSlice } from "../src/lib/ground-truth";
 import { blockedTermsIn, buildBlockedTerms, cleanLead } from "../src/lib/leak-filter";
 import type { RuntimeConfig } from "../src/lib/runtime-config";
 import type { Turn } from "../src/lib/schemas";
@@ -75,12 +75,10 @@ const systemPrompt = TUTOR_PROMPT.replace("{{SOLUTION_REQUEST_COUNT}}", "0")
   .replace("{{TURNS_REMAINING}}", String(Math.max(0, TURN_CAP - turnIndex)))
   .replace("{{WRAP_UP}}", "")
   .replace("{{GROUND_TRUTH}}", renderGroundTruth(selectSlice(problem, messages, turnIndex, CFG, "AB")));
-const blocked = buildBlockedTerms(
-  problem,
-  reachedInsightKeys(problem, messages, CFG),
-  learnerNamedTerms(problem, messages),
-  null,
-);
+// No reached insights: production takes them from the progress check's
+// stored keys (finish-check.ts), which a replay does not have. Only the
+// learner's own words unblock terms here, the strictest case.
+const blocked = buildBlockedTerms(problem, new Set(), learnerNamedTerms(problem, messages), null);
 
 const sleep = (seconds: number) => new Promise((resolve) => setTimeout(resolve, seconds * 1000));
 const oneLine = (text: string) => text.replace(/\s+/g, " ").trim();

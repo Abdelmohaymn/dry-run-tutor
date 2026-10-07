@@ -70,6 +70,20 @@ Levers, one line each — full detail in `contracts/config.schema.json` and `spe
 | `ads.enabled` | `false` takes both ad surfaces off every install — see below. |
 | `trial.turn_cap` / `trial.ground_truth_tier` / `trial.condense` / `trial.daily_session_cap` / `trial.pool` | The trial funnel's own profile and provider pool. |
 | `voice.enabled` / `voice.seconds_per_device` / `voice.max_clip_seconds` | Server-side speech-to-text (`POST /v1/stt`): on/off, seconds per device per UTC day, longest clip. Absent means off. |
+| `trial.pool[].structured_extra_body` / `providers.<id>.structured_extra_body` | Extra body fields for structured calls (judge, finish check) only. Nemotron needs thinking off here — see below. |
+
+Switching a key or model, for the trial pool or for learner keys: follow [`docs/switching-models.md`](../docs/switching-models.md).
+
+### Structured calls on Nemotron
+
+Nemotron reasons by default. Inside a strict-schema call that reasoning sometimes leaves a hollow assessment (empty insight lists, feedback `..`): 19% of judge calls in the 2026-10-07 review, at 3.4x the latency (`specs/review-tutor-judge-findings.md` F2). Turn it off for structured calls on every Nemotron pool member, and for the keyed `nebius` provider. Leave the tutor stream alone: it is better with thinking on.
+
+```bash
+npx wrangler d1 execute <db> --remote \
+  --command "UPDATE config SET payload = json_set(payload, '\$.trial.pool[0].structured_extra_body', json('{\"chat_template_kwargs\":{\"enable_thinking\":false}}'), '\$.providers.nebius.structured_extra_body', json('{\"chat_template_kwargs\":{\"enable_thinking\":false}}')), updated_at = datetime('now') WHERE id = 1"
+```
+
+Use the right pool index for each Nemotron member (`SELECT json_extract(payload, '$.trial.pool') FROM config`).
 
 ### Voice lever
 

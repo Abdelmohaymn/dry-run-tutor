@@ -17,6 +17,18 @@ export interface ReserveTurnResult {
   solutionRequests: number;
   judgedAt: string | null;
   hintsRevealed: number;
+  /** Insight keys the progress check found stated on earlier turns (finish-check.ts). */
+  reachedKeys: string[];
+}
+
+function parseReachedKeys(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === "string") : [];
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -40,10 +52,16 @@ export async function reserveTurn(
            device_day.solution_requests,
            min(?4, device_day.solution_requests + ${MAX_SOLUTION_REQUEST_INCREMENT})
          )
-       RETURNING turns, solution_requests, judged_at, hints_revealed`,
+       RETURNING turns, solution_requests, judged_at, hints_revealed, reached_keys`,
     )
     .bind(key.installId, key.problemId, key.date, claimedSolutionRequests)
-    .first<{ turns: number; solution_requests: number; judged_at: string | null; hints_revealed: number }>();
+    .first<{
+      turns: number;
+      solution_requests: number;
+      judged_at: string | null;
+      hints_revealed: number;
+      reached_keys: string | null;
+    }>();
 
   if (!row) {
     throw new Error("reserveTurn: INSERT ... RETURNING produced no row");
@@ -56,7 +74,30 @@ export async function reserveTurn(
     solutionRequests: row.solution_requests,
     judgedAt: row.judged_at,
     hintsRevealed: row.hints_revealed,
+    reachedKeys: parseReachedKeys(row.reached_keys),
   };
+}
+
+/**
+ * Stores the session's reached insight keys: the union of what earlier
+ * turns found and what this turn's check found. Only ever grows — a word
+ * the learner has earned is not taken back.
+ */
+export async function recordReachedKeys(
+  db: D1Database,
+  key: TurnCounterKey,
+  earlier: readonly string[],
+  found: readonly string[],
+): Promise<void> {
+  const union = [...new Set([...earlier, ...found])];
+  if (union.length === earlier.length) return;
+  await db
+    .prepare(
+      `UPDATE device_day SET reached_keys = ?4
+       WHERE device_hash = ?1 AND problem_id = ?2 AND date = ?3`,
+    )
+    .bind(key.installId, key.problemId, key.date, JSON.stringify(union))
+    .run();
 }
 
 /**

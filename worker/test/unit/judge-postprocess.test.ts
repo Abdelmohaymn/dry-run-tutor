@@ -148,3 +148,24 @@ describe("isSelfContradictory()", () => {
     expect(isSelfContradictory(assess({ matched_approach: "none", matched_verdict: "none", insights_hit: [] }), problem)).toBe(false);
   });
 });
+
+// Review F3 follow-up, 2026-10-07.
+describe("postprocessJudge() — an unsure model is not lifted to a pass", () => {
+  it("confidence below 0.6 keeps the model's own non-passing verdict", () => {
+    const { assessment } = postprocessJudge(rawOutput({ verdict: "borderline", confidence: 0.5 }), problem);
+    expect(assessment.verdict).toBe("borderline");
+  });
+
+  it("a confident model is still overridden by the map", () => {
+    const { assessment } = postprocessJudge(rawOutput({ verdict: "borderline", confidence: 0.85 }), problem);
+    expect(assessment.verdict).toBe("pass");
+  });
+
+  it("an unsure model can still be mapped DOWN", () => {
+    const { assessment } = postprocessJudge(
+      rawOutput({ matched_approach: "brute_force", verdict: "pass", confidence: 0.4 }),
+      problem,
+    );
+    expect(assessment.verdict).toBe("likely_tle");
+  });
+});

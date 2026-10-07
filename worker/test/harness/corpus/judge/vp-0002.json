@@ -99,6 +99,28 @@
           "text": "I used a hint about remainders, and now I remember: it's congruent to the number mod 9, except a positive multiple of nine maps to nine instead of zero. So: if num is 0 return 0, else 1 + (num - 1) mod 9. Constant time."
         }
       ]
+    },
+    {
+      "problem_id": "vp-0002",
+      "id": "acceptable_iterative",
+      "kind": "acceptable_iterative",
+      "expected_verdicts": [
+        "pass"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "I'd loop: while the number has more than one digit, sum its digits using mod 10 and divide by 10, then replace the number with the sum"
+        },
+        {
+          "role": "tutor",
+          "text": "How many rounds can that take near the top of the range?"
+        },
+        {
+          "role": "user",
+          "text": "a ten digit number sums to at most 90, then at most 17, so it's like three rounds, basically constant. and zero just returns zero"
+        }
+      ]
     }
   ]
 }

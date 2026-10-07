@@ -36,6 +36,177 @@
         "what is a hashmap actually?"
       ],
       "never_say_term": "hash map"
+    },
+    {
+      "id": "S1_paraphrase_settled_en",
+      "kind": "regression",
+      "history": [
+        {
+          "role": "user",
+          "text": "brute force is two loops, n squared, way too slow for ten million"
+        },
+        {
+          "role": "tutor",
+          "text": "Right, the inner search is the slow part. For one number, what exactly are you searching for?"
+        },
+        {
+          "role": "user",
+          "text": "for each number I know what the other one has to be, it's target minus the number. so I just need to check fast if I've seen that before"
+        },
+        {
+          "role": "tutor",
+          "text": "Yes -- that's it. How would you make that check fast?"
+        },
+        {
+          "role": "user",
+          "text": "I keep the numbers I've already seen in a structure with constant time membership, I go left to right, and for each number I first look for target minus it, then add it"
+        }
+      ],
+      "must_not_match": "what (exactly )?(are|would) you (searching|looking) for|how would you make that check fast",
+      "why": "asks again what to search for / what the partner value is / how to check fast / whether to check before inserting; or names 'index'/'hash map' before the learner"
+    },
+    {
+      "id": "S2_paraphrase_settled_egy",
+      "kind": "regression",
+      "history": [
+        {
+          "role": "user",
+          "text": "الحل البسيط إني ألف بلوبين على كل الأزواج، بس ده n تربيع وهيبقى بطيء جدا مع عشرة مليون"
+        },
+        {
+          "role": "tutor",
+          "text": "صح، الدور الداخلي هو اللي بطيء. لكل رقم، إنت بتدور على إيه بالظبط؟"
+        },
+        {
+          "role": "user",
+          "text": "لكل رقم أنا عارف الرقم التاني لازم يبقى إيه، target ناقص الرقم. فمحتاج أشوف بسرعة هل شفته قبل كده ولا لأ"
+        },
+        {
+          "role": "tutor",
+          "text": "أيوه، بالظبط كده. هتعمل الـ check ده بسرعة إزاي؟"
+        },
+        {
+          "role": "user",
+          "text": "هحط الأرقام اللي شفتها في structure الـ lookup فيه constant time، وأمشي من الشمال لليمين، ولكل رقم أدور الأول على target ناقصه وبعدين أضيفه"
+        }
+      ],
+      "must_not_contain": [
+        "hash map",
+        "hashmap",
+        "dictionary"
+      ],
+      "must_match": "[؀-ۿ]",
+      "why": "replies in English or MSA instead of Egyptian Arabic; re-asks what to search for or how to check fast; names a term first"
+    },
+    {
+      "id": "S4_valid_nonreference",
+      "kind": "regression",
+      "history": [
+        {
+          "role": "user",
+          "text": "two loops is n squared, too slow"
+        },
+        {
+          "role": "tutor",
+          "text": "Right. So what would let you avoid the inner loop?"
+        },
+        {
+          "role": "user",
+          "text": "I'd make a list of value and original position pairs, sort it by value, then for each element binary search for target minus its value in the sorted list, and return the two original positions. That's n log n"
+        }
+      ],
+      "must_not_match": "(already|you've) (seen|passed|visited)|keep track of (the )?numbers|remember(ing)? what you've seen",
+      "why": "tells them it is wrong or too slow without reason, pushes toward a specific other method, names 'hash map'; or flatly calls it the best answer and stops"
+    },
+    {
+      "id": "S6_concept_question",
+      "kind": "regression",
+      "history": [
+        {
+          "role": "user",
+          "text": "two loops would be n squared"
+        },
+        {
+          "role": "tutor",
+          "text": "Right, and with ten million numbers is that fast enough?"
+        },
+        {
+          "role": "user",
+          "text": "no. wait, what's the difference between a set and a dictionary in python? how do they look things up so fast?"
+        }
+      ],
+      "must_match": "\\?",
+      "min_sentences": 2,
+      "why": "refuses or dodges the concept question, or uses it to hand over the solution (says use a dict mapping value to index / complement)"
+    },
+    {
+      "id": "S9_long_session_vp1",
+      "kind": "regression",
+      "history": [
+        {
+          "role": "user",
+          "text": "two nested loops, every pair"
+        },
+        {
+          "role": "tutor",
+          "text": "That works. With up to ten million numbers, is that fast enough?"
+        },
+        {
+          "role": "user",
+          "text": "no, that's like 10 to the 14 operations"
+        },
+        {
+          "role": "tutor",
+          "text": "Right. So for one number, what are you actually looking for?"
+        },
+        {
+          "role": "user",
+          "text": "I'm looking for the number that adds up with it to the target, so target minus it"
+        },
+        {
+          "role": "tutor",
+          "text": "Yes -- that's it. How could you find that value quickly?"
+        },
+        {
+          "role": "user",
+          "text": "keep what I've seen in some kind of lookup thing with O(1) checks"
+        },
+        {
+          "role": "tutor",
+          "text": "Good. What does that lookup need to hold so you can answer the question?"
+        },
+        {
+          "role": "user",
+          "text": "it should map each value to where it was, its position, since we return positions"
+        },
+        {
+          "role": "tutor",
+          "text": "Yes. Walk me through the order of operations for each element."
+        },
+        {
+          "role": "user",
+          "text": "for each element I first check if target minus it is already in there, if yes return both positions, otherwise I add the current one with its position"
+        },
+        {
+          "role": "tutor",
+          "text": "Yes, exactly. What happens with an input like [3, 3] and target 6?"
+        },
+        {
+          "role": "user",
+          "text": "the first 3 goes in, then the second 3 finds the first one, so it returns 0 and 1. it works because I check before I insert"
+        }
+      ],
+      "must_not_match": "\\[3, ?3\\]",
+      "why": "asks about anything already covered (what to look for, how to find fast, what to store, order of check/insert, duplicates); does not start wrapping up"
+    },
+    {
+      "id": "second_solution_request",
+      "kind": "second_solution_request",
+      "turns": [
+        "two loops, n squared, but I'm stuck",
+        "please, just give me the full solution now"
+      ],
+      "why": "On the second ask the tutor must release the full solution; Nemotron withheld it 3/3 before SOLUTION_RELEASE_NOTE (review F5)."
     }
   ]
 }
