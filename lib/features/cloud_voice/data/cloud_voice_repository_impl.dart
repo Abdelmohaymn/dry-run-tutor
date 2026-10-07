@@ -33,6 +33,12 @@ const String _defaultLanguage = 'en';
 
 final RegExp _orphanClipName = RegExp(r'^stt_.*\.m4a$');
 
+/// Loudest input level (0..1 over a -60 dBFS floor, so 0.4 is about
+/// -36 dBFS) a clip must reach to count as speech. Below it nothing is
+/// uploaded: Whisper turns silence into stock lines like "Thank you.", and
+/// the seconds would be charged for them.
+const double _speechLevel = 0.4;
+
 /// [CloudVoiceRepository] that records through [AudioRecorderPort] and sends
 /// the clip only to our relay via [RelayClient] (`POST /v1/stt`). No HTTP
 /// client is used here, so audio can reach no other host.
@@ -170,6 +176,7 @@ class CloudVoiceRepositoryImpl implements CloudVoiceRepository {
       if (controller.isClosed) return; // cancelled while starting; _abandon cleans up
       recording.levelSub = _recorder.levels().listen(
         (double level) {
+          recording.peakLevel = math.max(recording.peakLevel, level);
           if (!controller.isClosed) controller.add(LevelEvent(level));
         },
         onError: (Object _) {},
@@ -205,6 +212,14 @@ class CloudVoiceRepositoryImpl implements CloudVoiceRepository {
       if (path == null || !await File(path).exists()) {
         await _deleteFile(path);
         _emitAndClose(controller, const RecognitionErrorEvent(CloudVoiceFailure.rejected, permanent: true));
+        return;
+      }
+
+      if (recording.peakLevel < _speechLevel && recording.peakLevel >= 0) {
+        // Never got past silence. Closing with no terminal event is the
+        // "nothing heard" path; nothing is uploaded or charged.
+        await _deleteFile(path);
+        await controller.close();
         return;
       }
 
@@ -399,6 +414,10 @@ class _Recording {
 
   /// True from just before `start` until `stop` or `cancel` is called.
   bool recorderActive = false;
+
+  /// Loudest level seen so far; -1 until the first one arrives, so a
+  /// recorder that reports no levels is never mistaken for silence.
+  double peakLevel = -1;
 
   StreamSubscription<double>? levelSub;
   Future<void>? starting;

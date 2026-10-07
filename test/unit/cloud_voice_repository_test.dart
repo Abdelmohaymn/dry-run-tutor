@@ -619,6 +619,48 @@ void main() {
     });
   });
 
+  group('silence', () {
+    test('a clip that never gets past silence is not uploaded', () async {
+      final r = await startRecording();
+      recorder.levelController
+        ..add(0.1)
+        ..add(0.3);
+      await Future<void>.delayed(Duration.zero);
+
+      await repo.stop();
+      await r.done;
+
+      expect(r.events.whereType<LevelEvent>(), hasLength(2));
+      expect(r.events.where((RecognitionEvent e) => e is! LevelEvent), isEmpty);
+      expect(clipsOnDisk(), isEmpty);
+      expect(repo.hasPendingClip, isFalse);
+      verifyNoUpload();
+    });
+
+    test('one loud moment is enough to upload', () async {
+      outcomes.add(_ok('hello'));
+      final r = await startRecording();
+      recorder.levelController
+        ..add(0.1)
+        ..add(0.7)
+        ..add(0.1);
+      await Future<void>.delayed(Duration.zero);
+
+      await repo.stop();
+      await r.done;
+
+      expect(r.events.last, isA<FinalTextEvent>());
+    });
+
+    test('a recorder that reports no levels still uploads', () async {
+      outcomes.add(_ok('hello'));
+
+      final List<RecognitionEvent> events = await recordAndStop();
+
+      expect(events.last, isA<FinalTextEvent>());
+    });
+  });
+
   group('overlapping calls', () {
     test('a second stop during the upload shares the first one', () async {
       final Completer<Object> upload = Completer<Object>();
