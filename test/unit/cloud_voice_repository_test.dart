@@ -241,6 +241,24 @@ void main() {
       expect(await repo.nextClipLimit(), const Duration(seconds: 120));
     });
 
+    test('a clip limit lowered in config beats the stored same-day one', () async {
+      await store.write(
+        const VoiceQuota(
+          date: '2026-01-01',
+          secondsLeft: 250,
+          maxClipSeconds: 120,
+        ),
+      );
+      configRepo.cachedValue = _config(
+        voice: const VoiceConfig(
+          enabled: true,
+          secondsPerDevice: 300,
+          maxClipSeconds: 60,
+        ),
+      );
+      expect(await repo.nextClipLimit(), const Duration(seconds: 60));
+    });
+
     test('stored same-day 0 gives null', () async {
       await store.write(
         const VoiceQuota(

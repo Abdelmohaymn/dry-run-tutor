@@ -117,7 +117,9 @@ class CloudVoiceRepositoryImpl implements CloudVoiceRepository {
       final VoiceQuota? quota = _store.read();
       final bool sameDay = quota != null && quota.date == today;
       final int left = sameDay ? quota.secondsLeft : voice.secondsPerDevice;
-      final int maxClip = sameDay ? quota.maxClipSeconds : voice.maxClipSeconds;
+      // The smaller of the two: a limit the operator lowered since the last
+      // transcription must win over the stored one, or every clip runs long.
+      final int maxClip = sameDay ? math.min(quota.maxClipSeconds, voice.maxClipSeconds) : voice.maxClipSeconds;
 
       final int limit = math.min(maxClip, left);
       if (limit <= 0) return null;
