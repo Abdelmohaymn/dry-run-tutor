@@ -72,15 +72,26 @@ sealed class DailySessionState with _$DailySessionState {
   /// Android ends a listen session on its own pause timeout, and until
   /// this was carried here every word spoken before that point was thrown
   /// away (FR-013b, SC-005).
+  ///
+  /// [limit] is the hard length of this clip on the cloud voice path (the
+  /// smaller of the per-clip maximum and the device's remaining seconds
+  /// today). Null means the on-device path, which keeps its own fixed cap.
   const factory DailySessionState.recording({
     required Session session,
     required Duration elapsed,
     required List<double> levels,
     required bool warned,
     @Default('') String partialText,
+    Duration? limit,
   }) = Recording;
 
   const factory DailySessionState.recognising(Session session) = Recognising;
+
+  /// A cloud clip failed to upload for a transient reason and is still
+  /// held; the learner can re-send it without speaking again (owner
+  /// decision D2). Not a [Failure]: there is no [RelayError], and the copy
+  /// must not read as the learner's fault.
+  const factory DailySessionState.voiceUploadFailed(Session session) = VoiceUploadFailed;
 
   /// **MANDATORY**, never skippable (Principle V, FR-012). [draft] is the
   /// recognised (or typed) text pending edit and send.

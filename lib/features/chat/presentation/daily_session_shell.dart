@@ -7,6 +7,7 @@ import '../../../core/di/service_locator.dart';
 import '../../../core/models/wire_enums.dart' hide Verdict;
 import '../../../core/router/app_route.dart';
 import '../../assessment/domain/assessment_repository.dart';
+import '../../cloud_voice/domain/cloud_voice_repository.dart';
 import '../../settings/domain/settings_repository.dart';
 import '../../streak/domain/streak_repository.dart';
 import '../../transcript/domain/transcript_repair_repository.dart';
@@ -65,6 +66,8 @@ class DailySessionShell extends StatelessWidget {
         settingsRepository: sl<SettingsRepository>(),
         // Same reasoning as settingsRepository above.
         transcriptRepairRepository: sl<TranscriptRepairRepository>(),
+        // Same reasoning as settingsRepository above.
+        cloudVoiceRepository: sl<CloudVoiceRepository>(),
       )..open(),
       child: BlocListener<DailySessionCubit, DailySessionState>(
         listenWhen: (DailySessionState previous, DailySessionState current) =>
@@ -93,6 +96,7 @@ class DailySessionShell extends StatelessWidget {
         // build) — nothing sends the learner there.
         Recording() => AppRoute.daily.path,
         Recognising() => AppRoute.daily.path,
+        VoiceUploadFailed() => AppRoute.daily.path,
         ReviewingTranscript() => AppRoute.daily.path,
         Sending() => AppRoute.daily.path,
         Streaming() => AppRoute.daily.path,

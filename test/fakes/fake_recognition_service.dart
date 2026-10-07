@@ -16,9 +16,13 @@ class FakeRecognitionService implements RecognitionService {
   final StreamController<RecognitionEvent> _controller = StreamController<RecognitionEvent>.broadcast();
   int stopCalls = 0;
   int cancelCalls = 0;
+  int availabilityCalls = 0;
 
   @override
-  Future<RecognitionAvailability> availability() async => availabilityToReturn;
+  Future<RecognitionAvailability> availability() async {
+    availabilityCalls++;
+    return availabilityToReturn;
+  }
 
   List<SpokenLanguage> languagesToReturn = const <SpokenLanguage>[];
   SpokenLanguage? currentLanguageToReturn;

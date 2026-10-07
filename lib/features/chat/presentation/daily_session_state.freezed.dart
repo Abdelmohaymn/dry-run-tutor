@@ -55,7 +55,7 @@ extension DailySessionStatePatterns on DailySessionState {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( Opening value)?  opening,TResult Function( ProblemUnavailable value)?  problemUnavailable,TResult Function( Reading value)?  reading,TResult Function( Composing value)?  composing,TResult Function( Recording value)?  recording,TResult Function( Recognising value)?  recognising,TResult Function( ReviewingTranscript value)?  reviewingTranscript,TResult Function( Sending value)?  sending,TResult Function( Streaming value)?  streaming,TResult Function( WrappingUp value)?  wrappingUp,TResult Function( FinishOffered value)?  finishOffered,TResult Function( PullingHint value)?  pullingHint,TResult Function( CapReached value)?  capReached,TResult Function( ConfirmSolutionRelease value)?  confirmSolutionRelease,TResult Function( Judging value)?  judging,TResult Function( Verdict value)?  verdict,TResult Function( Revealed value)?  revealed,TResult Function( SessionClosed value)?  sessionClosed,TResult Function( Failure value)?  failure,TResult Function( RecognitionUnavailable value)?  recognitionUnavailable,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( Opening value)?  opening,TResult Function( ProblemUnavailable value)?  problemUnavailable,TResult Function( Reading value)?  reading,TResult Function( Composing value)?  composing,TResult Function( Recording value)?  recording,TResult Function( Recognising value)?  recognising,TResult Function( VoiceUploadFailed value)?  voiceUploadFailed,TResult Function( ReviewingTranscript value)?  reviewingTranscript,TResult Function( Sending value)?  sending,TResult Function( Streaming value)?  streaming,TResult Function( WrappingUp value)?  wrappingUp,TResult Function( FinishOffered value)?  finishOffered,TResult Function( PullingHint value)?  pullingHint,TResult Function( CapReached value)?  capReached,TResult Function( ConfirmSolutionRelease value)?  confirmSolutionRelease,TResult Function( Judging value)?  judging,TResult Function( Verdict value)?  verdict,TResult Function( Revealed value)?  revealed,TResult Function( SessionClosed value)?  sessionClosed,TResult Function( Failure value)?  failure,TResult Function( RecognitionUnavailable value)?  recognitionUnavailable,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case Opening() when opening != null:
@@ -64,7 +64,8 @@ return problemUnavailable(_that);case Reading() when reading != null:
 return reading(_that);case Composing() when composing != null:
 return composing(_that);case Recording() when recording != null:
 return recording(_that);case Recognising() when recognising != null:
-return recognising(_that);case ReviewingTranscript() when reviewingTranscript != null:
+return recognising(_that);case VoiceUploadFailed() when voiceUploadFailed != null:
+return voiceUploadFailed(_that);case ReviewingTranscript() when reviewingTranscript != null:
 return reviewingTranscript(_that);case Sending() when sending != null:
 return sending(_that);case Streaming() when streaming != null:
 return streaming(_that);case WrappingUp() when wrappingUp != null:
@@ -96,7 +97,7 @@ return recognitionUnavailable(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( Opening value)  opening,required TResult Function( ProblemUnavailable value)  problemUnavailable,required TResult Function( Reading value)  reading,required TResult Function( Composing value)  composing,required TResult Function( Recording value)  recording,required TResult Function( Recognising value)  recognising,required TResult Function( ReviewingTranscript value)  reviewingTranscript,required TResult Function( Sending value)  sending,required TResult Function( Streaming value)  streaming,required TResult Function( WrappingUp value)  wrappingUp,required TResult Function( FinishOffered value)  finishOffered,required TResult Function( PullingHint value)  pullingHint,required TResult Function( CapReached value)  capReached,required TResult Function( ConfirmSolutionRelease value)  confirmSolutionRelease,required TResult Function( Judging value)  judging,required TResult Function( Verdict value)  verdict,required TResult Function( Revealed value)  revealed,required TResult Function( SessionClosed value)  sessionClosed,required TResult Function( Failure value)  failure,required TResult Function( RecognitionUnavailable value)  recognitionUnavailable,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( Opening value)  opening,required TResult Function( ProblemUnavailable value)  problemUnavailable,required TResult Function( Reading value)  reading,required TResult Function( Composing value)  composing,required TResult Function( Recording value)  recording,required TResult Function( Recognising value)  recognising,required TResult Function( VoiceUploadFailed value)  voiceUploadFailed,required TResult Function( ReviewingTranscript value)  reviewingTranscript,required TResult Function( Sending value)  sending,required TResult Function( Streaming value)  streaming,required TResult Function( WrappingUp value)  wrappingUp,required TResult Function( FinishOffered value)  finishOffered,required TResult Function( PullingHint value)  pullingHint,required TResult Function( CapReached value)  capReached,required TResult Function( ConfirmSolutionRelease value)  confirmSolutionRelease,required TResult Function( Judging value)  judging,required TResult Function( Verdict value)  verdict,required TResult Function( Revealed value)  revealed,required TResult Function( SessionClosed value)  sessionClosed,required TResult Function( Failure value)  failure,required TResult Function( RecognitionUnavailable value)  recognitionUnavailable,}){
 final _that = this;
 switch (_that) {
 case Opening():
@@ -105,7 +106,8 @@ return problemUnavailable(_that);case Reading():
 return reading(_that);case Composing():
 return composing(_that);case Recording():
 return recording(_that);case Recognising():
-return recognising(_that);case ReviewingTranscript():
+return recognising(_that);case VoiceUploadFailed():
+return voiceUploadFailed(_that);case ReviewingTranscript():
 return reviewingTranscript(_that);case Sending():
 return sending(_that);case Streaming():
 return streaming(_that);case WrappingUp():
@@ -133,7 +135,7 @@ return recognitionUnavailable(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( Opening value)?  opening,TResult? Function( ProblemUnavailable value)?  problemUnavailable,TResult? Function( Reading value)?  reading,TResult? Function( Composing value)?  composing,TResult? Function( Recording value)?  recording,TResult? Function( Recognising value)?  recognising,TResult? Function( ReviewingTranscript value)?  reviewingTranscript,TResult? Function( Sending value)?  sending,TResult? Function( Streaming value)?  streaming,TResult? Function( WrappingUp value)?  wrappingUp,TResult? Function( FinishOffered value)?  finishOffered,TResult? Function( PullingHint value)?  pullingHint,TResult? Function( CapReached value)?  capReached,TResult? Function( ConfirmSolutionRelease value)?  confirmSolutionRelease,TResult? Function( Judging value)?  judging,TResult? Function( Verdict value)?  verdict,TResult? Function( Revealed value)?  revealed,TResult? Function( SessionClosed value)?  sessionClosed,TResult? Function( Failure value)?  failure,TResult? Function( RecognitionUnavailable value)?  recognitionUnavailable,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( Opening value)?  opening,TResult? Function( ProblemUnavailable value)?  problemUnavailable,TResult? Function( Reading value)?  reading,TResult? Function( Composing value)?  composing,TResult? Function( Recording value)?  recording,TResult? Function( Recognising value)?  recognising,TResult? Function( VoiceUploadFailed value)?  voiceUploadFailed,TResult? Function( ReviewingTranscript value)?  reviewingTranscript,TResult? Function( Sending value)?  sending,TResult? Function( Streaming value)?  streaming,TResult? Function( WrappingUp value)?  wrappingUp,TResult? Function( FinishOffered value)?  finishOffered,TResult? Function( PullingHint value)?  pullingHint,TResult? Function( CapReached value)?  capReached,TResult? Function( ConfirmSolutionRelease value)?  confirmSolutionRelease,TResult? Function( Judging value)?  judging,TResult? Function( Verdict value)?  verdict,TResult? Function( Revealed value)?  revealed,TResult? Function( SessionClosed value)?  sessionClosed,TResult? Function( Failure value)?  failure,TResult? Function( RecognitionUnavailable value)?  recognitionUnavailable,}){
 final _that = this;
 switch (_that) {
 case Opening() when opening != null:
@@ -142,7 +144,8 @@ return problemUnavailable(_that);case Reading() when reading != null:
 return reading(_that);case Composing() when composing != null:
 return composing(_that);case Recording() when recording != null:
 return recording(_that);case Recognising() when recognising != null:
-return recognising(_that);case ReviewingTranscript() when reviewingTranscript != null:
+return recognising(_that);case VoiceUploadFailed() when voiceUploadFailed != null:
+return voiceUploadFailed(_that);case ReviewingTranscript() when reviewingTranscript != null:
 return reviewingTranscript(_that);case Sending() when sending != null:
 return sending(_that);case Streaming() when streaming != null:
 return streaming(_that);case WrappingUp() when wrappingUp != null:
@@ -173,15 +176,16 @@ return recognitionUnavailable(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  opening,TResult Function()?  problemUnavailable,TResult Function( Session session)?  reading,TResult Function( Session session,  Draft? draft,  String? notice)?  composing,TResult Function( Session session,  Duration elapsed,  List<double> levels,  bool warned,  String partialText)?  recording,TResult Function( Session session)?  recognising,TResult Function( Session session,  Draft draft)?  reviewingTranscript,TResult Function( Session session,  String pendingText)?  sending,TResult Function( Session session,  String partialText)?  streaming,TResult Function( Session session)?  wrappingUp,TResult Function( Session session)?  finishOffered,TResult Function( Session session)?  pullingHint,TResult Function( Session session)?  capReached,TResult Function( Session session)?  confirmSolutionRelease,TResult Function( Session session)?  judging,TResult Function( Session session,  Assessment assessment)?  verdict,TResult Function( Session session,  Assessment assessment)?  revealed,TResult Function( Session session)?  sessionClosed,TResult Function( Session session,  RelayError error)?  failure,TResult Function( Session session,  RecognitionAvailability reason)?  recognitionUnavailable,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  opening,TResult Function()?  problemUnavailable,TResult Function( Session session)?  reading,TResult Function( Session session,  Draft? draft,  String? notice)?  composing,TResult Function( Session session,  Duration elapsed,  List<double> levels,  bool warned,  String partialText,  Duration? limit)?  recording,TResult Function( Session session)?  recognising,TResult Function( Session session)?  voiceUploadFailed,TResult Function( Session session,  Draft draft)?  reviewingTranscript,TResult Function( Session session,  String pendingText)?  sending,TResult Function( Session session,  String partialText)?  streaming,TResult Function( Session session)?  wrappingUp,TResult Function( Session session)?  finishOffered,TResult Function( Session session)?  pullingHint,TResult Function( Session session)?  capReached,TResult Function( Session session)?  confirmSolutionRelease,TResult Function( Session session)?  judging,TResult Function( Session session,  Assessment assessment)?  verdict,TResult Function( Session session,  Assessment assessment)?  revealed,TResult Function( Session session)?  sessionClosed,TResult Function( Session session,  RelayError error)?  failure,TResult Function( Session session,  RecognitionAvailability reason)?  recognitionUnavailable,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case Opening() when opening != null:
 return opening();case ProblemUnavailable() when problemUnavailable != null:
 return problemUnavailable();case Reading() when reading != null:
 return reading(_that.session);case Composing() when composing != null:
 return composing(_that.session,_that.draft,_that.notice);case Recording() when recording != null:
-return recording(_that.session,_that.elapsed,_that.levels,_that.warned,_that.partialText);case Recognising() when recognising != null:
-return recognising(_that.session);case ReviewingTranscript() when reviewingTranscript != null:
+return recording(_that.session,_that.elapsed,_that.levels,_that.warned,_that.partialText,_that.limit);case Recognising() when recognising != null:
+return recognising(_that.session);case VoiceUploadFailed() when voiceUploadFailed != null:
+return voiceUploadFailed(_that.session);case ReviewingTranscript() when reviewingTranscript != null:
 return reviewingTranscript(_that.session,_that.draft);case Sending() when sending != null:
 return sending(_that.session,_that.pendingText);case Streaming() when streaming != null:
 return streaming(_that.session,_that.partialText);case WrappingUp() when wrappingUp != null:
@@ -213,15 +217,16 @@ return recognitionUnavailable(_that.session,_that.reason);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  opening,required TResult Function()  problemUnavailable,required TResult Function( Session session)  reading,required TResult Function( Session session,  Draft? draft,  String? notice)  composing,required TResult Function( Session session,  Duration elapsed,  List<double> levels,  bool warned,  String partialText)  recording,required TResult Function( Session session)  recognising,required TResult Function( Session session,  Draft draft)  reviewingTranscript,required TResult Function( Session session,  String pendingText)  sending,required TResult Function( Session session,  String partialText)  streaming,required TResult Function( Session session)  wrappingUp,required TResult Function( Session session)  finishOffered,required TResult Function( Session session)  pullingHint,required TResult Function( Session session)  capReached,required TResult Function( Session session)  confirmSolutionRelease,required TResult Function( Session session)  judging,required TResult Function( Session session,  Assessment assessment)  verdict,required TResult Function( Session session,  Assessment assessment)  revealed,required TResult Function( Session session)  sessionClosed,required TResult Function( Session session,  RelayError error)  failure,required TResult Function( Session session,  RecognitionAvailability reason)  recognitionUnavailable,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  opening,required TResult Function()  problemUnavailable,required TResult Function( Session session)  reading,required TResult Function( Session session,  Draft? draft,  String? notice)  composing,required TResult Function( Session session,  Duration elapsed,  List<double> levels,  bool warned,  String partialText,  Duration? limit)  recording,required TResult Function( Session session)  recognising,required TResult Function( Session session)  voiceUploadFailed,required TResult Function( Session session,  Draft draft)  reviewingTranscript,required TResult Function( Session session,  String pendingText)  sending,required TResult Function( Session session,  String partialText)  streaming,required TResult Function( Session session)  wrappingUp,required TResult Function( Session session)  finishOffered,required TResult Function( Session session)  pullingHint,required TResult Function( Session session)  capReached,required TResult Function( Session session)  confirmSolutionRelease,required TResult Function( Session session)  judging,required TResult Function( Session session,  Assessment assessment)  verdict,required TResult Function( Session session,  Assessment assessment)  revealed,required TResult Function( Session session)  sessionClosed,required TResult Function( Session session,  RelayError error)  failure,required TResult Function( Session session,  RecognitionAvailability reason)  recognitionUnavailable,}) {final _that = this;
 switch (_that) {
 case Opening():
 return opening();case ProblemUnavailable():
 return problemUnavailable();case Reading():
 return reading(_that.session);case Composing():
 return composing(_that.session,_that.draft,_that.notice);case Recording():
-return recording(_that.session,_that.elapsed,_that.levels,_that.warned,_that.partialText);case Recognising():
-return recognising(_that.session);case ReviewingTranscript():
+return recording(_that.session,_that.elapsed,_that.levels,_that.warned,_that.partialText,_that.limit);case Recognising():
+return recognising(_that.session);case VoiceUploadFailed():
+return voiceUploadFailed(_that.session);case ReviewingTranscript():
 return reviewingTranscript(_that.session,_that.draft);case Sending():
 return sending(_that.session,_that.pendingText);case Streaming():
 return streaming(_that.session,_that.partialText);case WrappingUp():
@@ -249,15 +254,16 @@ return recognitionUnavailable(_that.session,_that.reason);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  opening,TResult? Function()?  problemUnavailable,TResult? Function( Session session)?  reading,TResult? Function( Session session,  Draft? draft,  String? notice)?  composing,TResult? Function( Session session,  Duration elapsed,  List<double> levels,  bool warned,  String partialText)?  recording,TResult? Function( Session session)?  recognising,TResult? Function( Session session,  Draft draft)?  reviewingTranscript,TResult? Function( Session session,  String pendingText)?  sending,TResult? Function( Session session,  String partialText)?  streaming,TResult? Function( Session session)?  wrappingUp,TResult? Function( Session session)?  finishOffered,TResult? Function( Session session)?  pullingHint,TResult? Function( Session session)?  capReached,TResult? Function( Session session)?  confirmSolutionRelease,TResult? Function( Session session)?  judging,TResult? Function( Session session,  Assessment assessment)?  verdict,TResult? Function( Session session,  Assessment assessment)?  revealed,TResult? Function( Session session)?  sessionClosed,TResult? Function( Session session,  RelayError error)?  failure,TResult? Function( Session session,  RecognitionAvailability reason)?  recognitionUnavailable,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  opening,TResult? Function()?  problemUnavailable,TResult? Function( Session session)?  reading,TResult? Function( Session session,  Draft? draft,  String? notice)?  composing,TResult? Function( Session session,  Duration elapsed,  List<double> levels,  bool warned,  String partialText,  Duration? limit)?  recording,TResult? Function( Session session)?  recognising,TResult? Function( Session session)?  voiceUploadFailed,TResult? Function( Session session,  Draft draft)?  reviewingTranscript,TResult? Function( Session session,  String pendingText)?  sending,TResult? Function( Session session,  String partialText)?  streaming,TResult? Function( Session session)?  wrappingUp,TResult? Function( Session session)?  finishOffered,TResult? Function( Session session)?  pullingHint,TResult? Function( Session session)?  capReached,TResult? Function( Session session)?  confirmSolutionRelease,TResult? Function( Session session)?  judging,TResult? Function( Session session,  Assessment assessment)?  verdict,TResult? Function( Session session,  Assessment assessment)?  revealed,TResult? Function( Session session)?  sessionClosed,TResult? Function( Session session,  RelayError error)?  failure,TResult? Function( Session session,  RecognitionAvailability reason)?  recognitionUnavailable,}) {final _that = this;
 switch (_that) {
 case Opening() when opening != null:
 return opening();case ProblemUnavailable() when problemUnavailable != null:
 return problemUnavailable();case Reading() when reading != null:
 return reading(_that.session);case Composing() when composing != null:
 return composing(_that.session,_that.draft,_that.notice);case Recording() when recording != null:
-return recording(_that.session,_that.elapsed,_that.levels,_that.warned,_that.partialText);case Recognising() when recognising != null:
-return recognising(_that.session);case ReviewingTranscript() when reviewingTranscript != null:
+return recording(_that.session,_that.elapsed,_that.levels,_that.warned,_that.partialText,_that.limit);case Recognising() when recognising != null:
+return recognising(_that.session);case VoiceUploadFailed() when voiceUploadFailed != null:
+return voiceUploadFailed(_that.session);case ReviewingTranscript() when reviewingTranscript != null:
 return reviewingTranscript(_that.session,_that.draft);case Sending() when sending != null:
 return sending(_that.session,_that.pendingText);case Streaming() when streaming != null:
 return streaming(_that.session,_that.partialText);case WrappingUp() when wrappingUp != null:
@@ -483,7 +489,7 @@ as String?,
 
 
 class Recording implements DailySessionState {
-  const Recording({required this.session, required this.elapsed, required final  List<double> levels, required this.warned, this.partialText = ''}): _levels = levels;
+  const Recording({required this.session, required this.elapsed, required final  List<double> levels, required this.warned, this.partialText = '', this.limit}): _levels = levels;
   
 
  final  Session session;
@@ -497,6 +503,7 @@ class Recording implements DailySessionState {
 
  final  bool warned;
 @JsonKey() final  String partialText;
+ final  Duration? limit;
 
 /// Create a copy of DailySessionState
 /// with the given fields replaced by the non-null parameter values.
@@ -508,16 +515,16 @@ $RecordingCopyWith<Recording> get copyWith => _$RecordingCopyWithImpl<Recording>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Recording&&(identical(other.session, session) || other.session == session)&&(identical(other.elapsed, elapsed) || other.elapsed == elapsed)&&const DeepCollectionEquality().equals(other._levels, _levels)&&(identical(other.warned, warned) || other.warned == warned)&&(identical(other.partialText, partialText) || other.partialText == partialText));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Recording&&(identical(other.session, session) || other.session == session)&&(identical(other.elapsed, elapsed) || other.elapsed == elapsed)&&const DeepCollectionEquality().equals(other._levels, _levels)&&(identical(other.warned, warned) || other.warned == warned)&&(identical(other.partialText, partialText) || other.partialText == partialText)&&(identical(other.limit, limit) || other.limit == limit));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,session,elapsed,const DeepCollectionEquality().hash(_levels),warned,partialText);
+int get hashCode => Object.hash(runtimeType,session,elapsed,const DeepCollectionEquality().hash(_levels),warned,partialText,limit);
 
 @override
 String toString() {
-  return 'DailySessionState.recording(session: $session, elapsed: $elapsed, levels: $levels, warned: $warned, partialText: $partialText)';
+  return 'DailySessionState.recording(session: $session, elapsed: $elapsed, levels: $levels, warned: $warned, partialText: $partialText, limit: $limit)';
 }
 
 
@@ -528,7 +535,7 @@ abstract mixin class $RecordingCopyWith<$Res> implements $DailySessionStateCopyW
   factory $RecordingCopyWith(Recording value, $Res Function(Recording) _then) = _$RecordingCopyWithImpl;
 @useResult
 $Res call({
- Session session, Duration elapsed, List<double> levels, bool warned, String partialText
+ Session session, Duration elapsed, List<double> levels, bool warned, String partialText, Duration? limit
 });
 
 
@@ -545,14 +552,15 @@ class _$RecordingCopyWithImpl<$Res>
 
 /// Create a copy of DailySessionState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? session = null,Object? elapsed = null,Object? levels = null,Object? warned = null,Object? partialText = null,}) {
+@pragma('vm:prefer-inline') $Res call({Object? session = null,Object? elapsed = null,Object? levels = null,Object? warned = null,Object? partialText = null,Object? limit = freezed,}) {
   return _then(Recording(
 session: null == session ? _self.session : session // ignore: cast_nullable_to_non_nullable
 as Session,elapsed: null == elapsed ? _self.elapsed : elapsed // ignore: cast_nullable_to_non_nullable
 as Duration,levels: null == levels ? _self._levels : levels // ignore: cast_nullable_to_non_nullable
 as List<double>,warned: null == warned ? _self.warned : warned // ignore: cast_nullable_to_non_nullable
 as bool,partialText: null == partialText ? _self.partialText : partialText // ignore: cast_nullable_to_non_nullable
-as String,
+as String,limit: freezed == limit ? _self.limit : limit // ignore: cast_nullable_to_non_nullable
+as Duration?,
   ));
 }
 
@@ -617,6 +625,72 @@ class _$RecognisingCopyWithImpl<$Res>
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') $Res call({Object? session = null,}) {
   return _then(Recognising(
+null == session ? _self.session : session // ignore: cast_nullable_to_non_nullable
+as Session,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class VoiceUploadFailed implements DailySessionState {
+  const VoiceUploadFailed(this.session);
+  
+
+ final  Session session;
+
+/// Create a copy of DailySessionState
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$VoiceUploadFailedCopyWith<VoiceUploadFailed> get copyWith => _$VoiceUploadFailedCopyWithImpl<VoiceUploadFailed>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is VoiceUploadFailed&&(identical(other.session, session) || other.session == session));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,session);
+
+@override
+String toString() {
+  return 'DailySessionState.voiceUploadFailed(session: $session)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $VoiceUploadFailedCopyWith<$Res> implements $DailySessionStateCopyWith<$Res> {
+  factory $VoiceUploadFailedCopyWith(VoiceUploadFailed value, $Res Function(VoiceUploadFailed) _then) = _$VoiceUploadFailedCopyWithImpl;
+@useResult
+$Res call({
+ Session session
+});
+
+
+
+
+}
+/// @nodoc
+class _$VoiceUploadFailedCopyWithImpl<$Res>
+    implements $VoiceUploadFailedCopyWith<$Res> {
+  _$VoiceUploadFailedCopyWithImpl(this._self, this._then);
+
+  final VoiceUploadFailed _self;
+  final $Res Function(VoiceUploadFailed) _then;
+
+/// Create a copy of DailySessionState
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? session = null,}) {
+  return _then(VoiceUploadFailed(
 null == session ? _self.session : session // ignore: cast_nullable_to_non_nullable
 as Session,
   ));

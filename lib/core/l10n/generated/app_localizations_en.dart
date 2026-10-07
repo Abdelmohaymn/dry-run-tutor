@@ -232,7 +232,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get micRationaleBody =>
-      'Your phone turns your speech into text, and may send the audio to its maker\'s service to do it. We never record or receive your audio. Once you\'ve spoken, the words are sent as text to your tutor. Speaking works in English for now.';
+      'When you speak, Dry Run records a short clip and sends it to our server, which passes it to Groq\'s speech service to turn it into text. We don\'t keep your clips: each one is deleted from your phone once it\'s transcribed or discarded, and our server never stores it. If voice transcription is busy or today\'s allowance is used up, your phone\'s own speech recognition takes over, and it may send audio to its maker\'s service. Speaking works in English for now.';
+
+  @override
+  String get recordingCloudLabel => 'Recording';
+
+  @override
+  String get recordingCloudRetryTitle => 'That didn\'t go through.';
+
+  @override
+  String get recordingCloudRetryBody =>
+      'Your recording is saved, so there\'s no need to say it again. Check your connection and tap Try again.';
+
+  @override
+  String get recordingCloudDiscardAction => 'Discard recording';
+
+  @override
+  String get recordingCloudFailedNotice =>
+      'Sorry, we couldn\'t transcribe that one. Please tap the mic and say it again.';
+
+  @override
+  String get recordingCloudFallbackNotice =>
+      'Sorry, we couldn\'t transcribe that one. Please tap the mic and say it again; your phone\'s speech recognition will take it from here.';
 
   @override
   String get micRationaleContinue => 'Continue';

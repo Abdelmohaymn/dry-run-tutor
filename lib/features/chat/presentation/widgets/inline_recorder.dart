@@ -22,6 +22,7 @@ class InlineRecorder extends StatelessWidget {
     required this.partialText,
     required this.onStop,
     required this.onCancel,
+    this.limit,
     super.key,
   });
 
@@ -36,9 +37,18 @@ class InlineRecorder extends StatelessWidget {
   final VoidCallback onStop;
   final VoidCallback onCancel;
 
+  /// The hard length of this clip on the cloud voice path. When set, the
+  /// clock counts down to it instead of up, and the label says the clip is
+  /// being recorded for upload. Null keeps the on-device behaviour.
+  final Duration? limit;
+
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context)!;
+    final Duration? limit = this.limit;
+    final Duration shown = limit == null
+        ? elapsed
+        : (limit > elapsed ? limit - elapsed : Duration.zero);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -90,7 +100,7 @@ class InlineRecorder extends StatelessWidget {
                     // English-only for now, and this is the one moment the
                     // learner needs to know it.
                     Text(
-                      l10n.recordingListeningLabel,
+                      limit == null ? l10n.recordingListeningLabel : l10n.recordingCloudLabel,
                       style: context.appTypography.sansCaption.copyWith(color: AppTokens.muted),
                     ),
                     const SizedBox(width: 10),
@@ -101,7 +111,7 @@ class InlineRecorder extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    Text(formatElapsed(elapsed), style: context.appTypography.monoBody),
+                    Text(formatElapsed(shown), style: context.appTypography.monoBody),
                   ],
                 ),
               ),

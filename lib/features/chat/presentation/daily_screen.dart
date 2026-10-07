@@ -146,7 +146,7 @@ class _DailyScreenState extends State<DailyScreen> {
               // Speaking, in the conversation. No screen change, and the
               // controls step aside so the recording bar is the only thing
               // that can be tapped by mistake mid-turn.
-              Recording(:final session, :final elapsed, :final levels, :final warned, :final partialText) =>
+              Recording(:final session, :final elapsed, :final levels, :final warned, :final partialText, :final limit) =>
                 _DailyBody(
                   session: session,
                   footer: InlineRecorder(
@@ -154,6 +154,7 @@ class _DailyScreenState extends State<DailyScreen> {
                     levels: levels,
                     warned: warned,
                     partialText: partialText,
+                    limit: limit,
                     onStop: cubit.stopRecording,
                     onCancel: cubit.cancelRecording,
                   ),
@@ -161,6 +162,10 @@ class _DailyScreenState extends State<DailyScreen> {
               Recognising(:final session) => _DailyBody(
                   session: session,
                   footer: const _TranscribingNotice(),
+                ),
+              VoiceUploadFailed(:final session) => _DailyBody(
+                  session: session,
+                  footer: const _VoiceRetryNotice(),
                 ),
               ReviewingTranscript(:final session, :final draft) => _DailyBody(
                   session: session,
@@ -334,6 +339,15 @@ class _DailyBody extends StatelessWidget {
   final String? streamingText;
   final bool awaitingReply;
 
+  /// Resolves [notice] against the ARB; null when there is nothing to say
+  /// (or the id is not one this body knows).
+  String? _noticeText(AppLocalizations l10n) => switch (notice) {
+        DailySessionCubit.nothingHeardNotice => l10n.recordingNothingHeardNotice,
+        DailySessionCubit.cloudVoiceFailedNotice => l10n.recordingCloudFailedNotice,
+        DailySessionCubit.cloudVoiceFallbackNotice => l10n.recordingCloudFallbackNotice,
+        _ => null,
+      };
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -381,11 +395,11 @@ class _DailyBody extends StatelessWidget {
             },
           ),
         ),
-        if (notice == DailySessionCubit.nothingHeardNotice)
+        if (_noticeText(AppLocalizations.of(context)!) case final String text)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
             child: Text(
-              AppLocalizations.of(context)!.recordingNothingHeardNotice,
+              text,
               style: context.appTypography.sansCaption.copyWith(color: AppTokens.amber),
               textAlign: TextAlign.center,
             ),
@@ -721,6 +735,41 @@ class _SessionClosedNotice extends StatelessWidget {
         OutlinedButton(
           onPressed: () => context.read<DailySessionCubit>().openClosedAssessment(),
           child: Text(l10n.sessionClosedReviewAction),
+        ),
+      ],
+    );
+  }
+}
+
+/// Footer for [VoiceUploadFailed]: the recorded clip is still saved, so the
+/// learner can re-upload it or throw it away. No error code line; the cause
+/// is a dropped connection or a busy service, not something to look up.
+class _VoiceRetryNotice extends StatelessWidget {
+  const _VoiceRetryNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
+    final DailySessionCubit cubit = context.read<DailySessionCubit>();
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Text(
+          l10n.recordingCloudRetryTitle,
+          style: context.appTypography.sansBody,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          l10n.recordingCloudRetryBody,
+          style: context.appTypography.sansCaption,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        FilledButton(onPressed: cubit.retryVoiceUpload, child: Text(l10n.retryAction)),
+        TextButton(
+          onPressed: cubit.discardVoiceClip,
+          child: Text(l10n.recordingCloudDiscardAction),
         ),
       ],
     );

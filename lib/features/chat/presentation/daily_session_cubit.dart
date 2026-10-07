@@ -14,6 +14,8 @@ import '../../../core/network/relay_client.dart';
 import '../../../core/network/sse_parser.dart' show MissingMetaFailure;
 import '../../assessment/domain/assessment.dart';
 import '../../assessment/domain/assessment_repository.dart';
+import '../../cloud_voice/domain/cloud_voice_failure.dart';
+import '../../cloud_voice/domain/cloud_voice_repository.dart';
 import '../../daily/domain/daily_repository.dart' show NoProblemAvailableException;
 import '../../settings/domain/reminder_time.dart';
 import '../../settings/domain/settings_repository.dart';
@@ -40,9 +42,13 @@ import 'daily_session_state.dart';
 /// nowhere because there is nothing here to mishear or misrecognise.
 const String _solutionRequestText = 'Please just tell me the solution.';
 
-/// The 15-second warning inside FR-013a's 90-second recording cap.
-const Duration _recordingWarningAt = Duration(seconds: 75);
+/// FR-013a's 90-second recording cap for the on-device path. The cloud path
+/// uses the per-clip limit `CloudVoiceRepository.nextClipLimit()` returns.
 const Duration _recordingCap = Duration(seconds: 90);
+
+/// The warning shows once this much of the active cap is left (15 s of 90 s
+/// on-device, 15 s of the clip limit in the cloud).
+const Duration _recordingWarningBefore = Duration(seconds: 15);
 
 /// `Turn.text`'s wire ceiling (data-model.md §4). A turn over this is
 /// trimmed at a sentence boundary rather than sent to be refused as
@@ -66,6 +72,7 @@ class DailySessionCubit extends Cubit<DailySessionState> {
     required MicRationaleRepository micRationaleRepository,
     SettingsRepository? settingsRepository,
     TranscriptRepairRepository? transcriptRepairRepository,
+    CloudVoiceRepository? cloudVoiceRepository,
   })  : _sessionRepository = sessionRepository,
         _assessmentRepository = assessmentRepository,
         _streakRepository = streakRepository,
@@ -74,6 +81,7 @@ class DailySessionCubit extends Cubit<DailySessionState> {
         _micRationaleRepository = micRationaleRepository,
         _settingsRepository = settingsRepository,
         _transcriptRepairRepository = transcriptRepairRepository,
+        _cloudVoiceRepository = cloudVoiceRepository,
         super(const DailySessionState.opening());
 
   final SessionRepository _sessionRepository;
@@ -95,6 +103,27 @@ class DailySessionCubit extends Cubit<DailySessionState> {
   /// off: [_openReviewWithRepair] opens the review step with the raw
   /// transcript immediately.
   final TranscriptRepairRepository? _transcriptRepairRepository;
+
+  /// Nullable for the same reason as [_transcriptRepairRepository]: every
+  /// existing test construction keeps compiling, and `null` in production
+  /// never happens (`main()`'s composition root always supplies one). `null`
+  /// here means cloud voice is off: every recording uses the on-device
+  /// recogniser.
+  final CloudVoiceRepository? _cloudVoiceRepository;
+
+  /// True from the start of a cloud recording until the next recording
+  /// starts; routes [stopRecording] and [cancelRecording] to the cloud
+  /// repository instead of the platform recogniser.
+  bool _cloudActive = false;
+
+  /// Set when the cloud stream delivers its one terminal event, or when the
+  /// learner cancels, so the stream closing afterwards is not mistaken for an
+  /// interruption ("nothing heard").
+  bool _cloudTerminalSeen = false;
+
+  /// The cap the current recording runs to: [_recordingCap] on-device, the
+  /// clip limit in the cloud.
+  Duration _activeCap = _recordingCap;
 
   StreamSubscription<RecognitionEvent>? _recognitionSub;
   Timer? _recordingTicker;
@@ -219,6 +248,15 @@ class DailySessionCubit extends Cubit<DailySessionState> {
   /// recording when the platform cannot support it (FR-011a).
   Future<void> startRecording() async {
     final Session session = _currentSession;
+    // The cloud engine is chosen first. It is not subject to the platform
+    // recogniser's availability, which is deliberately skipped for it.
+    final Duration? cloudLimit = await _cloudVoiceRepository?.nextClipLimit();
+    if (cloudLimit != null) {
+      await _startCloudRecording(session, cloudLimit);
+      return;
+    }
+    _cloudActive = false;
+    _activeCap = _recordingCap;
     final RecognitionAvailability availability = await _recognitionService.availability();
     if (availability != RecognitionAvailability.available) {
       emit(DailySessionState.recognitionUnavailable(session, availability));
@@ -244,6 +282,42 @@ class DailySessionCubit extends Cubit<DailySessionState> {
     );
   }
 
+  Future<void> _startCloudRecording(Session session, Duration limit) async {
+    final CloudVoiceRepository repo = _cloudVoiceRepository!;
+    await _recognitionSub?.cancel();
+    _cloudActive = true;
+    _cloudTerminalSeen = false;
+    _activeCap = limit;
+    _recordingStopwatch
+      ..reset()
+      ..start();
+    emit(
+      DailySessionState.recording(
+        session: session,
+        elapsed: Duration.zero,
+        levels: const <double>[],
+        warned: false,
+        limit: limit,
+      ),
+    );
+    _recordingTicker = Timer.periodic(const Duration(milliseconds: 200), (_) => _onRecordingTick());
+    _recognitionSub = repo.record(limit: limit).listen(
+      (RecognitionEvent event) {
+        if (event is FinalTextEvent || event is RecognitionErrorEvent) {
+          _cloudTerminalSeen = true;
+        }
+        _onRecognitionEvent(event);
+      },
+      // After a terminal event the stream closes on its own; only a stream
+      // that closes with nothing at all is an interruption.
+      onDone: () {
+        if (!_cloudTerminalSeen) {
+          _onRecognitionInterrupted(session);
+        }
+      },
+    );
+  }
+
   /// FR-011b's language picker. The platform recogniser takes one
   /// language per session — there is no auto-detection to fall back on —
   /// so these three exist purely to let the learner say which one.
@@ -253,14 +327,31 @@ class DailySessionCubit extends Cubit<DailySessionState> {
 
   Future<void> setSpokenLanguage(String localeId) => _recognitionService.setLanguage(localeId);
 
-  /// Ends the listen session normally, causing a final transcript.
-  Future<void> stopRecording() => _recognitionService.stop();
+  /// Ends the listen session normally, causing a final transcript. On the
+  /// cloud path this also starts the upload, so the footer switches to
+  /// "Transcribing..." straight away.
+  Future<void> stopRecording() async {
+    if (_cloudActive) {
+      _stopRecordingTicker();
+      emit(DailySessionState.recognising(_currentSession));
+      await _cloudVoiceRepository!.stop();
+      return;
+    }
+    await _recognitionService.stop();
+  }
 
   /// Abandons the listen session with no final transcript — the mic
   /// permission-revoked and app-backgrounded interruption paths route
   /// here via [_onRecognitionInterrupted], never through a lost draft.
   Future<void> cancelRecording() async {
-    await _recognitionService.cancel();
+    if (_cloudActive) {
+      // The repository closes its stream with no terminal event on cancel;
+      // that must not read as "nothing heard".
+      _cloudTerminalSeen = true;
+      await _cloudVoiceRepository!.cancel();
+    } else {
+      await _recognitionService.cancel();
+    }
     _stopRecordingTicker();
     emit(DailySessionState.composing(_currentSession, null));
   }
@@ -749,9 +840,44 @@ class DailySessionCubit extends Cubit<DailySessionState> {
     );
   }
 
+  /// D2: re-sends the clip a transient failure kept, without making the
+  /// learner speak again. A second transient failure lands back in
+  /// [VoiceUploadFailed], so Try again can be tapped any number of times.
+  Future<void> retryVoiceUpload() async {
+    final DailySessionState current = state;
+    final CloudVoiceRepository? repo = _cloudVoiceRepository;
+    if (current is! VoiceUploadFailed || repo == null) {
+      return;
+    }
+    emit(DailySessionState.recognising(current.session));
+    final RecognitionEvent event = await repo.retryUpload();
+    if (isClosed) {
+      return;
+    }
+    _onRecognitionEvent(event);
+  }
+
+  /// D2: gives up on the kept clip and returns to the composer.
+  Future<void> discardVoiceClip() async {
+    final DailySessionState current = state;
+    final CloudVoiceRepository? repo = _cloudVoiceRepository;
+    if (current is! VoiceUploadFailed || repo == null) {
+      return;
+    }
+    await repo.discardPending();
+    if (isClosed) {
+      return;
+    }
+    emit(DailySessionState.composing(current.session, null, null));
+  }
+
   @override
   Future<void> close() {
     _recognitionSub?.cancel();
+    // Leaving the session deletes a recording in progress or a held clip.
+    if (_cloudActive || _cloudVoiceRepository?.hasPendingClip == true) {
+      unawaited(_cloudVoiceRepository?.cancel());
+    }
     _stopRecordingTicker();
     _draftSaveDebounce?.cancel();
     _rateLimitRetryTimer?.cancel();
@@ -767,6 +893,7 @@ class DailySessionCubit extends Cubit<DailySessionState> {
         Composing(:final session) => session,
         Recording(:final session) => session,
         Recognising(:final session) => session,
+        VoiceUploadFailed(:final session) => session,
         ReviewingTranscript(:final session) => session,
         Sending(:final session) => session,
         Streaming(:final session) => session,
@@ -932,6 +1059,24 @@ class DailySessionCubit extends Cubit<DailySessionState> {
           return;
         }
         unawaited(_openReviewWithRepair(session, text));
+      case RecognitionErrorEvent(:final reason) when reason == CloudVoiceFailure.retryable:
+        // D2: the clip is still held; offer Try again instead of a re-record.
+        _stopRecordingTicker();
+        emit(DailySessionState.voiceUploadFailed(_currentSession));
+      case RecognitionErrorEvent(:final reason) when CloudVoiceFailure.isCloud(reason):
+        // D4: a rejected clip or a revoked permission asks the learner to say
+        // it again; an unavailable or exhausted service says the phone's own
+        // recognition takes over.
+        _stopRecordingTicker();
+        emit(
+          DailySessionState.composing(
+            _currentSession,
+            null,
+            reason == CloudVoiceFailure.rejected || reason == CloudVoiceFailure.permission
+                ? cloudVoiceFailedNotice
+                : cloudVoiceFallbackNotice,
+          ),
+        );
       case RecognitionErrorEvent() when event.isLanguageUnavailable:
         // FR-011a: the recogniser does not cover the language being
         // spoken. There is no in-app fix, but it has its own screen and
@@ -1047,16 +1192,27 @@ class DailySessionCubit extends Cubit<DailySessionState> {
   /// free of `AppLocalizations` (which needs a `BuildContext`).
   static const String nothingHeardNotice = 'nothing_heard';
 
+  /// A cloud clip could not be used (rejected, or mic permission missing):
+  /// "please say it again".
+  static const String cloudVoiceFailedNotice = 'cloud_voice_failed';
+
+  /// A cloud limit was hit (voice off, Groq's limit, or the device's seconds
+  /// used up): "say it again, your phone's recognition will take it from here".
+  static const String cloudVoiceFallbackNotice = 'cloud_voice_fallback';
+
   void _onRecordingTick() {
     final DailySessionState current = state;
     if (current is! Recording) {
       return;
     }
     final Duration elapsed = _recordingStopwatch.elapsed;
-    if (elapsed >= _recordingCap) {
-      unawaited(_recognitionService.stop());
+    emit(current.copyWith(elapsed: elapsed, warned: _activeCap - elapsed <= _recordingWarningBefore));
+    if (elapsed >= _activeCap) {
+      // Emitted first: the cloud stop switches the state to Recognising, and
+      // that must not be overwritten by this tick's Recording copy. The state
+      // guard above keeps later ticks from stopping a second time.
+      unawaited(stopRecording());
     }
-    emit(current.copyWith(elapsed: elapsed, warned: elapsed >= _recordingWarningAt));
   }
 
   void _stopRecordingTicker() {

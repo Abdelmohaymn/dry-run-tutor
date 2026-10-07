@@ -281,9 +281,33 @@
   "@micRationaleTitle": {
     "description": "Mic rationale screen heading (prototype screen 9), shown at first record, never at launch (FR-014)."
   },
-  "micRationaleBody": "Your phone turns your speech into text, and may send the audio to its maker's service to do it. We never record or receive your audio. Once you've spoken, the words are sent as text to your tutor. Speaking works in English for now.",
+  "micRationaleBody": "When you speak, Dry Run records a short clip and sends it to our server, which passes it to Groq's speech service to turn it into text. We don't keep your clips: each one is deleted from your phone once it's transcribed or discarded, and our server never stores it. If voice transcription is busy or today's allowance is used up, your phone's own speech recognition takes over, and it may send audio to its maker's service. Speaking works in English for now.",
   "@micRationaleBody": {
-    "description": "Honest about the platform recognizer possibly using the network — Android's docs say it 'is likely to stream audio to remote servers' — while stating what this app itself does and does not do with audio (FR-014, Principle VII)."
+    "description": "Honest about the cloud path (clip uploaded to our server and forwarded to Groq, deleted after use, never stored server-side) and the on-device fallback, where the platform recognizer may stream audio to its maker's service (Android's docs say it 'is likely to stream audio to remote servers'). Matches amended Principle VII and the voice-groq-stt design (FR-014, owner decision D3)."
+  },
+  "recordingCloudLabel": "Recording",
+  "@recordingCloudLabel": {
+    "description": "Status label shown while a clip is being recorded for cloud transcription."
+  },
+  "recordingCloudRetryTitle": "That didn't go through.",
+  "@recordingCloudRetryTitle": {
+    "description": "Heading of the retry notice after a retryable cloud upload failure (offline, timeout, or the speech service busy). The saved clip is kept for Try again."
+  },
+  "recordingCloudRetryBody": "Your recording is saved, so there's no need to say it again. Check your connection and tap Try again.",
+  "@recordingCloudRetryBody": {
+    "description": "Body of the retry notice; reassures the learner the clip is kept so they need not speak again. The Try again button reuses retryAction."
+  },
+  "recordingCloudDiscardAction": "Discard recording",
+  "@recordingCloudDiscardAction": {
+    "description": "Button that deletes the saved clip after a failed cloud upload instead of retrying."
+  },
+  "recordingCloudFailedNotice": "Sorry, we couldn't transcribe that one. Please tap the mic and say it again.",
+  "@recordingCloudFailedNotice": {
+    "description": "Notice after a non-retryable cloud transcription failure where cloud voice stays available (BAD_REQUEST). Not a judgement on the learner."
+  },
+  "recordingCloudFallbackNotice": "Sorry, we couldn't transcribe that one. Please tap the mic and say it again; your phone's speech recognition will take it from here.",
+  "@recordingCloudFallbackNotice": {
+    "description": "Notice when cloud voice is unavailable or the daily allowance is used up (VOICE_UNAVAILABLE, VOICE_EXHAUSTED); the next mic tap uses on-device speech recognition."
   },
   "micRationaleContinue": "Continue",
   "@micRationaleContinue": {
