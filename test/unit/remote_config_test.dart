@@ -41,6 +41,18 @@ const String _configWithUpdateUrlJson = '''
 }
 ''';
 
+/// The same payload with the server-voice levers (spec 008).
+const String _configWithVoiceJson = '''
+{
+  "min_supported_version": "1.0.0",
+  "killed_problem_ids": [],
+  "chat": {"turn_cap": 12, "wrap_up_at_turn": 9, "min_turn_chars": 8},
+  "trial": {"turn_cap": 4},
+  "keyed_providers": ["groq", "gemini"],
+  "voice": {"enabled": true, "seconds_per_device": 300, "max_clip_seconds": 120}
+}
+''';
+
 class _FixedTimeSource implements TrustedTimeSource {
   @override
   Future<TrustedInstant> now() async => TrustedInstant(
@@ -126,6 +138,20 @@ void main() {
     expect(
       (await repoFor(_configWithUpdateUrlJson).load()).updateUrl,
       'https://dry-run.en.uptodown.com/android',
+    );
+  });
+
+  test('a voice block parses into VoiceConfig, and its absence is null', () async {
+    RemoteConfigRepositoryImpl repoFor(String json) => RemoteConfigRepositoryImpl(
+          relayClient: _relayClientReturning(() => _okBody(json)),
+          configDao: db.configDao,
+          timeSource: _FixedTimeSource(),
+        );
+
+    expect((await repoFor(_validConfigJson).load()).voice, isNull);
+    expect(
+      (await repoFor(_configWithVoiceJson).load()).voice,
+      const VoiceConfig(enabled: true, secondsPerDevice: 300, maxClipSeconds: 120),
     );
   });
 

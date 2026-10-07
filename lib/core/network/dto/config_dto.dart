@@ -57,10 +57,32 @@ class RepairConfigDto {
   Map<String, dynamic> toJson() => _$RepairConfigDtoToJson(this);
 }
 
+/// `config.schema.json#/properties/voice` — only the three keys the app
+/// needs to decide whether to record for upload and when to stop the clip.
+/// **No field for `model`** — which speech model the server uses is server
+/// business, same rule as `repair.model`.
+@JsonSerializable(fieldRename: FieldRename.snake)
+class VoiceConfigDto {
+  VoiceConfigDto({
+    required this.enabled,
+    required this.secondsPerDevice,
+    required this.maxClipSeconds,
+  });
+
+  factory VoiceConfigDto.fromJson(Map<String, dynamic> json) => _$VoiceConfigDtoFromJson(json);
+
+  final bool enabled;
+  final int secondsPerDevice;
+  final int maxClipSeconds;
+
+  Map<String, dynamic> toJson() => _$VoiceConfigDtoToJson(this);
+}
+
 /// `GET /v1/config` response, restricted to the keys FR-008c permits the
 /// app to read: `min_supported_version`, `update_url`, `killed_problem_ids`,
 /// `chat.*`, `trial.turn_cap`, `keyed_providers`, `repair.*` (feature 004,
-/// three fields only). The relay still sends `content_manifest_url` for
+/// three fields only), `voice.*` (server speech-to-text, three fields only).
+/// The relay still sends `content_manifest_url` for
 /// pre-006 apps; it is ignored here, like every other unknown key.
 ///
 /// **This class has no field for `model`, `provider`, `providers`,
@@ -81,6 +103,7 @@ class ConfigDto {
     this.updateUrl,
     this.keyedProviders,
     this.repair,
+    this.voice,
   });
 
   factory ConfigDto.fromJson(Map<String, dynamic> json) => _$ConfigDtoFromJson(json);
@@ -101,6 +124,10 @@ class ConfigDto {
 
   /// Absent means repair is off (feature 004's pre-feature behaviour).
   final RepairConfigDto? repair;
+
+  /// Absent means server-side voice is off and the app uses on-device
+  /// speech recognition only.
+  final VoiceConfigDto? voice;
 
   Map<String, dynamic> toJson() => _$ConfigDtoToJson(this);
 }

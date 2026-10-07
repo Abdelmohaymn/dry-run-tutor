@@ -47,11 +47,28 @@ class RepairConfig extends Equatable {
   List<Object?> get props => <Object?>[enabled, minChars, timeoutMs];
 }
 
+/// `voice.{enabled, seconds_per_device, max_clip_seconds}` — the three
+/// server speech-to-text levers the app is allowed to read. Null means
+/// server voice is off (on-device speech recognition only).
+class VoiceConfig extends Equatable {
+  const VoiceConfig({
+    required this.enabled,
+    required this.secondsPerDevice,
+    required this.maxClipSeconds,
+  });
+
+  final bool enabled;
+  final int secondsPerDevice;
+  final int maxClipSeconds;
+
+  @override
+  List<Object?> get props => <Object?>[enabled, secondsPerDevice, maxClipSeconds];
+}
 
 /// A read-only projection of `config.schema.json`, restricted to exactly
 /// the keys FR-008c permits the app to read: `min_supported_version`, `update_url`,
 /// `killed_problem_ids`, `chat.{turn_cap,wrap_up_at_turn,min_turn_chars}`,
-/// `trial.turn_cap`, `keyed_providers`.
+/// `trial.turn_cap`, `keyed_providers`, `repair.*`, `voice.*`.
 ///
 /// **Deliberately has no field for `model`, `provider`, `providers`,
 /// `trim`, or `trial.pool`.** Those are server business; FR-008c forbids
@@ -71,6 +88,7 @@ class RuntimeConfig extends Equatable {
     required this.keyedProviders,
     this.updateUrl,
     this.repair,
+    this.voice,
   });
 
   factory RuntimeConfig.fromDto(ConfigDto dto) {
@@ -92,6 +110,13 @@ class RuntimeConfig extends Equatable {
               minChars: dto.repair!.minChars,
               timeoutMs: dto.repair!.timeoutMs,
             ),
+      voice: dto.voice == null
+          ? null
+          : VoiceConfig(
+              enabled: dto.voice!.enabled,
+              secondsPerDevice: dto.voice!.secondsPerDevice,
+              maxClipSeconds: dto.voice!.maxClipSeconds,
+            ),
     );
   }
 
@@ -110,6 +135,9 @@ class RuntimeConfig extends Equatable {
   /// Null means repair is off (feature 004's pre-feature behaviour).
   final RepairConfig? repair;
 
+  /// Null means server voice is off (on-device speech recognition only).
+  final VoiceConfig? voice;
+
   @override
   List<Object?> get props => <Object?>[
         minSupportedVersion,
@@ -119,5 +147,6 @@ class RuntimeConfig extends Equatable {
         trial,
         keyedProviders,
         repair,
+        voice,
       ];
 }

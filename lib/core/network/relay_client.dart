@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
@@ -11,6 +12,7 @@ import 'dto/install_dto.dart';
 import 'dto/judge_dto.dart';
 import 'dto/problem_dto.dart';
 import 'dto/repair_dto.dart';
+import 'dto/stt_dto.dart';
 import 'sse_parser.dart';
 
 /// Thrown by every [RelayClient] method that fails. Repository
@@ -37,14 +39,14 @@ class ConfigResponse {
   final String? etag;
 }
 
-/// The eight relay calls, with the header rules from
+/// The nine relay calls, with the header rules from
 /// contracts/relay-client.md applied once here rather than left to every
 /// caller to remember:
 ///
 /// | Header | Sent on |
 /// |---|---|
-/// | `X-Install-Id` | every call except `/v1/config` and `/v1/practice` |
-/// | `X-User-Key` | `/v1/chat`, `/v1/judge`, `/v1/repair` only — never `/v1/trial` |
+/// | `X-Install-Id` | every call except `/v1/config` and `/v1/practice`; also sent on `/v1/stt` |
+/// | `X-User-Key` | `/v1/chat`, `/v1/judge`, `/v1/repair` only — never `/v1/trial`, never `/v1/stt` |
 /// | `X-Provider` | `/v1/chat`, `/v1/judge`, `/v1/repair` only — never `/v1/trial` |
 ///
 /// This class only ever throws [RelayException] (built from
@@ -194,6 +196,49 @@ class RelayClient {
     return AssessmentDto.fromJson(response);
   }
 
+  /// `POST /v1/stt` — one recorded clip, transcribed server-side on the
+  /// operator's Groq key. Sends `X-Install-Id` only: **never** `X-User-Key`
+  /// or `X-Provider` (the learner's own key is not used for voice).
+  ///
+  /// The body is the raw audio bytes, sent as a stream with an explicit
+  /// `content-length` so dio does not buffer or re-encode it. The global
+  /// `sendTimeout` (10 s) is too short for ~0.5 MB on a slow network, so
+  /// this call carries its own 60 s send/receive timeouts.
+  ///
+  /// Throws [SttRefusedException] for the three voice codes
+  /// (`VOICE_EXHAUSTED`, `VOICE_UNAVAILABLE`, `VOICE_BUSY`); every other
+  /// failure (offline, timeout, `BAD_REQUEST`, ...) is a [RelayException].
+  Future<SttResponseDto> stt({
+    required String installId,
+    required Uint8List audio,
+    required String contentType,
+    String? language,
+  }) async {
+    try {
+      final Response<Map<String, dynamic>> response = await _dio.post<Map<String, dynamic>>(
+        '/v1/stt',
+        data: Stream<List<int>>.fromIterable(<List<int>>[audio]),
+        queryParameters: <String, String>{'language': ?language},
+        options: Options(
+          headers: <String, Object>{
+            ..._headers(installId: installId),
+            Headers.contentLengthHeader: audio.length,
+          },
+          contentType: contentType,
+          sendTimeout: const Duration(seconds: 60),
+          receiveTimeout: const Duration(seconds: 60),
+        ),
+      );
+      return SttResponseDto.fromJson(response.data!);
+    } on DioException catch (e) {
+      final SttRefusal? refusal = _sttRefusalOf(e);
+      if (refusal != null) {
+        throw SttRefusedException(refusal);
+      }
+      throw RelayException(_mapTransportOrEnvelope(e, requestProblemId: '', callKind: RelayCallKind.chat));
+    }
+  }
+
   // --- internals ---------------------------------------------------
 
   Map<String, String> _headers({String? installId, String? userKey, String? providerId}) {
@@ -283,6 +328,30 @@ class RelayClient {
       }
       yield frame;
     }
+  }
+
+  /// The voice refusal named by a non-2xx `/v1/stt` envelope, or null when
+  /// the body is not one of the three voice codes.
+  SttRefusal? _sttRefusalOf(DioException e) {
+    Object? data = e.response?.data;
+    if (data is String && data.isNotEmpty) {
+      try {
+        data = jsonDecode(data);
+      } on FormatException {
+        return null;
+      }
+    }
+    if (data is! Map) {
+      return null;
+    }
+    final Object? error = data['error'];
+    final Object? code = error is Map ? error['code'] : null;
+    return switch (code) {
+      'VOICE_EXHAUSTED' => SttRefusal.exhausted,
+      'VOICE_UNAVAILABLE' => SttRefusal.unavailable,
+      'VOICE_BUSY' => SttRefusal.busy,
+      _ => null,
+    };
   }
 
   RelayError _mapTransportOrEnvelope(

@@ -35,6 +35,8 @@ dependencies:
   uuid: ^4.6.0
   shared_preferences: ^2.5.5
   equatable: ^2.1.0
+  record: ^6.0.0
+  path_provider: ^2.1.6
   # Web demo only (feature 007): fetch streaming and the host page bridge.
 
 dev_dependencies:

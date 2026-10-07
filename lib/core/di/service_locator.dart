@@ -1,11 +1,19 @@
+import 'dart:async';
+
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:get_it/get_it.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../features/assessment/data/assessment_repository_impl.dart';
 import '../../features/assessment/domain/assessment_repository.dart';
 import '../../features/chat/data/session_repository_impl.dart';
 import '../../features/chat/domain/session_repository.dart';
+import '../../features/cloud_voice/data/audio_recorder_port.dart';
+import '../../features/cloud_voice/data/cloud_voice_repository_impl.dart';
+import '../../features/cloud_voice/data/voice_quota_store.dart';
+import '../../features/cloud_voice/domain/cloud_voice_repository.dart';
 import '../../features/daily/data/daily_repository_impl.dart';
 import '../../features/daily/domain/daily_repository.dart';
 import '../../features/keys/data/key_repository_impl.dart';
@@ -198,6 +206,27 @@ Future<void> setupLocator() async {
   sl.registerLazySingleton<MicRationaleRepository>(
     () => MicRationaleRepositoryImpl(sl<SharedPreferences>()),
   );
+  sl.registerLazySingleton<VoiceQuotaStore>(
+    () => VoiceQuotaStore(sl<SharedPreferences>()),
+  );
+  sl.registerLazySingleton<AudioRecorderPort>(() => RecordAudioRecorder());
+  sl.registerLazySingleton<CloudVoiceRepository>(
+    () => CloudVoiceRepositoryImpl(
+      configRepository: sl<RemoteConfigRepository>(),
+      installRepository: sl<InstallRepository>(),
+      relayClient: sl<RelayClient>(),
+      timeSource: sl<TrustedTimeSource>(),
+      store: sl<VoiceQuotaStore>(),
+      recorder: sl<AudioRecorderPort>(),
+      spokenLanguageRepository: sl<SpokenLanguageRepository>(),
+      isOnline: () async {
+        final List<ConnectivityResult> results =
+            await Connectivity().checkConnectivity();
+        return results.any((ConnectivityResult r) => r != ConnectivityResult.none);
+      },
+      tempDirPath: () async => (await getTemporaryDirectory()).path,
+    ),
+  );
   sl.registerLazySingleton<OutboxDrainBloc>(
     () => OutboxDrainBloc(
       outboxRepository: sl<OutboxRepository>(),
@@ -227,4 +256,11 @@ Future<void> setupLocator() async {
   );
 
   await sl.allReady();
+
+  // Delete clips left behind by a crash or a kill mid-upload. Fire and
+  // forget; `sweepOrphanClips` swallows its own errors, and the resolve is
+  // guarded so a construction failure can never reach startup.
+  try {
+    unawaited(sl<CloudVoiceRepository>().sweepOrphanClips());
+  } catch (_) {}
 }
