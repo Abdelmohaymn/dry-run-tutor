@@ -227,12 +227,14 @@ export interface TrialConsumedRow {
   date: string | null;
   /** Walkthrough turns spent by this install, for life (0003). */
   practiceTurns: number;
+  /** Sessions already retired out of the slot above (0008). */
+  sessionsDone: number;
 }
 
 export async function getTrialConsumed(db: D1Database, installId: string): Promise<TrialConsumedRow | null> {
   const row = await db
     .prepare(
-      "SELECT trial_started_at, trial_completed_at, trial_problem_id, trial_date, practice_turns FROM devices WHERE device_hash = ?1",
+      "SELECT trial_started_at, trial_completed_at, trial_problem_id, trial_date, practice_turns, trial_sessions_done FROM devices WHERE device_hash = ?1",
     )
     .bind(installId)
     .first<{
@@ -241,6 +243,7 @@ export async function getTrialConsumed(db: D1Database, installId: string): Promi
       trial_problem_id: string | null;
       trial_date: string | null;
       practice_turns: number;
+      trial_sessions_done: number;
     }>();
   if (!row) return null;
   return {
@@ -249,6 +252,7 @@ export async function getTrialConsumed(db: D1Database, installId: string): Promi
     problemId: row.trial_problem_id,
     date: row.trial_date,
     practiceTurns: row.practice_turns ?? 0,
+    sessionsDone: row.trial_sessions_done ?? 0,
   };
 }
 
@@ -283,6 +287,21 @@ export function isSameTrialSession(
  */
 export function isTasterUnclaimed(row: TrialConsumedRow): boolean {
   return row.completedAt === null && row.problemId === null;
+}
+
+/**
+ * Free sessions this device has claimed: the ones retired out of the slot
+ * (0008) plus the one the slot holds now. A walkthrough-only row claims none;
+ * a pre-0002 row (closed, no problem) counts as the one session it spent.
+ */
+export function trialSessionsClaimed(row: TrialConsumedRow | null): number {
+  if (!row) return 0;
+  return row.sessionsDone + (isTasterUnclaimed(row) ? 0 : 1);
+}
+
+/** True while `trial.sessions_per_device` leaves room for another session. */
+export function mayClaimAnotherSession(row: TrialConsumedRow | null, cfg: RuntimeConfig): boolean {
+  return trialSessionsClaimed(row) < cfg.trial.sessions_per_device;
 }
 
 /** Practice turns already spent by this install, for life. */
@@ -323,10 +342,15 @@ export async function releasePracticeTurn(db: D1Database, installId: string): Pr
 
 /**
  * Written on the FIRST trial call that reaches the provider — never a
- * hint pull, which reaches none (FR-032a). ON CONFLICT DO NOTHING: a
- * session already in flight must not have its started_at, its problem or
- * its date disturbed — those three ARE the session's identity, and
- * isSameTrialSession() reads them on every later call.
+ * hint pull, which reaches none (FR-032a). A session already in flight must
+ * not have its started_at, its problem or its date disturbed — those three
+ * ARE the session's identity, and isSameTrialSession() reads them on every
+ * later call.
+ *
+ * `sessionsPerDevice` is trial.sessions_per_device. The slot can be taken
+ * over by a DIFFERENT problem/day only while sessions_done + 1 (the one the
+ * slot holds) is still below it; the takeover retires the old session into
+ * trial_sessions_done and clears completed_at for the new one.
  */
 export async function markTrialStarted(
   db: D1Database,
@@ -335,20 +359,31 @@ export async function markTrialStarted(
   problemId: string,
   date: string,
   ipHash: string,
+  sessionsPerDevice: number,
 ): Promise<void> {
   await db
     .prepare(
-      // DO UPDATE, but only over a row that has not claimed the taster: the
-      // walkthrough may have created it (0003) with problem_id/date NULL.
-      // The WHERE is what preserves 0002's guarantee — a row that already
-      // names a problem is never re-pointed at a different one.
+      // DO UPDATE in two cases only (SQLite evaluates every SET against the
+      // pre-update row):
+      //  1. the row has not claimed the taster — the walkthrough may have
+      //     created it (0003) with problem_id/date NULL and completed_at NULL;
+      //  2. the slot holds an earlier session (open, completed or pre-0002),
+      //     the call names a DIFFERENT problem or day, and the device still
+      //     has a session left under ?6. 0002's guarantee holds at the
+      //     default of 1: then 0 + 1 < 1 is false, so a claimed row is never
+      //     re-pointed. The same problem on the same day is never re-pointed.
       `INSERT INTO devices (device_hash, created_at, trial_started_at, trial_problem_id, trial_date, trial_ip_hash)
        VALUES (?1, ?2, ?2, ?3, ?4, ?5)
        ON CONFLICT(device_hash) DO UPDATE
-         SET trial_started_at = ?2, trial_problem_id = ?3, trial_date = ?4, trial_ip_hash = ?5
-         WHERE devices.trial_problem_id IS NULL AND devices.trial_completed_at IS NULL`,
+         SET trial_started_at = ?2, trial_problem_id = ?3, trial_date = ?4, trial_ip_hash = ?5,
+             trial_completed_at = NULL,
+             trial_sessions_done = devices.trial_sessions_done
+               + CASE WHEN devices.trial_problem_id IS NULL AND devices.trial_completed_at IS NULL THEN 0 ELSE 1 END
+         WHERE (devices.trial_problem_id IS NULL AND devices.trial_completed_at IS NULL)
+            OR (NOT (devices.trial_problem_id IS ?3 AND devices.trial_date IS ?4)
+                AND devices.trial_sessions_done + 1 < ?6)`,
     )
-    .bind(installId, startedAt, problemId, date, ipHash)
+    .bind(installId, startedAt, problemId, date, ipHash, sessionsPerDevice)
     .run();
 }
 

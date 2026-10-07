@@ -1,0 +1,15 @@
+-- Free sessions per device (trial.sessions_per_device).
+--
+-- Until now a device owned ONE taster slot (trial_problem_id / trial_date /
+-- trial_started_at / trial_completed_at): once it named a problem, every call
+-- for another problem or day was TRIAL_CONSUMED. The number of sessions is now
+-- a remote lever (default 1), so the slot becomes "the current session" and
+-- this column counts the sessions already retired out of it.
+--
+--   sessions claimed = trial_sessions_done + (slot names a problem ? 1 : 0)
+--
+-- A new session is allowed while claimed < trial.sessions_per_device; starting
+-- it moves the slot to the new problem/day and bumps this counter. With the
+-- default of 1 nothing changes: an occupied slot is already 1 claimed session.
+-- Cap-enforcing only: a count, never content.
+ALTER TABLE devices ADD COLUMN trial_sessions_done INTEGER NOT NULL DEFAULT 0;

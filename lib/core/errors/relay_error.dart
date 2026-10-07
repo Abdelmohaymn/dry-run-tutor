@@ -34,7 +34,7 @@ sealed class RelayError with _$RelayError {
   /// and end-session remain available (FR-023, FR-028).
   const factory RelayError.turnCapReached() = TurnCapReached;
 
-  /// The one-per-install free taster has been used. Routes straight into
+  /// The free sessions this install is allowed (`trial.sessions_per_device`, default 1) are used. Routes straight into
   /// key entry (FR-007).
   const factory RelayError.trialConsumed() = TrialConsumed;
 

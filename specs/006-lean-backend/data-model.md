@@ -66,6 +66,8 @@ UTC date it belongs to, enforcing the per-device daily speech-to-text cap.
 - No transcript and no audio is ever stored in D1 (or logged, or put in an
   error body).
 
+Migration `0008_trial_sessions_done.sql` added `trial_sessions_done INTEGER NOT NULL DEFAULT 0` (cap-enforcing only). The `trial_*` columns hold the **current** free session; this counts the sessions already retired out of them. A device has claimed `trial_sessions_done` plus one if the slot names a problem (or is a closed pre-0002 row). A different problem or day may take over the slot while that count is below `trial.sessions_per_device` (default 1, so the original one-taster rule). No content is stored.
+
 Field mapping from `trial_consumed`:
 
 | `trial_consumed` | `devices` |

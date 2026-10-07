@@ -426,7 +426,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String keyPromptTrialBody(String appName) {
-    return 'You\'ve used the one free session $appName provides. Add your own Nebius key to keep going; new accounts get \$1 of free credit. It stays on this phone, and $appName never charges you.';
+    return 'You\'ve used the free sessions $appName provides. Add your own Nebius key to keep going; new accounts get \$1 of free credit. It stays on this phone, and $appName never charges you.';
   }
 
   @override

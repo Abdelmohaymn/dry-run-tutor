@@ -14,7 +14,7 @@ import '../../../core/l10n/generated/app_localizations.dart';
 /// third (`quotaExhausted`) said its piece in a footer under the
 /// composer, where it was easy to miss entirely.
 enum KeyPromptReason {
-  /// `TRIAL_CONSUMED`: the one free taster is used. FR-007.
+  /// `TRIAL_CONSUMED`: the free sessions this device is allowed (`trial.sessions_per_device`) are used. FR-007.
   trialConsumed,
 
   /// `TRIAL_UNAVAILABLE`: the shared taster is full **for everyone**

@@ -31,6 +31,7 @@ const LEVER_CONSUMERS: Record<string, { file: string; needle: string }[]> = {
   "trial.ground_truth_tier": [{ file: "routes/trial.ts", needle: "ground_truth_tier" }],
   "trial.condense": [{ file: "routes/trial.ts", needle: "condenseEnabled: cfg.trial.condense" }],
   "trial.daily_session_cap": [{ file: "lib/trial-pool.ts", needle: "daily_session_cap" }],
+  "trial.sessions_per_device": [{ file: "lib/trial-pool.ts", needle: "sessions_per_device" }],
   "trial.pool": [{ file: "lib/trial-pool.ts", needle: "trial.pool" }],
   // Feature 008. `enabled` is read once, by voiceConfig(); the rest by the
   // stt route. `model` is the Worker's own choice and is never served.

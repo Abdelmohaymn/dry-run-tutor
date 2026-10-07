@@ -517,7 +517,7 @@
   "@keyPromptTrialTitle": {
     "description": "TRIAL_CONSUMED prompt dialog heading (FR-007). Shown over the conversation instead of dropping the learner on the key form unannounced."
   },
-  "keyPromptTrialBody": "You've used the one free session {appName} provides. Add your own Nebius key to keep going; new accounts get $1 of free credit. It stays on this phone, and {appName} never charges you.",
+  "keyPromptTrialBody": "You've used the free sessions {appName} provides. Add your own Nebius key to keep going; new accounts get $1 of free credit. It stays on this phone, and {appName} never charges you.",
   "@keyPromptTrialBody": {
     "description": "Explains why the key is being asked for, and that it cannot cost anything, before the form is offered.",
     "placeholders": {

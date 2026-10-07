@@ -17,6 +17,7 @@ import {
   getTrialConsumed,
   isSameTrialSession,
   isTasterUnclaimed,
+  mayClaimAnotherSession,
   practiceTurnsUsed,
   releasePracticeTurn,
   markTrialCompleted,
@@ -136,6 +137,19 @@ trialRoute.post("/", async (c) => {
     });
   }
 
+  // T092b: a NEW session is refused only when no eligible member has budget,
+  // or the operator's daily session cap is reached. Reinstalls mint fresh
+  // install ids, so the per-install rule alone does not bound one network;
+  // the second check does (trial.ip_daily_session_cap).
+  const gateNewSession = async (): Promise<void> => {
+    if (!(await newSessionGateOk(cfg, db, now))) {
+      throw new AppError("TRIAL_UNAVAILABLE");
+    }
+    if (!(await ipSessionGateOk(cfg, db, ipHash, date))) {
+      throw new AppError("TRIAL_IP_LIMIT");
+    }
+  };
+
   if (consumed && !isTasterUnclaimed(consumed)) {
     // A judge call for the session this install already finished today is
     // a retry of a verdict that was delivered (or lost on the way), not a
@@ -151,20 +165,19 @@ trialRoute.post("/", async (c) => {
       throw new AppError("SESSION_ALREADY_JUDGED");
     }
     if (!isSameTrialSession(consumed, body.problem_id, date)) {
-      throw new AppError("TRIAL_CONSUMED");
+      // A request for ANOTHER session. Refused for the same problem on the
+      // same day (a finished session is not replayable), and once the device
+      // has claimed trial.sessions_per_device sessions (default 1: the slot is
+      // already occupied, so this is the old one-taster rule).
+      const replay = consumed.problemId === body.problem_id && consumed.date === date;
+      if (replay || !mayClaimAnotherSession(consumed, cfg)) {
+        throw new AppError("TRIAL_CONSUMED");
+      }
+      await gateNewSession();
     }
-    // in flight — fall through, no budget gate.
+    // else in flight — fall through, no budget gate.
   } else {
-    // T092b: a NEW session is refused only when no eligible member has
-    // budget, or the operator's daily session cap is reached.
-    if (!(await newSessionGateOk(cfg, db, now))) {
-      throw new AppError("TRIAL_UNAVAILABLE");
-    }
-    // Reinstalls mint fresh install ids, so the per-install rule alone does
-    // not bound one network; this does (trial.ip_daily_session_cap).
-    if (!(await ipSessionGateOk(cfg, db, ipHash, date))) {
-      throw new AppError("TRIAL_IP_LIMIT");
-    }
+    await gateNewSession();
   }
 
   if (body.mode === "chat") {
@@ -239,7 +252,7 @@ trialRoute.post("/", async (c) => {
           return { result, providerId: member.id, model: member.model };
         },
         onBeforeProviderCall: async () => {
-          await markTrialStarted(db, installId, trialStartedAt, body.problem_id, date, ipHash);
+          await markTrialStarted(db, installId, trialStartedAt, body.problem_id, date, ipHash, cfg.trial.sessions_per_device);
         },
         onProviderCallUnanswered: async () => {
           await releaseTrialStart(db, installId, trialStartedAt);
@@ -251,7 +264,7 @@ trialRoute.post("/", async (c) => {
 
   // mode === "judge"
   const trialStartedAt = nowIso();
-  await markTrialStarted(db, installId, trialStartedAt, body.problem_id, date, ipHash);
+  await markTrialStarted(db, installId, trialStartedAt, body.problem_id, date, ipHash, cfg.trial.sessions_per_device);
   let assessment;
   try {
     assessment = await runJudge(

@@ -181,6 +181,14 @@ export const runtimeConfigSchema = z
         ground_truth_tier: z.enum(["A", "AB"]),
         condense: z.boolean(),
         daily_session_cap: z.number().int().min(0).default(0),
+        /**
+         * Free sessions one device may start, for life. A session is one
+         * problem on one UTC day (isSameTrialSession); every further problem or
+         * day is another session until this many are claimed. Optional with a
+         * default of 1, so a config written before this existed behaves as
+         * before.
+         */
+        sessions_per_device: z.number().int().min(1).max(50).default(1),
         /** New trial sessions per network (hashed IP) per UTC day. 0 disables it. */
         ip_daily_session_cap: z.number().int().min(0).default(15),
         pool: z.array(trialPoolMemberSchema).min(1),

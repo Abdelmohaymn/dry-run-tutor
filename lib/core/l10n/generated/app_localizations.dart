@@ -805,7 +805,7 @@ abstract class AppLocalizations {
   /// Explains why the key is being asked for, and that it cannot cost anything, before the form is offered.
   ///
   /// In en, this message translates to:
-  /// **'You\'ve used the one free session {appName} provides. Add your own Nebius key to keep going; new accounts get \$1 of free credit. It stays on this phone, and {appName} never charges you.'**
+  /// **'You\'ve used the free sessions {appName} provides. Add your own Nebius key to keep going; new accounts get \$1 of free credit. It stays on this phone, and {appName} never charges you.'**
   String keyPromptTrialBody(String appName);
 
   /// TRIAL_UNAVAILABLE prompt dialog heading — the shared taster is full for everyone today, not this learner's allowance.
