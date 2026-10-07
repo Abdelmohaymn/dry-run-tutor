@@ -5,10 +5,9 @@
 // app is also the cheapest honest place to host this.
 //
 // The text is derived from specs/002-voice-tutor-app/PLAY-DATA-SAFETY.md
-// and must not drift from it. In particular the audio paragraph draws the
-// distinction Constitution VII (amended 2026-08-28) forbids blurring: this
-// app does not collect audio, which is not the same claim as "audio never
-// leaves the device".
+// and must not drift from it. The "Your voice" section describes the cloud
+// speech-to-text path (spec 008, owner decision D3): audio is sent to our
+// server and on to Groq, and is not stored by us.
 import { Hono } from "hono";
 import type { Env, Variables } from "../types";
 
@@ -16,7 +15,7 @@ import type { Env, Variables } from "../types";
 /// on a public page, so it is a deliberate choice rather than a default.
 const CONTACT_EMAIL = "contact@example.com";
 
-const LAST_UPDATED = "6 October 2026";
+const LAST_UPDATED = "7 October 2026";
 
 export const privacyRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -67,11 +66,14 @@ function page(): string {
 nothing to buy. This page describes exactly what the app handles and what leaves your
 device.</p>
 
-<h2>Your voice is not collected</h2>
-<p>Dry Run does not record, store, or transmit audio. Speech is handled by your phone's own
-speech recognition service, which returns text to the app; no audio file is ever written and
-no audio is ever sent to us. The microphone permission exists only because Android requires
-it for speech recognition to run at all.</p>
+<h2>Your voice</h2>
+<p>When you speak an answer, Dry Run records a short audio clip (up to two minutes) and
+sends it to our server, which forwards it to Groq's speech-to-text service and returns the
+text. Our server does not store or log the audio or the text. On your phone, the clip is
+kept in temporary storage only until it is transcribed, or until you discard it after a
+failed upload, and is then deleted. Each device can transcribe up to five minutes of audio
+this way per day (UTC); after that, or if Groq is busy, the app uses your phone's own speech
+recognition instead. Groq handles the audio under its own privacy policy.</p>
 <p>That is a statement about this app, and not a claim that audio never leaves your phone.
 Android's speech recognition is documented as likely to stream audio to the device maker's
 servers to perform the recognition. What your device maker does with that audio is covered by
@@ -90,6 +92,11 @@ language before the microphone permission is ever requested.</p>
     <td>Conversation and transcript text, when you supply your own API key</td>
     <td>Producing the tutor's reply. A spoken turn's transcript is also sent for correction before you confirm it, so a misheard word can be fixed before you see it</td>
     <td>The AI provider <em>you</em> chose — Groq or Google Gemini. Never your key's contents to anyone else. Check that provider's own terms for how it uses what it receives</td>
+  </tr>
+  <tr>
+    <td>Voice clips</td>
+    <td>Turning your spoken answer into text</td>
+    <td>Our server, then Groq; not stored by us</td>
   </tr>
 </table>
 
