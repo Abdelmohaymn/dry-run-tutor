@@ -82,6 +82,14 @@ export const repairRequestSchema = z
 
 export type RepairRequest = z.infer<typeof repairRequestSchema>;
 
+export const sessionResetRequestSchema = z
+  .object({
+    problem_id: problemIdSchema,
+  })
+  .strict();
+
+export type SessionResetRequest = z.infer<typeof sessionResetRequestSchema>;
+
 // oneOf ChatRequest+{mode:"chat"} / JudgeRequest+{mode:"judge"}.
 export const trialRequestSchema = z
   .discriminatedUnion("mode", [

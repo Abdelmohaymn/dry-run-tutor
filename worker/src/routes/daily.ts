@@ -9,6 +9,7 @@ import { getPublicManifest } from "../lib/content";
 import { getRuntimeConfig } from "../lib/runtime-config";
 import { dayNumber, pickDaily } from "../lib/daily-pick";
 import { utcDate } from "../lib/time";
+import { isPracticeProblem } from "../lib/content";
 
 export const dailyRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -26,7 +27,16 @@ dailyRoute.get("/", async (c) => {
   if (Math.abs(dayNumber(date) - dayNumber(utcDate())) > 1) throw new AppError("BAD_REQUEST");
 
   const cfg = await getRuntimeConfig(c.env.DB);
-  const problem = pickDaily(getPublicManifest().problems, cfg, date);
+  const requestedProblemId = c.req.query("problem_id");
+  let problem;
+  if (requestedProblemId !== undefined) {
+    const requested = getPublicManifest().problems.find((entry) => entry.id === requestedProblemId);
+    if (!requested || isPracticeProblem(requested.id)) throw new AppError("BAD_REQUEST");
+    if (cfg.killed_problem_ids.includes(requested.id)) throw new AppError("PROBLEM_KILLED");
+    problem = requested;
+  } else {
+    problem = pickDaily(getPublicManifest().problems, cfg, date);
+  }
   if (!problem) throw new AppError("PROBLEM_KILLED");
 
   await c.env.DB

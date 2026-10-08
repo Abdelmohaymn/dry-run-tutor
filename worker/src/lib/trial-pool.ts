@@ -131,6 +131,43 @@ export interface RunLegResult<T> {
   result: T;
 }
 
+export interface TrialRepairResult {
+  text: string;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/**
+ * Runs a best-effort repair on the operator pool. Repair is charged as a
+ * chat-sized pool leg because it uses the same non-structured pool members;
+ * the reservation is replaced with the provider's measured token count.
+ */
+export async function runTrialRepair(
+  cfg: RuntimeConfig,
+  db: D1Database,
+  call: (opts: ProviderCallOptions) => Promise<TrialRepairResult | null>,
+  secretFor: (bindingName: string) => string,
+): Promise<TrialRepairResult | null> {
+  const now = new Date();
+  let leg: RunLegResult<TrialRepairResult | null>;
+  try {
+    leg = await runLeg("chat", cfg, db, now, call, secretFor);
+  } catch (error) {
+    if (error instanceof AppError && error.code === "TRIAL_UNAVAILABLE") return null;
+    throw error;
+  }
+  if (leg.result !== null) {
+    await settleTrialBudget(
+      db,
+      now,
+      leg.member.id,
+      "chat",
+      leg.result.inputTokens + leg.result.outputTokens,
+    );
+  }
+  return leg.result;
+}
+
 /**
  * Runs one leg against the pool, routing around a RATE_LIMITED/
  * QUOTA_EXHAUSTED member (a routing signal, not an outcome — FR-031c) to
@@ -490,6 +527,30 @@ export async function countSessionsStartedToday(db: D1Database, date: string): P
     .bind(date)
     .first<{ n: number }>();
   return row?.n ?? 0;
+}
+
+/** Retires a reset session without creating a new activity row. */
+export async function resetTrialSession(
+  db: D1Database,
+  installId: string,
+  problemId: string,
+  date: string,
+): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE devices
+       SET trial_sessions_done = trial_sessions_done + 1,
+           trial_started_at = NULL,
+           trial_problem_id = NULL,
+           trial_date = NULL,
+           trial_completed_at = NULL,
+           trial_ip_hash = NULL
+       WHERE device_hash = ?1
+         AND trial_problem_id = ?2
+         AND trial_date = ?3`,
+    )
+    .bind(installId, problemId, date)
+    .run();
 }
 
 /**

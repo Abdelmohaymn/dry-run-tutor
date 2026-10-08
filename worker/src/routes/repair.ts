@@ -10,6 +10,7 @@ import { getPrivate, getPublicManifest } from "../lib/content";
 import { getRuntimeConfig } from "../lib/runtime-config";
 import { PROVIDER_HEADER, resolveKeyedProvider } from "../lib/keyed-provider";
 import { groqProvider } from "../lib/provider-groq";
+import { runTrialRepair } from "../lib/trial-pool";
 import {
   callRepairProvider,
   containsNoGroundTruth,
@@ -21,7 +22,6 @@ export const repairRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 repairRoute.post("/", async (c) => {
   const userKey = c.req.header("X-User-Key");
-  if (!userKey) throw new AppError("BAD_REQUEST");
 
   const rawBody = await c.req.json().catch(() => null);
   const parsed = repairRequestSchema.safeParse(rawBody);
@@ -34,7 +34,7 @@ repairRoute.post("/", async (c) => {
   const cfg = await getRuntimeConfig(c.env.DB);
   if (cfg.killed_problem_ids.includes(body.problem_id)) throw new AppError("PROBLEM_KILLED");
 
-  const keyed = resolveKeyedProvider(cfg, c.req.header(PROVIDER_HEADER));
+  const keyed = userKey ? resolveKeyedProvider(cfg, c.req.header(PROVIDER_HEADER)) : null;
 
   // Skip checks: nothing was spent, so no provider call.
   const denseChars = body.transcript.replace(/\s/g, "").length;
@@ -47,15 +47,34 @@ repairRoute.post("/", async (c) => {
     return c.json({ repaired: body.transcript, changed: false }, 200);
   }
 
-  const called = await callRepairProvider({
-    provider: groqProvider,
-    baseUrl: keyed.baseUrl,
-    apiKey: userKey,
-    model: keyed.repairModel,
-    glossaryTerms: publicEntry.glossary_terms,
-    transcript: body.transcript,
-    timeoutMs: cfg.repair.timeout_ms,
-  });
+  let called;
+  if (userKey && keyed) {
+    called = await callRepairProvider({
+      provider: groqProvider,
+      baseUrl: keyed.baseUrl,
+      apiKey: userKey,
+      model: keyed.repairModel,
+      glossaryTerms: publicEntry.glossary_terms,
+      transcript: body.transcript,
+      timeoutMs: cfg.repair.timeout_ms,
+    });
+  } else {
+    called = await runTrialRepair(
+      cfg,
+      c.env.DB,
+      (options) =>
+        callRepairProvider({
+          provider: groqProvider,
+          baseUrl: options.baseUrl,
+          apiKey: options.apiKey,
+          model: options.model,
+          glossaryTerms: publicEntry.glossary_terms,
+          transcript: body.transcript,
+          timeoutMs: cfg.repair!.timeout_ms,
+        }),
+      (bindingName) => (c.env as unknown as Record<string, string>)[bindingName],
+    );
+  }
 
   if (called === null) {
     return c.json({ repaired: body.transcript, changed: false }, 200);
