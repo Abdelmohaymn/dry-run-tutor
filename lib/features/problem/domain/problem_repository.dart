@@ -1,5 +1,6 @@
 import '../../../core/config/runtime_config.dart';
 import 'problem.dart';
+import 'problem_summary.dart';
 
 /// The `collections` entry that marks the onboarding warm-up. It is a
 /// real manifest problem — the relay resolves it like any other, so a
@@ -11,7 +12,7 @@ const String practiceCollection = 'practice';
 abstract interface class ProblemRepository {
   /// `GET /v1/daily` for [date]; caches the problem with `manifestDate = date`.
   /// Throws `RelayException` on any relay failure.
-  Future<Problem> fetchDaily(String date);
+  Future<Problem> fetchDaily(String date, {String? problemId});
 
   /// The problem cached for [date] by an earlier [fetchDaily], or null.
   Future<Problem?> cachedForDate(String date);
@@ -21,6 +22,8 @@ abstract interface class ProblemRepository {
   Future<void> fetchPractice();
 
   Future<Problem?> byId(String problemId);
+
+  Future<List<ProblemSummary>> fetchProblems();
 
   /// Cached, not in [RuntimeConfig.killedProblemIds], not the warm-up
   /// ([practiceCollection]). Now used only by the key-check probe fallback.

@@ -6,6 +6,8 @@ import '../../../core/config/runtime_config.dart';
 import '../../../core/db/app_database.dart';
 import '../../../core/db/dao/message_dao.dart';
 import '../../../core/db/dao/session_dao.dart';
+import '../../../core/db/dao/assessment_dao.dart';
+import '../../../core/db/dao/outbox_dao.dart';
 import '../../../core/db/dao/streak_dao.dart';
 import '../../../core/errors/relay_error.dart';
 import '../../../core/errors/result.dart';
@@ -44,6 +46,8 @@ class SessionRepositoryImpl implements SessionRepository {
   SessionRepositoryImpl({
     required RelayClient relayClient,
     required SessionDao sessionDao,
+    AssessmentDao? assessmentDao,
+    OutboxDao? outboxDao,
     required MessageDao messageDao,
     required StreakDao streakDao,
     required ProblemRepository problemRepository,
@@ -56,6 +60,8 @@ class SessionRepositoryImpl implements SessionRepository {
     Uuid? uuid,
   })  : _relayClient = relayClient,
         _sessionDao = sessionDao,
+        _assessmentDao = assessmentDao,
+        _outboxDao = outboxDao,
         _messageDao = messageDao,
         _streakDao = streakDao,
         _problemRepository = problemRepository,
@@ -69,6 +75,8 @@ class SessionRepositoryImpl implements SessionRepository {
 
   final RelayClient _relayClient;
   final SessionDao _sessionDao;
+  final AssessmentDao? _assessmentDao;
+  final OutboxDao? _outboxDao;
   final MessageDao _messageDao;
   final StreakDao _streakDao;
   final ProblemRepository _problemRepository;
@@ -81,16 +89,24 @@ class SessionRepositoryImpl implements SessionRepository {
   final Uuid _uuid;
 
   @override
-  Future<Session> openOrResumeToday() async {
+  Future<Session> openOrResumeToday({String? problemId}) async {
     final String day = await _timeSource.today();
-    final SessionRow? existing = await _sessionDao.todaysSession(day);
+    final SessionRow? existing = await _sessionDao.todaysSession(day, problemId: problemId);
     if (existing != null) {
       final Problem problem = (await _problemRepository.byId(existing.problemId))!;
       return _toDomainSession(existing, problem);
     }
 
-    final DailySelection selection = await _dailyRepository.forToday();
-    final Problem problem = selection.problem;
+    final Problem problem;
+    final bool isRepeat;
+    if (problemId == null) {
+      final DailySelection selection = await _dailyRepository.forToday();
+      problem = selection.problem;
+      isRepeat = selection.isRepeat;
+    } else {
+      problem = await _problemRepository.fetchDaily(day, problemId: problemId);
+      isRepeat = (await _sessionDao.completedProblemIds()).contains(problem.id);
+    }
     final LearnerKey? key = await _keyRepository.read();
     final SessionPath path = key == null ? SessionPath.trial : SessionPath.keyed;
     final DateTime startedAt = (await _timeSource.now()).utc;
@@ -104,7 +120,7 @@ class SessionRepositoryImpl implements SessionRepository {
         path: path,
         status: SessionStatus.chatting,
         providerId: Value(key?.providerId),
-        isRepeat: Value(selection.isRepeat),
+        isRepeat: Value(isRepeat),
         startedAt: startedAt,
       ),
     );
@@ -117,7 +133,7 @@ class SessionRepositoryImpl implements SessionRepository {
       status: SessionStatus.chatting,
       providerId: key?.providerId,
       counters: ServerCounters.initial,
-      isRepeat: selection.isRepeat,
+      isRepeat: isRepeat,
       disputed: false,
       solutionRequestCount: 0,
     );
@@ -411,6 +427,29 @@ class SessionRepositoryImpl implements SessionRepository {
 
   @override
   Future<void> deleteDraft(Session session) => _sessionDao.deleteDraft(session.id);
+
+  @override
+  Future<Result<void>> resetForPracticeAgain(Session session) async {
+    try {
+      if (_assessmentDao == null || _outboxDao == null) {
+        return const Err(RelayError.transport());
+      }
+      final String installId = await _resolvedInstallId();
+      await _relayClient.resetSession(installId: installId, problemId: session.problem.id);
+      await _sessionDao.transaction(() async {
+        await _assessmentDao.deleteForSession(session.id);
+        await _outboxDao.deleteForSession(session.id);
+        await _sessionDao.deleteDraft(session.id);
+        await _messageDao.deleteForSession(session.id);
+        await _sessionDao.deleteSession(session.id);
+      });
+      return const Ok(null);
+    } on RelayException catch (e) {
+      return Err(e.error);
+    } catch (_) {
+      return const Err(RelayError.transport());
+    }
+  }
 
   @override
   Future<Session> promoteToKeyed(Session session, String providerId) async {

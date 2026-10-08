@@ -1,8 +1,8 @@
 import '../../../core/errors/result.dart';
-import '../../../core/models/wire_enums.dart';
 import '../../../core/network/dto/repair_dto.dart';
 import '../../../core/network/relay_client.dart';
 import '../../chat/domain/session.dart';
+import '../../../core/models/wire_enums.dart';
 import '../../keys/domain/key_repository.dart';
 import '../../keys/domain/learner_key.dart';
 import '../../onboarding/domain/install_identity.dart';
@@ -24,13 +24,8 @@ class TranscriptRepairRepositoryImpl implements TranscriptRepairRepository {
 
   @override
   Future<String?> repair({required Session session, required String transcript}) async {
-    // The trial path never calls — repair is structurally unavailable there
-    // (research.md R-009).
-    if (session.path != SessionPath.keyed) return null;
-
     try {
       final LearnerKey? key = await _keyRepository.read();
-      if (key == null) return null;
 
       final Result<InstallIdentity> identity = await _installRepository.ensureIdentity();
       if (identity is Err<InstallIdentity>) return null;
@@ -39,8 +34,8 @@ class TranscriptRepairRepositoryImpl implements TranscriptRepairRepository {
       final RepairResponseDto response = await _relayClient.repair(
         installId: installId,
         request: RepairRequestDto(problemId: session.problem.id, transcript: transcript),
-        userKey: key.value,
-        providerId: key.providerId,
+        userKey: session.path == SessionPath.keyed ? key?.value : null,
+        providerId: session.path == SessionPath.keyed ? key?.providerId : null,
       );
       return response.changed ? response.repaired : null;
     } catch (_) {

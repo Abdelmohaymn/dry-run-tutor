@@ -5,6 +5,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/l10n/generated/app_localizations.dart';
+import '../../../core/errors/error_copy.dart';
+import '../../../core/errors/result.dart';
 import '../../../core/models/wire_enums.dart' show MatchedVerdict;
 import '../../../core/router/app_route.dart';
 import '../../../core/text/markdown_text.dart';
@@ -49,6 +51,40 @@ class VerdictScreen extends StatelessWidget {
           tooltip: l10n.backAction,
           onPressed: () => context.go(AppRoute.daily.path),
         ),
+        actions: <Widget>[
+          IconButton(
+            icon: const Icon(Icons.list_alt_outlined),
+            tooltip: l10n.problemPickerTitle,
+            onPressed: () => context.push(AppRoute.problemPicker.path),
+          ),
+          BlocBuilder<DailySessionCubit, DailySessionState>(
+            buildWhen: (_, state) => state is Verdict || state is Revealed,
+            builder: (BuildContext context, DailySessionState state) {
+              if (state is! Verdict && state is! Revealed) {
+                return const SizedBox.shrink();
+              }
+              return IconButton(
+                icon: const Icon(Icons.replay),
+                tooltip: l10n.verdictPracticeAgainAction,
+                onPressed: () async {
+                  final Result<void> result = await context.read<DailySessionCubit>().practiceAgain();
+                  if (!context.mounted) {
+                    return;
+                  }
+                  switch (result) {
+                    case Ok<void>():
+                      context.go(AppRoute.daily.path);
+                    case Err<void>(:final error):
+                      final copy = resolveErrorCopy(l10n, error);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('${copy.message} (${copy.code})')),
+                      );
+                  }
+                },
+              );
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         child: BlocBuilder<DailySessionCubit, DailySessionState>(

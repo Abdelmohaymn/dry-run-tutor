@@ -1,6 +1,10 @@
 {
   "@@locale": "en",
   "appTitle": "{appName}",
+  "problemPickerTitle": "Choose a problem",
+  "@problemPickerTitle": {
+    "description": "Title for the evergreen problem picker."
+  },
   "@appTitle": {
     "description": "The application title, shown as the OS task/app label. The brand name is a placeholder, not a literal: lib/core/config/brand.dart is the single source of truth for it, and a product name is not translated.",
     "placeholders": {
@@ -712,6 +716,7 @@
     "description": "Shown after disputing. No consent prompt: nothing is uploaded (FR-031a/b)."
   },
   "verdictReadEditorialAction": "Read the full write-up",
+  "verdictPracticeAgainAction": "Practice this problem again",
   "@verdictReadEditorialAction": {
     "description": "Routes to the reveal screen — the editorial, gated on this assessment existing (FR-032)."
   },
@@ -851,6 +856,10 @@
     "description": "Shown on the daily screen once a verdict exists for today."
   },
   "assessmentReadyAction": "See how it went",
+  "assessmentPracticeAgainAction": "Solve it again",
+  "@assessmentPracticeAgainAction": {
+    "description": "Secondary action beside the assessment result that resets the current problem for another attempt."
+  },
   "@assessmentReadyAction": {
     "description": "Reopens the verdict screen from the daily screen."
   },

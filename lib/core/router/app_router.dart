@@ -22,6 +22,7 @@ import '../../features/onboarding/presentation/practice_screen.dart';
 import '../../features/onboarding/presentation/seeding_screen.dart';
 import '../../features/onboarding/presentation/welcome_screen.dart';
 import '../../features/problem/domain/problem_repository.dart';
+import '../../features/problem/presentation/problem_picker_screen.dart';
 import '../../features/settings/presentation/key_management_screen.dart';
 import '../../features/settings/presentation/reminder_screen.dart';
 import '../../features/settings/domain/settings_repository.dart';
@@ -135,6 +136,12 @@ GoRouter buildAppRouter({
             builder: (_, _) => const DailyScreen(),
           ),
           GoRoute(
+            path: AppRoute.problemPicker.path,
+            name: AppRoute.problemPicker.path,
+            builder: (_, _) =>
+                ProblemPickerScreen(problemRepository: problemRepository),
+          ),
+          GoRoute(
             path: AppRoute.sessionRecord.path,
             name: AppRoute.sessionRecord.path,
             builder: (_, _) => const RecordingScreen(),
@@ -193,12 +200,15 @@ GoRouter buildAppRouter({
       GoRoute(
         path: AppRoute.update.path,
         name: AppRoute.update.path,
-        builder: (_, _) => UpdateRequiredScreen(updateUrl: configRepository.cached()?.updateUrl),
+        builder: (_, _) => UpdateRequiredScreen(
+          updateUrl: configRepository.cached()?.updateUrl,
+        ),
       ),
       GoRoute(
         path: AppRoute.withdrawn.path,
         name: AppRoute.withdrawn.path,
-        builder: (_, _) => WithdrawnScreen(problemRepository: problemRepository),
+        builder: (_, _) =>
+            WithdrawnScreen(problemRepository: problemRepository),
       ),
       GoRoute(
         path: AppRoute.welcome.path,
@@ -221,7 +231,10 @@ GoRouter buildAppRouter({
       GoRoute(
         path: AppRoute.streak.path,
         name: AppRoute.streak.path,
-        builder: (_, _) => StreakScreen(streakRepository: streakRepository, timeSource: timeSource),
+        builder: (_, _) => StreakScreen(
+          streakRepository: streakRepository,
+          timeSource: timeSource,
+        ),
       ),
       GoRoute(
         path: AppRoute.sessionReviewDay.path,
@@ -259,10 +272,7 @@ GoRouter buildAppRouter({
       // into the initial route on Android); a tap while the app is
       // already running additionally needs native `onNewIntent`
       // forwarding, which is out of scope here.
-      GoRoute(
-        path: '/p/:problemId',
-        redirect: (_, _) => AppRoute.daily.path,
-      ),
+      GoRoute(path: '/p/:problemId', redirect: (_, _) => AppRoute.daily.path),
       for (final AppRoute route in AppRoute.values)
         if (!shellPaths.contains(route.path) &&
             route != AppRoute.welcome &&
@@ -275,7 +285,8 @@ GoRouter buildAppRouter({
             route != AppRoute.settings &&
             route != AppRoute.settingsKey &&
             route != AppRoute.settingsReminder &&
-            route != AppRoute.settingsWipe)
+            route != AppRoute.settingsWipe &&
+            route != AppRoute.problemPicker)
           GoRoute(
             path: route.path,
             name: route.path,
@@ -303,7 +314,8 @@ Future<String?> resolveAppRedirect(
   // launch never sees this again, because at least one of the two caches
   // is now populated.
   if (location != AppRoute.seeding.path) {
-    if (configRepository.cached() == null && !await problemRepository.hasAnyCached()) {
+    if (configRepository.cached() == null &&
+        !await problemRepository.hasAnyCached()) {
       return AppRoute.seeding.path;
     }
   }
@@ -324,7 +336,8 @@ Future<String?> resolveAppRedirect(
   // "every entry point" a finite, enumerable list rather than something
   // each screen has to remember. Settings stays exempt, so a learner who
   // lands here in a strange state is never boxed in.
-  if (!_welcomeExemptRoutes.contains(location) && !await installRepository.isWelcomeSeen()) {
+  if (!_welcomeExemptRoutes.contains(location) &&
+      !await installRepository.isWelcomeSeen()) {
     return AppRoute.welcome.path;
   }
 
@@ -334,7 +347,8 @@ Future<String?> resolveAppRedirect(
   // otherwise reopen straight into today's real problem, which is the
   // one thing the walkthrough exists to stand in front of. Same exempt
   // set as the welcome: settings stays reachable, so this is not a trap.
-  if (!_welcomeExemptRoutes.contains(location) && await installRepository.isPracticePending()) {
+  if (!_welcomeExemptRoutes.contains(location) &&
+      await installRepository.isPracticePending()) {
     return AppRoute.welcomePractice.path;
   }
 

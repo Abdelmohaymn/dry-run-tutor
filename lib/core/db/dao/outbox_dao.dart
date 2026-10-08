@@ -16,6 +16,10 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     return into(outbox).insert(item);
   }
 
+  Future<void> deleteForSession(String sessionId) {
+    return (delete(outbox)..where((t) => t.sessionId.equals(sessionId))).go();
+  }
+
   /// Rows eligible to send right now, oldest first.
   Future<List<OutboxData>> due(DateTime trustedNow) {
     return (select(outbox)

@@ -87,6 +87,10 @@ class MessageDao extends DatabaseAccessor<AppDatabase> with _$MessageDaoMixin {
     return into(messages).insert(entry);
   }
 
+  Future<void> deleteForSession(String sessionId) {
+    return (delete(messages)..where((t) => t.sessionId.equals(sessionId))).go();
+  }
+
   Future<bool> updateMessage(MessageRow row) {
     return update(messages).replace(row);
   }

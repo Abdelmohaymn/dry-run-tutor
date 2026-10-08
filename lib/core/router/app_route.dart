@@ -14,6 +14,7 @@ enum AppRoute {
   welcome('/welcome'),
   welcomePractice('/welcome/practice'),
   daily('/'),
+  problemPicker('/problems'),
   sessionRecord('/session/record'),
   sessionReview('/session/review'),
   sessionMicRationale('/session/mic-rationale'),

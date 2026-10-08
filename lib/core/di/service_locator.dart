@@ -167,6 +167,8 @@ Future<void> setupLocator() async {
       relayClient: sl<RelayClient>(),
       sessionDao: sl<AppDatabase>().sessionDao,
       messageDao: sl<AppDatabase>().messageDao,
+      assessmentDao: sl<AppDatabase>().assessmentDao,
+      outboxDao: sl<AppDatabase>().outboxDao,
       streakDao: sl<AppDatabase>().streakDao,
       problemRepository: sl<ProblemRepository>(),
       dailyRepository: sl<DailyRepository>(),

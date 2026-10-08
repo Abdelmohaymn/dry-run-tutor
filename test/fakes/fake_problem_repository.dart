@@ -3,8 +3,10 @@ import 'package:dry_run/core/errors/relay_error.dart';
 import 'package:dry_run/core/network/relay_client.dart';
 import 'package:dry_run/features/problem/domain/problem.dart';
 import 'package:dry_run/features/problem/domain/problem_repository.dart';
+import 'package:dry_run/features/problem/domain/problem_summary.dart';
 
 class FakeProblemRepository implements ProblemRepository {
+  List<ProblemSummary> problems = const <ProblemSummary>[];
   bool hasAny = false;
   List<Problem> availableProblems = const <Problem>[];
   Problem? practice;
@@ -21,7 +23,7 @@ class FakeProblemRepository implements ProblemRepository {
   int fetchPracticeCalls = 0;
 
   @override
-  Future<Problem> fetchDaily(String date) async {
+  Future<Problem> fetchDaily(String date, {String? problemId}) async {
     fetchDailyCalls.add(date);
     final RelayError? error = fetchDailyError;
     if (error != null) {
@@ -47,6 +49,9 @@ class FakeProblemRepository implements ProblemRepository {
     }
     return null;
   }
+
+  @override
+  Future<List<ProblemSummary>> fetchProblems() async => problems;
 
   @override
   Future<List<Problem>> available(RuntimeConfig config) async => availableProblems;

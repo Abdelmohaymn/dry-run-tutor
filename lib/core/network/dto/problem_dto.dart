@@ -100,3 +100,28 @@ class PracticeResponseDto {
 
   Map<String, dynamic> toJson() => _$PracticeResponseDtoToJson(this);
 }
+
+@JsonSerializable(fieldRename: FieldRename.snake)
+class ProblemSummaryDto {
+  ProblemSummaryDto({required this.id, required this.title, this.difficulty, required this.tags});
+
+  factory ProblemSummaryDto.fromJson(Map<String, dynamic> json) => _$ProblemSummaryDtoFromJson(json);
+
+  final String id;
+  final String title;
+  final int? difficulty;
+  final List<String> tags;
+
+  Map<String, dynamic> toJson() => _$ProblemSummaryDtoToJson(this);
+}
+
+@JsonSerializable()
+class ProblemsResponseDto {
+  ProblemsResponseDto({required this.problems});
+
+  factory ProblemsResponseDto.fromJson(Map<String, dynamic> json) => _$ProblemsResponseDtoFromJson(json);
+
+  final List<ProblemSummaryDto> problems;
+
+  Map<String, dynamic> toJson() => _$ProblemsResponseDtoToJson(this);
+}

@@ -21,4 +21,8 @@ class AssessmentDao extends DatabaseAccessor<AppDatabase> with _$AssessmentDaoMi
   Future<void> upsert(AssessmentsCompanion entry) {
     return into(assessments).insertOnConflictUpdate(entry);
   }
+
+  Future<void> deleteForSession(String sessionId) {
+    return (delete(assessments)..where((t) => t.sessionId.equals(sessionId))).go();
+  }
 }

@@ -109,3 +109,32 @@ PracticeResponseDto _$PracticeResponseDtoFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$PracticeResponseDtoToJson(
   PracticeResponseDto instance,
 ) => <String, dynamic>{'problem': instance.problem.toJson()};
+
+ProblemSummaryDto _$ProblemSummaryDtoFromJson(Map<String, dynamic> json) =>
+    ProblemSummaryDto(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      difficulty: (json['difficulty'] as num?)?.toInt(),
+      tags: (json['tags'] as List<dynamic>).map((e) => e as String).toList(),
+    );
+
+Map<String, dynamic> _$ProblemSummaryDtoToJson(ProblemSummaryDto instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'title': instance.title,
+      'difficulty': instance.difficulty,
+      'tags': instance.tags,
+    };
+
+ProblemsResponseDto _$ProblemsResponseDtoFromJson(Map<String, dynamic> json) =>
+    ProblemsResponseDto(
+      problems: (json['problems'] as List<dynamic>)
+          .map((e) => ProblemSummaryDto.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+
+Map<String, dynamic> _$ProblemsResponseDtoToJson(
+  ProblemsResponseDto instance,
+) => <String, dynamic>{
+  'problems': instance.problems.map((e) => e.toJson()).toList(),
+};

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/errors/error_copy.dart';
 import '../../../core/errors/relay_error.dart';
+import '../../../core/errors/result.dart';
 import '../../../core/l10n/generated/app_localizations.dart';
 // `Verdict` here is `daily_session_state.dart`'s Cubit state, not the wire
 // enum of the same name — hidden to resolve the clash, exactly as the
@@ -100,6 +101,27 @@ class _DailyScreenState extends State<DailyScreen> {
             icon: const Icon(Icons.local_fire_department_outlined, size: 20),
             tooltip: l10n.dailyStreakTooltip,
             onPressed: () => context.push(AppRoute.streak.path),
+          ),
+          IconButton(
+            icon: const Icon(Icons.replay, size: 20),
+            tooltip: l10n.verdictPracticeAgainAction,
+            onPressed: () async {
+              final Result<void> result = await context.read<DailySessionCubit>().practiceAgain();
+              if (!context.mounted) {
+                return;
+              }
+              if (result case Err<void>(:final error)) {
+                final copy = resolveErrorCopy(l10n, error);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('${copy.message} (${copy.code})')),
+                );
+              }
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.list_alt_outlined, size: 20),
+            tooltip: l10n.problemPickerTitle,
+            onPressed: () => context.push(AppRoute.problemPicker.path),
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined, size: 20),
@@ -239,7 +261,7 @@ class _DailyScreenState extends State<DailyScreen> {
               // dead end on a screen with nothing left to do.
               Verdict(:final session) || Revealed(:final session) => _DailyBody(
                   session: session,
-                  footer: const _AssessmentReadyNotice(),
+                  footer: _AssessmentReadyNotice(cubit: cubit),
                 ),
               Failure(:final session, :final error) =>
                 _DailyBody(session: session, footer: _FailureNotice(error: error)),
@@ -663,7 +685,9 @@ class _JudgingNotice extends StatelessWidget {
 
 /// The verdict exists and the learner walked back to the conversation.
 class _AssessmentReadyNotice extends StatelessWidget {
-  const _AssessmentReadyNotice();
+  const _AssessmentReadyNotice({required this.cubit});
+
+  final DailySessionCubit cubit;
 
   @override
   Widget build(BuildContext context) {
@@ -673,9 +697,31 @@ class _AssessmentReadyNotice extends StatelessWidget {
       children: <Widget>[
         Text(l10n.assessmentReadyTitle, style: context.appTypography.sansHeadline),
         const SizedBox(height: 8),
-        FilledButton(
-          onPressed: () => context.go(AppRoute.sessionVerdict.path),
-          child: Text(l10n.assessmentReadyAction),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: <Widget>[
+            FilledButton(
+              onPressed: () => context.go(AppRoute.sessionVerdict.path),
+              child: Text(l10n.assessmentReadyAction),
+            ),
+            OutlinedButton(
+              onPressed: () async {
+                final Result<void> result = await cubit.practiceAgain();
+                if (!context.mounted) {
+                  return;
+                }
+                if (result case Err<void>(:final error)) {
+                  final ErrorCopy copy = resolveErrorCopy(l10n, error);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('${copy.message} (${copy.code})')),
+                  );
+                }
+              },
+              child: Text(l10n.assessmentPracticeAgainAction),
+            ),
+          ],
         ),
       ],
     );

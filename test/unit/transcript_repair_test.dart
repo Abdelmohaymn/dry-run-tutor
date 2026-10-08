@@ -141,18 +141,18 @@ void main() {
     expect(result, isNull);
   });
 
-  test('a trial-path session never reaches RelayClient.repair()', () async {
+  test('a trial-path session uses the metered repair path without a learner key', () async {
     final String? result = await repository.repair(
       session: _session(path: SessionPath.trial),
       transcript: 'some transcript',
     );
 
     expect(result, isNull);
-    verifyNever(() => relayClient.repair(
+    verify(() => relayClient.repair(
           installId: any(named: 'installId'),
           request: any(named: 'request'),
-          userKey: any(named: 'userKey'),
-          providerId: any(named: 'providerId'),
+          userKey: null,
+          providerId: null,
         ));
   });
 }

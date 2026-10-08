@@ -13,7 +13,7 @@ import 'turn_event.dart';
 abstract interface class SessionRepository {
   /// Opens today's session if none exists yet, or resumes the one already
   /// open — the trusted-time `(problemId, day)` key (FR-035).
-  Future<Session> openOrResumeToday();
+  Future<Session> openOrResumeToday({String? problemId});
 
   /// Opens the onboarding walkthrough's session, or resumes the one
   /// already open for this day. A real session on a real problem — the
@@ -67,6 +67,10 @@ abstract interface class SessionRepository {
   Future<Draft?> loadDraft(Session session);
 
   Future<void> deleteDraft(Session session);
+
+  /// Resets today's server state and removes the local judged session so the
+  /// same problem can be practiced again.
+  Future<Result<void>> resetForPracticeAgain(Session session);
 
   /// FR-007a — one `UPDATE` on `path`, same row, same conversation.
   Future<Session> promoteToKeyed(Session session, String providerId);

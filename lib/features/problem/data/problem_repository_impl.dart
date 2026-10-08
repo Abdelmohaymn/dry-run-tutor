@@ -13,6 +13,7 @@ import '../../onboarding/domain/install_identity.dart';
 import '../../onboarding/domain/install_repository.dart';
 import '../domain/problem.dart';
 import '../domain/problem_repository.dart';
+import '../domain/problem_summary.dart';
 
 class ProblemRepositoryImpl implements ProblemRepository {
   ProblemRepositoryImpl({
@@ -31,7 +32,7 @@ class ProblemRepositoryImpl implements ProblemRepository {
   final InstallRepository _installRepository;
 
   @override
-  Future<Problem> fetchDaily(String date) async {
+  Future<Problem> fetchDaily(String date, {String? problemId}) async {
     final InstallIdentity identity = switch (await _installRepository.ensureIdentity()) {
       Ok<InstallIdentity>(:final value) => value,
       Err<InstallIdentity>(:final error) => throw RelayException(error),
@@ -39,6 +40,7 @@ class ProblemRepositoryImpl implements ProblemRepository {
     final DailyResponseDto response = await _relayClient.daily(
       installId: identity.installId,
       date: date,
+      problemId: problemId,
     );
     final DateTime now = (await _timeSource.now()).utc;
     await _problemDao.upsertAll(<CachedProblemsCompanion>[
@@ -100,6 +102,25 @@ class ProblemRepositoryImpl implements ProblemRepository {
   Future<Problem?> byId(String problemId) async {
     final CachedProblem? row = await _problemDao.byId(problemId);
     return row == null ? null : _toDomain(row);
+  }
+
+  @override
+  Future<List<ProblemSummary>> fetchProblems() async {
+    final InstallIdentity identity = switch (await _installRepository.ensureIdentity()) {
+      Ok<InstallIdentity>(:final value) => value,
+      Err<InstallIdentity>(:final error) => throw RelayException(error),
+    };
+    final ProblemsResponseDto response = await _relayClient.problems(installId: identity.installId);
+    return response.problems
+        .map(
+          (ProblemSummaryDto item) => ProblemSummary(
+            id: item.id,
+            title: item.title,
+            difficulty: item.difficulty,
+            tags: item.tags,
+          ),
+        )
+        .toList(growable: false);
   }
 
   @override

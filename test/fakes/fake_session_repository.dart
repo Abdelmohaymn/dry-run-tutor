@@ -19,6 +19,8 @@ class FakeSessionRepository implements SessionRepository {
   Future<Session> Function(Session session, EndedBy reason)? endSessionHandler;
   final List<String> savedDraftTexts = <String>[];
   int deleteDraftCalls = 0;
+  Result<void> resetForPracticeAgainResult = const Ok(null);
+  int resetForPracticeAgainCalls = 0;
 
   /// The `solutionRequestCount` each `sendTurn` call was invoked with —
   /// `null` for an ordinary turn, so a solution-request test can assert
@@ -31,7 +33,7 @@ class FakeSessionRepository implements SessionRepository {
   final List<String?> retriedMessageIds = <String?>[];
 
   @override
-  Future<Session> openOrResumeToday() async => initialSession;
+  Future<Session> openOrResumeToday({String? problemId}) async => initialSession;
 
   /// Defaults to null — the walkthrough is an offer, and every existing
   /// test was written against a repository that had none.
@@ -93,6 +95,12 @@ class FakeSessionRepository implements SessionRepository {
   @override
   Future<void> deleteDraft(Session session) async {
     deleteDraftCalls++;
+  }
+
+  @override
+  Future<Result<void>> resetForPracticeAgain(Session session) async {
+    resetForPracticeAgainCalls++;
+    return resetForPracticeAgainResult;
   }
 
   @override

@@ -100,6 +100,12 @@ abstract class AppLocalizations {
   /// **'{appName}'**
   String appTitle(String appName);
 
+  /// Title for the evergreen problem picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a problem'**
+  String get problemPickerTitle;
+
   /// /seeding heading — first-launch waiting screen (FR-047a).
   ///
   /// In en, this message translates to:
@@ -1060,6 +1066,12 @@ abstract class AppLocalizations {
   /// **'Read the full write-up'**
   String get verdictReadEditorialAction;
 
+  /// No description provided for @verdictPracticeAgainAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Practice this problem again'**
+  String get verdictPracticeAgainAction;
+
   /// FR-033: shown when the session ended by a solution request. Never worded to penalise asking.
   ///
   /// In en, this message translates to:
@@ -1221,6 +1233,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'See how it went'**
   String get assessmentReadyAction;
+
+  /// Secondary action beside the assessment result that resets the current problem for another attempt.
+  ///
+  /// In en, this message translates to:
+  /// **'Solve it again'**
+  String get assessmentPracticeAgainAction;
 
   /// Ordinal label on a revealed worked example in the conversation, the peer of hintMessageLabel.
   ///

@@ -14,6 +14,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get problemPickerTitle => 'Choose a problem';
+
+  @override
   String get seedingTitle => 'Setting up';
 
   @override
@@ -579,6 +582,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get verdictReadEditorialAction => 'Read the full write-up';
 
   @override
+  String get verdictPracticeAgainAction => 'Practice this problem again';
+
+  @override
   String get verdictSolutionReleaseNotice =>
       'This covers only the work before the solution was shown. Asking for it isn\'t held against you.';
 
@@ -683,6 +689,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get assessmentReadyAction => 'See how it went';
+
+  @override
+  String get assessmentPracticeAgainAction => 'Solve it again';
 
   @override
   String exampleMessageLabel(int index, int count) {

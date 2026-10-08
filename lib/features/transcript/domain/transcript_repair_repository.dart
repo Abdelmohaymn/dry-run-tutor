@@ -1,6 +1,7 @@
 import '../../chat/domain/session.dart';
 
-/// `POST /v1/repair` on the learner's own key. FR-006 is implemented here:
+/// `POST /v1/repair` on the learner's own key or the metered trial pool.
+/// FR-006 is implemented here:
 /// [repair] returns `null` on every failure — a rejected key, a rate limit,
 /// a malformed upstream body, an offline device, a trial-path session — and
 /// **never throws**, so nothing above this layer has to remember to fail

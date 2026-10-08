@@ -63,8 +63,11 @@ class AssessmentRepositoryImpl implements AssessmentRepository {
   @override
   Future<Result<Assessment>> request(Session session) async {
     JudgeRequestDto? request;
+    late final String installId;
+    late final String? userKey;
+    late final String? providerId;
     try {
-      final String installId = await _resolvedInstallId();
+      installId = await _resolvedInstallId();
       final EndedBy endedBy = endedByFromSessionEnded(session.counters.sessionEnded);
       request = JudgeRequestDto(
         problemId: session.problem.id,
@@ -76,7 +79,7 @@ class AssessmentRepositoryImpl implements AssessmentRepository {
         // second argument a caller could pass inconsistently.
         revealAtIndex: endedBy == EndedBy.solution ? session.counters.turnIndex : null,
       );
-      final (String? userKey, String? providerId) = await _keyedHeaders(session);
+      (userKey, providerId) = await _keyedHeaders(session);
 
       final AssessmentDto dto = session.path == SessionPath.trial
           ? await _relayClient.trialJudge(installId: installId, request: request)
@@ -100,10 +103,39 @@ class AssessmentRepositoryImpl implements AssessmentRepository {
       // committed it) — recoverable only if a previous attempt already
       // wrote it locally (T105).
       if (e.error case SessionAlreadyJudged(ctx: JudgedContext.repeatJudge)) {
-        final Assessment? cached = await forSession(session.id);
-        if (cached != null) {
-          return Ok(cached);
+      final Assessment? cached = await forSession(session.id);
+      if (cached != null) {
+        return Ok(cached);
+      }
+      // The judge response may have been lost after the relay committed
+      // it, leaving this install with a closed session but no assessment
+      // row to review. Reset only the server-side claim and retry once
+      // using the same locally retained conversation.
+      if (request != null) {
+        try {
+          await _relayClient.resetSession(
+            installId: installId,
+            problemId: session.problem.id,
+          );
+          final AssessmentDto recoveredDto = session.path == SessionPath.trial
+              ? await _relayClient.trialJudge(installId: installId, request: request)
+              : await _relayClient.judge(
+                  installId: installId,
+                  request: request,
+                  userKey: userKey,
+                  providerId: providerId,
+                );
+          final Assessment recovered = _toDomain(
+            session.id,
+            recoveredDto,
+            revealAtIndex: request.revealAtIndex,
+          );
+          await _persist(recovered, rawJson: jsonEncode(recoveredDto.toJson()));
+          return Ok(recovered);
+        } on RelayException {
+          // Preserve the original typed error if recovery also fails.
         }
+      }
       }
       // FR-042's queueing extends to the judge call: the request never
       // reached the relay at all, so it queues rather than surfacing as

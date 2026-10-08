@@ -191,10 +191,10 @@ class DailySessionCubit extends Cubit<DailySessionState> {
   /// any (FR-016, FR-024). Called once, from `BlocProvider(create:)` —
   /// `sl<T>()` for the repositories this Cubit depends on is resolved
   /// there, not here (`no_service_locator_outside_root`).
-  Future<void> open() async {
+  Future<void> open({String? problemId}) async {
     final Session session;
     try {
-      session = await _sessionRepository.openOrResumeToday();
+      session = await _sessionRepository.openOrResumeToday(problemId: problemId);
     } on NoProblemAvailableException {
       emit(const DailySessionState.problemUnavailable());
       return;
@@ -747,6 +747,44 @@ class DailySessionCubit extends Cubit<DailySessionState> {
       return;
     }
     emit(DailySessionState.verdict(current.session, current.assessment));
+  }
+
+  /// Resets the judged session on the relay and removes its local transcript.
+  /// The current verdict remains visible when reset fails so the learner does
+  /// not lose the assessment they already received.
+  Future<Result<void>> practiceAgain() async {
+    final DailySessionState current = state;
+    final Session? session = switch (current) {
+      Reading(:final session) => session,
+      Composing(:final session) => session,
+      Recording(:final session) => session,
+      Recognising(:final session) => session,
+      VoiceUploadFailed(:final session) => session,
+      ReviewingTranscript(:final session) => session,
+      Sending(:final session) => session,
+      Streaming(:final session) => session,
+      WrappingUp(:final session) => session,
+      FinishOffered(:final session) => session,
+      PullingHint(:final session) => session,
+      CapReached(:final session) => session,
+      ConfirmSolutionRelease(:final session) => session,
+      Judging(:final session) => session,
+      Verdict(:final session) => session,
+      Revealed(:final session) => session,
+      SessionClosed(:final session) => session,
+      Failure(:final session) => session,
+      Opening() || ProblemUnavailable() => null,
+      RecognitionUnavailable(:final session) => session,
+    };
+    if (session == null) {
+      return const Err(RelayError.transport());
+    }
+    final Result<void> result = await _sessionRepository.resetForPracticeAgain(session);
+    if (result case Ok<void>()) {
+      emit(const DailySessionState.opening());
+      await open(problemId: session.problem.id);
+    }
+    return result;
   }
 
   /// FR-031: local only, no upload, no consent prompt (FR-031b forbids

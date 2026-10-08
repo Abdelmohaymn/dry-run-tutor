@@ -93,11 +93,18 @@ class RelayClient {
   /// that this device was active that day. Needs `X-Install-Id`. A
   /// `409 PROBLEM_KILLED` (every candidate withdrawn) surfaces as
   /// [RelayError.problemKilled]; offline as [RelayError.transport].
-  Future<DailyResponseDto> daily({required String installId, required String date}) async {
+  Future<DailyResponseDto> daily({
+    required String installId,
+    required String date,
+    String? problemId,
+  }) async {
     try {
       final Response<Map<String, dynamic>> response = await _dio.get<Map<String, dynamic>>(
         '/v1/daily',
-        queryParameters: <String, String>{'date': date},
+        queryParameters: <String, String>{
+          'date': date,
+          if (problemId case final String id) 'problem_id': id,
+        },
         options: Options(headers: _headers(installId: installId)),
       );
       return DailyResponseDto.fromJson(response.data!);
@@ -116,6 +123,33 @@ class RelayClient {
     } on DioException catch (e) {
       throw RelayException(_mapTransportOrEnvelope(e, requestProblemId: '', callKind: RelayCallKind.chat));
     }
+
+  }
+
+  Future<ProblemsResponseDto> problems({required String installId}) async {
+    try {
+      final Response<Map<String, dynamic>> response = await _dio.get<Map<String, dynamic>>(
+        '/v1/problems',
+        options: Options(headers: _headers(installId: installId)),
+      );
+      return ProblemsResponseDto.fromJson(response.data!);
+    } on DioException catch (e) {
+      throw RelayException(_mapTransportOrEnvelope(e, requestProblemId: '', callKind: RelayCallKind.chat));
+    }
+  }
+
+  /// `POST /v1/session/reset` — clears today's server-side session state for
+  /// one problem so it can be practiced again.
+  Future<void> resetSession({
+    required String installId,
+    required String problemId,
+  }) async {
+    await _postJson(
+      '/v1/session/reset',
+      <String, String>{'problem_id': problemId},
+      headers: _headers(installId: installId),
+      requestProblemId: problemId,
+    );
   }
 
   /// `POST /v1/chat` — the streamed turn. `X-User-Key` and `X-Provider`
@@ -154,13 +188,12 @@ class RelayClient {
     return AssessmentDto.fromJson(body);
   }
 
-  /// `POST /v1/repair` — transcript correction on the learner's own key.
-  /// Reserves no turn. `X-User-Key` is REQUIRED by the relay; there is no
-  /// trial path (research.md R-009).
+  /// `POST /v1/repair` — transcript correction on the learner's own key or
+  /// the operator's metered trial pool when no key is available.
   Future<RepairResponseDto> repair({
     required String installId,
     required RepairRequestDto request,
-    required String userKey,
+    String? userKey,
     String? providerId,
   }) async {
     final Map<String, Object?> body = await _postJson(

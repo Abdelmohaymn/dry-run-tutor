@@ -20,6 +20,7 @@ import 'package:dry_run/features/onboarding/domain/install_repository.dart';
 import 'package:dry_run/features/onboarding/presentation/seeding_screen.dart';
 import 'package:dry_run/features/problem/domain/problem.dart';
 import 'package:dry_run/features/problem/domain/problem_repository.dart';
+import 'package:dry_run/features/problem/domain/problem_summary.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -78,7 +79,10 @@ class _ScriptedProblemRepository implements ProblemRepository {
   }
 
   @override
-  Future<Problem> fetchDaily(String date) async => throw StateError('offline');
+  Future<Problem> fetchDaily(String date, {String? problemId}) async => throw StateError('offline');
+
+  @override
+  Future<List<ProblemSummary>> fetchProblems() async => const <ProblemSummary>[];
 
   @override
   Future<Problem?> cachedForDate(String date) async => null;
