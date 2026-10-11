@@ -103,39 +103,20 @@ class AssessmentRepositoryImpl implements AssessmentRepository {
       // committed it) — recoverable only if a previous attempt already
       // wrote it locally (T105).
       if (e.error case SessionAlreadyJudged(ctx: JudgedContext.repeatJudge)) {
-      final Assessment? cached = await forSession(session.id);
-      if (cached != null) {
-        return Ok(cached);
-      }
-      // The judge response may have been lost after the relay committed
-      // it, leaving this install with a closed session but no assessment
-      // row to review. Reset only the server-side claim and retry once
-      // using the same locally retained conversation.
-      if (request != null) {
-        try {
-          await _relayClient.resetSession(
-            installId: installId,
-            problemId: session.problem.id,
-          );
-          final AssessmentDto recoveredDto = session.path == SessionPath.trial
-              ? await _relayClient.trialJudge(installId: installId, request: request)
-              : await _relayClient.judge(
-                  installId: installId,
-                  request: request,
-                  userKey: userKey,
-                  providerId: providerId,
-                );
-          final Assessment recovered = _toDomain(
-            session.id,
-            recoveredDto,
-            revealAtIndex: request.revealAtIndex,
-          );
-          await _persist(recovered, rawJson: jsonEncode(recoveredDto.toJson()));
-          return Ok(recovered);
-        } on RelayException {
-          // Preserve the original typed error if recovery also fails.
+        final Assessment? cached = await forSession(session.id);
+        if (cached != null) {
+          return Ok(cached);
         }
-      }
+        if (request == null) {
+          return const Err(RelayError.unclearRetry());
+        }
+        return _recoverLostAssessment(
+          session: session,
+          installId: installId,
+          request: request,
+          userKey: userKey,
+          providerId: providerId,
+        );
       }
       // FR-042's queueing extends to the judge call: the request never
       // reached the relay at all, so it queues rather than surfacing as
@@ -147,6 +128,48 @@ class AssessmentRepositoryImpl implements AssessmentRepository {
           payload: <String, Object?>{'request': request.toJson()},
           solutionRequestCountAtEnqueue: session.solutionRequestCount,
         );
+      }
+      return Err(e.error);
+    } catch (_) {
+      return const Err(RelayError.transport());
+    }
+  }
+
+  /// The relay says this session was judged, but this install holds no
+  /// assessment: the verdict was produced and lost on the way back, or the
+  /// Worker was cut off before it could release its claim. The relay keeps
+  /// no assessment (D1 holds only cap-enforcing data), so the only way back
+  /// is to clear the claim and judge the locally kept conversation again.
+  ///
+  /// Whatever fails here is returned as itself. Returning the original
+  /// SESSION_ALREADY_JUDGED instead told the learner "here it is" with
+  /// nothing to show, and "Try again" repeated it forever (2026-10-11).
+  Future<Result<Assessment>> _recoverLostAssessment({
+    required Session session,
+    required String installId,
+    required JudgeRequestDto request,
+    required String? userKey,
+    required String? providerId,
+  }) async {
+    try {
+      await _relayClient.recoverJudge(installId: installId, problemId: session.problem.id);
+      final AssessmentDto dto = session.path == SessionPath.trial
+          ? await _relayClient.trialJudge(installId: installId, request: request)
+          : await _relayClient.judge(
+              installId: installId,
+              request: request,
+              userKey: userKey,
+              providerId: providerId,
+            );
+      final Assessment recovered = _toDomain(session.id, dto, revealAtIndex: request.revealAtIndex);
+      await _persist(recovered, rawJson: jsonEncode(dto.toJson()));
+      return Ok(recovered);
+    } on RelayException catch (e) {
+      // A second "already judged" straight after a reset is a race with
+      // another in-flight judge, not a delivered verdict: never answer
+      // "here it is" without an assessment to show.
+      if (e.error is SessionAlreadyJudged) {
+        return const Err(RelayError.unclearRetry());
       }
       return Err(e.error);
     } catch (_) {

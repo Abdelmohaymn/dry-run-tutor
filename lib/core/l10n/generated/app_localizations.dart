@@ -334,10 +334,10 @@ abstract class AppLocalizations {
   /// **'Your free taster is used up. Add your own key to keep going. You can\'t be charged.'**
   String get errTrialConsumed;
 
-  /// SESSION_ALREADY_JUDGED, repeat judge call. Invisible in the UI: a double-tap guard the learner never sees as an error.
+  /// SESSION_ALREADY_JUDGED, repeat judge call. The assessment repository recovers from this itself, so it is a fallback; it still offers Try again.
   ///
   /// In en, this message translates to:
-  /// **'Your assessment for today is already in — here it is.'**
+  /// **'This session was already assessed. Tap Try again to load it.'**
   String get errAlreadyJudgedRepeat;
 
   /// SESSION_ALREADY_JUDGED, turn or hint after verdict. A closed door, plainly (FR-034 scenario 4).

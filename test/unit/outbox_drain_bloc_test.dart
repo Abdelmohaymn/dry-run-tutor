@@ -4,10 +4,12 @@
 // a replayed row can never carry a higher solution count than the
 // session's own current truth.
 import 'package:dry_run/core/db/app_database.dart';
+import 'package:dry_run/core/errors/relay_error.dart';
 import 'package:dry_run/core/models/wire_enums.dart';
 import 'package:dry_run/core/network/dto/chat_dto.dart';
 import 'package:dry_run/core/network/dto/judge_dto.dart';
 import 'package:dry_run/core/network/dto/turn_dto.dart';
+import 'package:dry_run/core/network/relay_client.dart' show RelayException;
 import 'package:dry_run/core/network/sse_parser.dart';
 import 'package:dry_run/core/queue/outbox_drain_bloc.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -246,6 +248,46 @@ void main() {
         2,
         reason: 'clamped to the session\'s current truth, never the stale row value',
       );
+    },
+  );
+
+  test(
+    'a queued judge answered SESSION_ALREADY_JUDGED is removed, not parked; the session stays pendingJudge',
+    () async {
+      await db.into(db.sessions).insert(
+            SessionsCompanion.insert(
+              id: 's3',
+              problemId: 'vp-0001',
+              day: '2026-01-10',
+              path: SessionPath.trial,
+              status: SessionStatus.pendingJudge,
+              startedAt: timeSource.utc,
+            ),
+          );
+      when(() => relayClient.trialJudge(installId: any(named: 'installId'), request: any(named: 'request')))
+          .thenThrow(
+        const RelayException(RelayError.sessionAlreadyJudged(ctx: JudgedContext.repeatJudge)),
+      );
+
+      await outboxRepository.enqueue(
+        sessionId: 's3',
+        kind: OutboxKind.judge,
+        payload: <String, Object?>{
+          'request': JudgeRequestDto(problemId: 'vp-0001', conversation: const <TurnDto>[], endedBy: 'cap').toJson(),
+        },
+        solutionRequestCountAtEnqueue: 0,
+      );
+
+      final OutboxDrainBloc bloc = buildBloc();
+      addTearDown(bloc.close);
+      bloc.add(const DrainRequested());
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      verify(() => relayClient.trialJudge(installId: any(named: 'installId'), request: any(named: 'request')))
+          .called(1);
+      expect(outboxRepository.enqueued, isEmpty, reason: 'row removed, not parked for a year');
+      expect((await db.sessionDao.byId('s3'))!.status, SessionStatus.pendingJudge);
+      expect(await db.assessmentDao.forSession('s3'), isNull);
     },
   );
 }

@@ -129,4 +129,109 @@ void main() {
       expect(assessmentRepository.requestCalls, 2, reason: 'the retry must actually re-request the judge');
     },
   );
+
+  DailySessionCubit buildCubit() {
+    final FakeSessionRepository sessionRepository = FakeSessionRepository()
+      ..initialSession = _capReachedSession();
+    return DailySessionCubit(
+      sessionRepository: sessionRepository,
+      streakRepository: FakeStreakRepository(),
+      assessmentRepository: assessmentRepository,
+      recognitionService: FakeRecognitionService(),
+      configRepository: FakeRemoteConfigRepository()
+        ..cachedValue = const RuntimeConfig(
+          minSupportedVersion: '1.0.0',
+          killedProblemIds: <String>[],
+          chat: ChatConfig(turnCap: 12, wrapUpAtTurn: 9, minTurnChars: 5),
+          trial: TrialConfig(turnCap: 4),
+          keyedProviders: <String>['groq'],
+        ),
+      micRationaleRepository: FakeMicRationaleRepository(),
+    );
+  }
+
+  // The judge path used to emit a RATE_LIMITED failure and schedule
+  // nothing, leaving a Finish with no button and no pending retry
+  // (found on a physical device, 2026-10-11).
+  blocTest<DailySessionCubit, DailySessionState>(
+    'RATE_LIMITED on Finish retries the judge by itself after retryAfter',
+    build: () {
+      assessmentRepository = FakeAssessmentRepository();
+      int call = 0;
+      assessmentRepository.requestHandler = (Session session) async {
+        call++;
+        if (call == 1) {
+          return const Err(RelayError.rateLimited(retryAfter: Duration(milliseconds: 50)));
+        }
+        return Ok(_assessment(session.id));
+      };
+      return buildCubit();
+    },
+    seed: () => DailySessionState.capReached(_capReachedSession()),
+    act: (DailySessionCubit cubit) => cubit.endSessionUser(),
+    wait: const Duration(milliseconds: 300),
+    expect: () => <Matcher>[
+      isA<Judging>(),
+      isA<Failure>().having((Failure s) => s.error, 'error', isA<RateLimited>()),
+      isA<Judging>(),
+      isA<state.Verdict>().having((state.Verdict s) => s.assessment.verdict, 'verdict', Verdict.pass),
+    ],
+    verify: (DailySessionCubit cubit) {
+      expect(assessmentRepository.requestCalls, 2);
+    },
+  );
+
+  blocTest<DailySessionCubit, DailySessionState>(
+    'tapping Try again during a rate-limit wait retries once, not twice',
+    build: () {
+      assessmentRepository = FakeAssessmentRepository();
+      int call = 0;
+      assessmentRepository.requestHandler = (Session session) async {
+        call++;
+        if (call == 1) {
+          return const Err(RelayError.rateLimited(retryAfter: Duration(milliseconds: 100)));
+        }
+        return Ok(_assessment(session.id));
+      };
+      return buildCubit();
+    },
+    seed: () => DailySessionState.capReached(_capReachedSession()),
+    act: (DailySessionCubit cubit) async {
+      await cubit.endSessionUser();
+      // Early tap: the pending timer must be cancelled.
+      await cubit.retry();
+    },
+    // Well past the 100 ms the cancelled timer would have fired at.
+    wait: const Duration(milliseconds: 400),
+    expect: () => <Matcher>[
+      isA<Judging>(),
+      isA<Failure>().having((Failure s) => s.error, 'error', isA<RateLimited>()),
+      isA<Judging>(),
+      isA<state.Verdict>(),
+    ],
+    verify: (DailySessionCubit cubit) {
+      expect(assessmentRepository.requestCalls, 2, reason: 'the timer must not fire a third request');
+    },
+  );
+
+  blocTest<DailySessionCubit, DailySessionState>(
+    'Review the assessment on a closed session with no assessment goes after it',
+    build: () {
+      assessmentRepository = FakeAssessmentRepository();
+      assessmentRepository.requestHandler =
+          (Session session) async => Ok(_assessment(session.id));
+      return buildCubit();
+    },
+    seed: () => DailySessionState.sessionClosed(
+      _capReachedSession().copyWith(status: SessionStatus.pendingJudge),
+    ),
+    act: (DailySessionCubit cubit) => cubit.openClosedAssessment(),
+    expect: () => <Matcher>[
+      isA<Judging>(),
+      isA<state.Verdict>().having((state.Verdict s) => s.assessment.verdict, 'verdict', Verdict.pass),
+    ],
+    verify: (DailySessionCubit cubit) {
+      expect(assessmentRepository.requestCalls, 1);
+    },
+  );
 }

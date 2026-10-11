@@ -853,7 +853,11 @@ class _FailureNotice extends StatelessWidget {
             onPressed: () => context.push(AppRoute.keysEntry.path),
             child: Text(l10n.errorReEnterKeyAction),
           )
-        else if (copy.nextAction != ErrorNextAction.automaticRetry)
+        else
+          // Also shown for RATE_LIMITED (automaticRetry): a retry that runs
+          // by itself but is invisible looks like a dead end, and a learner
+          // who just fixed their key wants to retry now. The cubit cancels
+          // its pending timer when this is tapped.
           FilledButton(
             onPressed: () => context.read<DailySessionCubit>().retry(),
             child: Text(l10n.retryAction),

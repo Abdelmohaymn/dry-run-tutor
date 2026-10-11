@@ -149,7 +149,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errAlreadyJudgedRepeat =>
-      'Your assessment for today is already in — here it is.';
+      'This session was already assessed. Tap Try again to load it.';
 
   @override
   String get errSessionClosed =>

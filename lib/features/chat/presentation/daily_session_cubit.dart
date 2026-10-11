@@ -506,6 +506,8 @@ class DailySessionCubit extends Cubit<DailySessionState> {
     if (current is! Failure) {
       return;
     }
+    // A manual tap and the rate-limit timer must never both fire.
+    _rateLimitRetryTimer?.cancel();
     final String? text = _pendingSendText;
     final InputMode? mode = _pendingSendMode;
     if (text != null && mode != null) {
@@ -836,6 +838,9 @@ class DailySessionCubit extends Cubit<DailySessionState> {
         emit(DailySessionState.verdict(session, value));
       case Err<Assessment>(:final error):
         emit(DailySessionState.failure(session, error));
+        if (error case RateLimited(:final retryAfter)) {
+          _scheduleRateLimitRetry(retryAfter);
+        }
     }
   }
 
@@ -1016,16 +1021,25 @@ class DailySessionCubit extends Cubit<DailySessionState> {
       // own contract, so this Cubit is what has to make that literally
       // true rather than leaving an unactionable `Failure` on screen.
       if (e.error case RateLimited(:final retryAfter)) {
-        _rateLimitRetryTimer?.cancel();
-        _rateLimitRetryTimer = Timer(retryAfter, () {
-          if (!isClosed) {
-            unawaited(retry());
-          }
-        });
+        _scheduleRateLimitRetry(retryAfter);
       }
     } catch (_) {
       emit(DailySessionState.failure(session, const RelayError.transport()));
     }
+  }
+
+  /// RATE_LIMITED's contract is "the same action resumes by itself once the
+  /// wait elapses" (FR-045a). Shared by the turn path and the judge path:
+  /// the judge path had no timer at all, so a rate-limited Finish sat on a
+  /// failure with no button and nothing pending (found on a physical
+  /// device, 2026-10-11).
+  void _scheduleRateLimitRetry(Duration retryAfter) {
+    _rateLimitRetryTimer?.cancel();
+    _rateLimitRetryTimer = Timer(retryAfter, () {
+      if (!isClosed) {
+        unawaited(retry());
+      }
+    });
   }
 
   void _onTurnMeta({

@@ -271,6 +271,13 @@ class OutboxDrainBloc extends Bloc<OutboxDrainEvent, OutboxDrainState> {
             lastErrorCode: 'UNCLEAR_RETRY',
           );
         }
+      case SessionAlreadyJudged(ctx: JudgedContext.repeatJudge):
+        // The relay judged this session but the verdict never reached this
+        // install. The outbox cannot recover that (it needs a reset and a
+        // re-judge); the session stays pendingJudge, and its "Review the
+        // assessment" button runs that recovery. Parking the row for a year
+        // only left a dead entry behind.
+        await _outboxRepository.remove(item.id);
       case TransportFailure():
         // Never reached the relay at all — leave the row exactly as
         // it is; the next connectivity change tries again.

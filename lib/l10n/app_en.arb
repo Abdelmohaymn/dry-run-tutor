@@ -175,9 +175,9 @@
   "@errTrialConsumed": {
     "description": "TRIAL_CONSUMED. Not an error, not an outage — straight into key entry (FR-007)."
   },
-  "errAlreadyJudgedRepeat": "Your assessment for today is already in — here it is.",
+  "errAlreadyJudgedRepeat": "This session was already assessed. Tap Try again to load it.",
   "@errAlreadyJudgedRepeat": {
-    "description": "SESSION_ALREADY_JUDGED, repeat judge call. Invisible in the UI: a double-tap guard the learner never sees as an error."
+    "description": "SESSION_ALREADY_JUDGED, repeat judge call. The assessment repository recovers from this itself, so it is a fallback; it still offers Try again."
   },
   "errSessionClosed": "This session is closed and the verdict is in. You can review the assessment or the reveal.",
   "@errSessionClosed": {

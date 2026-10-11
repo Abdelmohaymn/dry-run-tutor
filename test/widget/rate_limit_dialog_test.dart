@@ -61,14 +61,29 @@ Session _session() => Session(
       solutionRequestCount: 0,
     );
 
-DailySessionCubit _cubit() => DailySessionCubit(
-      sessionRepository: FakeSessionRepository()..initialSession = _session(),
-      streakRepository: FakeStreakRepository(),
-      assessmentRepository: FakeAssessmentRepository(),
-      recognitionService: FakeRecognitionService(),
-      configRepository: FakeRemoteConfigRepository()..cachedValue = _config,
-      micRationaleRepository: FakeMicRationaleRepository(),
-    );
+_CountingCubit _cubit() => _CountingCubit();
+
+/// Counts `retry()` taps without running the real resend, which would need
+/// a session and relay behind it; the assertion is only that the button is
+/// wired to the Cubit.
+class _CountingCubit extends DailySessionCubit {
+  _CountingCubit()
+      : super(
+          sessionRepository: FakeSessionRepository()..initialSession = _session(),
+          streakRepository: FakeStreakRepository(),
+          assessmentRepository: FakeAssessmentRepository(),
+          recognitionService: FakeRecognitionService(),
+          configRepository: FakeRemoteConfigRepository()..cachedValue = _config,
+          micRationaleRepository: FakeMicRationaleRepository(),
+        );
+
+  int retryCalls = 0;
+
+  @override
+  Future<void> retry() async {
+    retryCalls++;
+  }
+}
 
 /// Two locations, because the assertion is about which one the learner is
 /// on and whether there is anything under it — not about what the key form
@@ -114,7 +129,7 @@ void main() {
   testWidgets('a rate limit shows a popup over the conversation, which closes itself when the turn resends', (
     WidgetTester tester,
   ) async {
-    final DailySessionCubit cubit = _cubit();
+    final _CountingCubit cubit = _cubit();
     addTearDown(cubit.close);
 
     final GoRouter router = await _pump(tester, cubit);
@@ -140,7 +155,7 @@ void main() {
   });
 
   testWidgets('OK closes the popup and leaves the conversation', (WidgetTester tester) async {
-    final DailySessionCubit cubit = _cubit();
+    final _CountingCubit cubit = _cubit();
     addTearDown(cubit.close);
 
     await _pump(tester, cubit);
@@ -152,5 +167,25 @@ void main() {
 
     expect(find.byType(AlertDialog), findsNothing);
     expect(find.byType(DailyScreen), findsOneWidget);
+  });
+
+  testWidgets('a rate-limit failure still offers Try again, and tapping it retries', (WidgetTester tester) async {
+    final _CountingCubit cubit = _cubit();
+    addTearDown(cubit.close);
+
+    await _pump(tester, cubit);
+    cubit.emit(DailySessionState.failure(_session(), const RelayError.rateLimited(retryAfter: Duration(seconds: 20))));
+    await tester.pumpAndSettle();
+    // Close the popup so the button underneath is tappable.
+    await tester.tap(find.text(_l10n(tester).rateLimitOkAction));
+    await tester.pumpAndSettle();
+
+    final Finder retryButton = find.widgetWithText(FilledButton, _l10n(tester).retryAction);
+    expect(retryButton, findsOneWidget, reason: 'an invisible automatic retry reads as a dead end');
+
+    await tester.tap(retryButton);
+    await tester.pump();
+
+    expect(cubit.retryCalls, 1);
   });
 }

@@ -152,6 +152,22 @@ class RelayClient {
     );
   }
 
+  /// `POST /v1/session/reset` with `reason: recover` — hands back a judge
+  /// claim whose verdict never reached this install, leaving the session,
+  /// its counters and the trial allowance as they are, so the same session
+  /// can be judged again.
+  Future<void> recoverJudge({
+    required String installId,
+    required String problemId,
+  }) async {
+    await _postJson(
+      '/v1/session/reset',
+      <String, String>{'problem_id': problemId, 'reason': 'recover'},
+      headers: _headers(installId: installId),
+      requestProblemId: problemId,
+    );
+  }
+
   /// `POST /v1/chat` — the streamed turn. `X-User-Key` and `X-Provider`
   /// are sent when [userKey]/[providerId] are supplied (the keyed path);
   /// omit both for a trial call by calling [trialChat] instead.
