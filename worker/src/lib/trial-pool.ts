@@ -529,6 +529,27 @@ export async function countSessionsStartedToday(db: D1Database, date: string): P
   return row?.n ?? 0;
 }
 
+/**
+ * Reopens the trial slot's judge for the session it already holds, so a
+ * verdict lost on the way back can be judged again. Leaves the slot, its
+ * started_at and every counter alone: isSameTrialSession() then reads the
+ * re-judge as the session in flight, not a new one.
+ */
+export async function reopenTrialJudge(
+  db: D1Database,
+  installId: string,
+  problemId: string,
+  date: string,
+): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE devices SET trial_completed_at = NULL
+       WHERE device_hash = ?1 AND trial_problem_id = ?2 AND trial_date = ?3`,
+    )
+    .bind(installId, problemId, date)
+    .run();
+}
+
 /** Retires a reset session without creating a new activity row. */
 export async function resetTrialSession(
   db: D1Database,

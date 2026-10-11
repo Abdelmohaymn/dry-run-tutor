@@ -85,6 +85,10 @@ export type RepairRequest = z.infer<typeof repairRequestSchema>;
 export const sessionResetRequestSchema = z
   .object({
     problem_id: problemIdSchema,
+    // "practice" (the default) retires the session so it can be replayed.
+    // "recover" only hands back a judge claim whose verdict never reached
+    // the app, so the same session can be judged again.
+    reason: z.enum(["practice", "recover"]).optional(),
   })
   .strict();
 

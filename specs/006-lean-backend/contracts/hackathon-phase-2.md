@@ -25,6 +25,13 @@ The current UTC day's `device_day` row is deleted. If the device's trial slot
 names that problem for today, the slot is retired and its session allowance is
 incremented. The operation is idempotent and returns `{ "ok": true }`.
 
+The body may add `"reason": "practice" | "recover"` (default `practice`, the
+behaviour above). `recover` is for a verdict that was produced but never
+reached the app: it only clears `device_day.judged_at` and, when the trial
+slot names that problem for today, `devices.trial_completed_at`. Counters, the
+slot and the session allowance are unchanged, so the following judge call is
+the same session, not a new one.
+
 ## Free-path transcript repair
 
 `POST /v1/repair` accepts requests without `X-User-Key`. Such requests use an

@@ -172,6 +172,22 @@ export async function releaseJudgeClaim(
     .run();
 }
 
+/**
+ * POST /v1/session/reset with reason "recover": clears a judge claim whose
+ * verdict the app never received, without touching the turn counters.
+ * Unlike releaseJudgeClaim() it is not guarded on a timestamp — the caller
+ * is the app saying it holds no assessment for this session.
+ */
+export async function releaseLostJudgeClaim(db: D1Database, key: TurnCounterKey): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE device_day SET judged_at = NULL
+        WHERE device_hash = ?1 AND problem_id = ?2 AND date = ?3`,
+    )
+    .bind(key.installId, key.problemId, key.date)
+    .run();
+}
+
 /** §B2.3b. Called by /v1/chat on both the conversational and hint paths. */
 export function assertNotJudged(judgedAt: string | null): void {
   if (judgedAt !== null) {

@@ -5,7 +5,8 @@ import type { Env, Variables } from "../types";
 import { AppError } from "../lib/errors";
 import { sessionResetRequestSchema } from "../lib/schemas";
 import { utcDate } from "../lib/time";
-import { resetTrialSession } from "../lib/trial-pool";
+import { reopenTrialJudge, resetTrialSession } from "../lib/trial-pool";
+import { releaseLostJudgeClaim } from "../lib/turn-cap";
 
 export const sessionResetRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -17,6 +18,18 @@ sessionResetRoute.post("/", async (c) => {
   const deviceHash = c.get("installId");
   const date = utcDate();
   const problemId = parsed.data.problem_id;
+
+  if (parsed.data.reason === "recover") {
+    // The verdict was produced (or the Worker was cut off) but never
+    // reached the app, and the relay keeps no assessment. Hand the claim
+    // back and nothing else: the session stays the same session, so the
+    // re-judge neither counts as a new trial session nor passes the
+    // new-session gates, and today's counters stay as they were.
+    await releaseLostJudgeClaim(c.env.DB, { installId: deviceHash, problemId, date });
+    await reopenTrialJudge(c.env.DB, deviceHash, problemId, date);
+    return c.json({ ok: true }, 200);
+  }
+
   await c.env.DB
     .prepare("DELETE FROM device_day WHERE device_hash = ?1 AND date = ?2 AND problem_id = ?3")
     .bind(deviceHash, date, problemId)
