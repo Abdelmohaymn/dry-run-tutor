@@ -20,7 +20,7 @@ describe("tutor prompt v8", () => {
 
   it("points to Finish instead of inventing a question once everything is covered", () => {
     const works = TUTOR_PROMPT.indexOf("IF THEIR APPROACH WORKS, IT IS THE ANSWER.");
-    const covered = TUTOR_PROMPT.indexOf("If what they have said already covers their approach, its edge cases, and its complexity");
+    const covered = TUTOR_PROMPT.indexOf("If what they have said in their own words already covers their approach, its edge cases, and its complexity");
     expect(covered).toBeGreaterThan(works);
     expect(covered).toBeLessThan(TUTOR_PROMPT.indexOf("NEVER ASK AGAIN ABOUT SOMETHING"));
     expect(TUTOR_PROMPT).toContain("Do not invent a question to fill the reply.");
