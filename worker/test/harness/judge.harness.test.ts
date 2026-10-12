@@ -101,6 +101,11 @@ describe("judge harness — live regression net (SC-004, SC-005)", () => {
             expect(assessment.insights_missed as string[], `expected "${key}" in insights_missed`).toContain(key);
             expect(assessment.insights_hit as string[], `"${key}" must not be credited`).not.toContain(key);
           }
+          // PLAN_07: insights the learner accepted from the tutor are reached
+          // with a nudge, and the wire says so.
+          for (const key of c.must_assist ?? []) {
+            expect(assessment.insights_assisted as string[], `expected "${key}" in insights_assisted`).toContain(key);
+          }
           if (c.complexity_assessment) {
             expect((assessment.complexity as { assessment: string }).assessment).toBe(c.complexity_assessment);
           }
