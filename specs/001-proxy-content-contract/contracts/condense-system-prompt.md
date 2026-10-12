@@ -1,6 +1,8 @@
-# Condensation system prompt — v1
+# Condensation system prompt — v2
 
 **Status**: authored 2026-08-20, versioned, **verbatim**.
+
+**v2, 2026-10-11** — the summary now keeps the edge cases and inputs the learner has already handled, and how. Without it a case handled in an early turn dropped out of the summary once the verbatim window moved past it, and the tutor asked about it again (`docs/tutor-focus-issues.md`, Issue 2).
 
 **Implementer instruction (binding)**: copy the block under §Prompt into `worker/src/prompts/condense.ts` as an exported const, byte-identically. Do not paraphrase, do not "improve", do not reflow. `test/unit/prompts-verbatim.test.ts` asserts the copy.
 
@@ -17,6 +19,7 @@ Produce ONE replacement summary that covers both.
 
 Keep, in this order of priority:
 - what the learner has claimed or proposed, and whether they have moved on from it
+- edge cases and inputs the learner has already handled, and how
 - any complexity they stated, in their own terms
 - which direction the tutor has already nudged them, so the same nudge is not repeated
 - anything the learner explicitly said they do not understand
