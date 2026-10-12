@@ -91,6 +91,20 @@ describe("judge harness — live regression net (SC-004, SC-005)", () => {
           expect(COPULA_ADJACENT.test(lowered)).toBe(false);
           expect(STANDALONE_SENTENCE.test(lowered)).toBe(false);
 
+          // Optional per-case assertions (PLAN_06): insights that must / must not
+          // be credited, and the complexity verdict, for cases where the
+          // verdict alone cannot tell a correct read from a wrong one.
+          for (const key of c.must_hit ?? []) {
+            expect(assessment.insights_hit as string[], `expected "${key}" in insights_hit`).toContain(key);
+          }
+          for (const key of c.must_miss ?? []) {
+            expect(assessment.insights_missed as string[], `expected "${key}" in insights_missed`).toContain(key);
+            expect(assessment.insights_hit as string[], `"${key}" must not be credited`).not.toContain(key);
+          }
+          if (c.complexity_assessment) {
+            expect((assessment.complexity as { assessment: string }).assessment).toBe(c.complexity_assessment);
+          }
+
           expect(ok, `expected one of [${c.expected_verdicts.join(", ")}], got "${assessment.verdict}"`).toBe(true);
         });
       }
