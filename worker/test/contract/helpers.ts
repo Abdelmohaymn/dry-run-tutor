@@ -23,6 +23,27 @@ export function quotedHits(keys: string[], quote: string) {
   return keys.map((key) => ({ quote, key }));
 }
 
+/**
+ * Stubs the judge's evidence-check call. Reads the claim ids from the
+ * request's own schema, so a test only says which ones are supported.
+ * Register it after the judge's own intercept: interceptors on one path
+ * are consumed in registration order.
+ */
+export function interceptEvidenceCheck(
+  supported: boolean | ((id: string) => boolean) = true,
+  target: { origin: string; path: string } = { origin: GROQ_ORIGIN, path: GROQ_CHAT_PATH },
+) {
+  fetchMock
+    .get(target.origin)
+    .intercept({ path: target.path, method: "POST" })
+    .reply(200, (opts) => {
+      const req = JSON.parse(opts.body as string);
+      const ids: string[] = req.response_format.json_schema.schema.properties.results.items.properties.id.enum;
+      const decide = typeof supported === "function" ? supported : () => supported;
+      return groqCompletionBody(JSON.stringify({ results: ids.map((id) => ({ id, why: "stub", supported: decide(id) })) }));
+    });
+}
+
 /** A minimal, valid streaming SSE body an OpenAI-compatible endpoint would return. */
 export function groqStreamBody(
   text: string,

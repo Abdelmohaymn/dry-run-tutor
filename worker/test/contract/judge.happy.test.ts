@@ -1,6 +1,6 @@
 import { SELF, fetchMock } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, mintInstallId, quotedHits } from "./helpers";
+import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, interceptEvidenceCheck, mintInstallId, quotedHits } from "./helpers";
 import { getPrivate, getPublicManifest } from "../../src/lib/content";
 
 beforeAll(() => {
@@ -58,6 +58,7 @@ describe("POST /v1/judge — the happy path", () => {
           }),
         ),
       );
+    interceptEvidenceCheck();
 
     const res = await sendJudge(installId, {
       problem_id: "vp-0001",

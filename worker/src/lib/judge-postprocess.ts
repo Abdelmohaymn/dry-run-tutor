@@ -2,12 +2,17 @@
 // mandatory, in this exact order. Everything but step 6 (attach editorial)
 // operates on the model's own output; step 6 is the only path by which
 // private content is ever released (FR-022).
+//
+// Step 2a, evidence: claimed insights and approaches need the learner's own
+// words, checked in judge-evidence.ts (docs/judge-evidence-issues.md,
+// 2026-10-11). The quotes stop here: the Assessment carries keys only.
 import { z } from "zod";
 import type { Problem } from "../../../tools/problem-types";
 import { AppError } from "./errors";
 import { mapVerdict, requiredKeysFor, type JudgeOutput, type Verdict } from "./verdict-map";
 import { takeCompleteSentence } from "./leak-filter";
 import { JUDGE_FEEDBACK_FALLBACK } from "../prompts/judge";
+import type { Evidence } from "./judge-evidence";
 
 // Step 1: structural shape only. Per-problem key enums are already enforced
 // upstream by strict json_schema decoding (judge-schema.ts); this is a
@@ -31,6 +36,17 @@ const rawJudgeOutputSchema = z.object({
   confidence: z.number(),
   feedback: z.string(),
 });
+
+export type RawJudgeOutput = z.infer<typeof rawJudgeOutputSchema>;
+
+/** Step 1 on its own, for callers that need the typed answer (judge-core.ts). */
+export function parseJudgeOutput(raw: unknown): RawJudgeOutput {
+  const parsed = rawJudgeOutputSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new AppError("UNCLEAR_RETRY");
+  }
+  return parsed.data;
+}
 
 export interface Assessment {
   matched_approach: string;
@@ -60,6 +76,8 @@ export interface JudgePostprocessResult {
   verdictOverridden: boolean;
   from?: Verdict;
   to?: Verdict;
+  /** What the evidence checks removed. Set only when `evidence` was passed; never on the wire. */
+  evidenceDropped?: { approach: boolean; insights: number };
 }
 
 // Step 4's two patterns, fixed verbatim by contracts/judge-system-prompt.md
@@ -98,15 +116,13 @@ function truncateFeedback(feedback: string): string {
  * UNCLEAR_RETRY on a refusal or unparseable body — step 1's remaining job
  * is a shape check on what did parse). `editorial` is the problem's
  * reveal-screen markdown, attached in step 6 and never sent to the
- * provider.
+ * provider. `evidence` is judge-evidence.ts's verdict on the model's quotes;
+ * without it the model's own claims stand (the retry decision, and callers
+ * that have no learner turns to check against).
  */
-export function postprocessJudge(raw: unknown, problem: Problem): JudgePostprocessResult {
+export function postprocessJudge(raw: unknown, problem: Problem, evidence?: Evidence): JudgePostprocessResult {
   // Step 1: refusal / malformed / non-JSON -> UNCLEAR_RETRY.
-  const parsed = rawJudgeOutputSchema.safeParse(raw);
-  if (!parsed.success) {
-    throw new AppError("UNCLEAR_RETRY");
-  }
-  const out = parsed.data;
+  const out = parseJudgeOutput(raw);
 
   // Step 2: insight coverage repair. Every authored key ends up in exactly
   // one of insights_hit / insights_missed; unauthored keys are dropped.
@@ -117,6 +133,18 @@ export function postprocessJudge(raw: unknown, problem: Problem): JudgePostproce
     if (!hit.has(key) && !missed.has(key)) missed.add(key);
   }
 
+  // Step 2a: an insight the learner's words do not support was not reached.
+  let insightsDropped = 0;
+  if (evidence) {
+    for (const key of [...hit]) {
+      if (!evidence.supportedInsights.has(key)) {
+        hit.delete(key);
+        missed.add(key);
+        insightsDropped++;
+      }
+    }
+  }
+
   // The model's job is to recognise WHICH reference approach the learner
   // described; how good that approach is, is authored. Nemotron named the
   // one-pass hash map and still labelled it "suboptimal" (2026-10-04),
@@ -124,9 +152,13 @@ export function postprocessJudge(raw: unknown, problem: Problem): JudgePostproce
   // approach that is not authored (in practice "none") gets no tier at all:
   // the model answered none + acceptable and the app showed "matched a
   // solid, accepted approach" beside "Approach: None" (2026-10-11).
-  const authoredApproach = problem.private.reference_approaches.find((a) => a.key === out.matched_approach);
+  const claimedApproach = problem.private.reference_approaches.find((a) => a.key === out.matched_approach);
+  // Step 2a: an approach whose words do not describe it is "none". A `wrong`
+  // approach keeps its place: dropping it could only raise the grade.
+  const approachDemoted = !!evidence && !!claimedApproach && claimedApproach.verdict !== "wrong" && !evidence.approachSupported;
+  const authoredApproach = approachDemoted ? undefined : claimedApproach;
   const repaired: JudgeOutput = {
-    matched_approach: out.matched_approach,
+    matched_approach: approachDemoted ? "none" : out.matched_approach,
     matched_verdict: authoredApproach?.verdict ?? "none",
     insights_hit: [...hit],
     insights_missed: [...missed],
@@ -177,6 +209,7 @@ export function postprocessJudge(raw: unknown, problem: Problem): JudgePostproce
     verdictOverridden,
     from: verdictOverridden ? (out.verdict as Verdict) : undefined,
     to: verdictOverridden ? mapped : undefined,
+    evidenceDropped: evidence ? { approach: approachDemoted, insights: insightsDropped } : undefined,
   };
 }
 
@@ -185,7 +218,9 @@ export function postprocessJudge(raw: unknown, problem: Problem): JudgePostproce
  * recognised with not one key insight, or every required insight with a
  * suboptimal or wrong approach. Nemotron produced the first intermittently
  * for a plainly correct explanation (2026-10-04); judge-core.ts asks once
- * more when it sees either.
+ * more when it sees either. Evaluated on the model's own unverified claims
+ * (judge-evidence D8): a zero made by the evidence checks is deterministic,
+ * so asking again would only spend budget and invite a better-made-up quote.
  */
 export function isSelfContradictory(assessment: Assessment, problem: Problem): boolean {
   const approach = problem.private.reference_approaches.find((a) => a.key === assessment.matched_approach);

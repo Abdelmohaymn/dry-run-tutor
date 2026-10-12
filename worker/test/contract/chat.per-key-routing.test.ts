@@ -4,6 +4,7 @@ import {
   GROQ_CHAT_PATH,
   GROQ_ORIGIN,
   groqCompletionBody,
+  interceptEvidenceCheck,
   groqStreamBody,
   mintInstallId,
   readChatSSE,
@@ -135,7 +136,7 @@ describe("POST /v1/chat and /v1/judge — routed by the key's own provider", () 
         approach_quote: "I would use a hash map",
         matched_approach: "hashmap",
         matched_verdict: "optimal",
-        insights_hit: [],
+        insights_hit: [{ quote: "I would use a hash map", key: "complement_lookup" }],
         insights_missed: [],
         wrong_turns_taken: [],
         complexity: {
@@ -150,6 +151,7 @@ describe("POST /v1/chat and /v1/judge — routed by the key's own provider", () 
         feedback: "Some feedback here.",
         }));
       });
+    interceptEvidenceCheck(true, { origin: GEMINI_ORIGIN, path: GEMINI_CHAT_PATH });
 
     expect((await sendJudge(installId, "gemini")).status).toBe(200);
     expect(JSON.parse(judgeBody).model).toBe("gemini-flash-latest");

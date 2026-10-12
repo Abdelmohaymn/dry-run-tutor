@@ -1,6 +1,6 @@
 import { SELF, fetchMock } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, mintInstallId, quotedHits } from "./helpers";
+import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, interceptEvidenceCheck, mintInstallId, quotedHits } from "./helpers";
 import { getPrivate, getPublicManifest } from "../../src/lib/content";
 
 beforeAll(() => {
@@ -60,6 +60,7 @@ describe("POST /v1/judge — a self-contradictory verdict is overwritten", () =>
           }),
         ),
       );
+    interceptEvidenceCheck();
 
     const res = await sendJudge(installId, {
       problem_id: "vp-0001",
