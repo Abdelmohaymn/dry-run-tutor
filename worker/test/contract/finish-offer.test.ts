@@ -99,8 +99,10 @@ describe("finish offer — ready_to_finish on the meta frame", () => {
     expect(user).toContain(LEARNER);
     expect(user).not.toContain("TUTOR_ONLY_PHRASE");
     const schema = seen.body.response_format.json_schema.schema;
-    expect(schema.required).toEqual(["reached"]);
+    expect(schema.required).toEqual(["reached", "named"]);
     expect(schema.properties.reached.items.enum).toEqual(["complement_lookup", "single_pass", "index_storage", "duplicates_ok"]);
+    expect(schema.properties.named.items.enum).toContain("hash map");
+    expect(user).toContain("- hash map");
   });
 
   it.each([
@@ -156,6 +158,62 @@ describe("finish offer — ready_to_finish on the meta frame", () => {
     const frames = await send([...turn1, { role: "tutor", text: "Yes. How?" }, { role: "user", text: "keep the seen ones somewhere" }]);
     const text = frames.filter((f) => f.event === "token").map((f) => (f.data as { text: string }).text).join("");
     expect(text).toContain("hash map");
+  });
+
+  // docs/tutor-focus-issues.md Issue 1: "DP" for dynamic programming, a
+  // mangling, another language. The literal-word filter cannot tell; the
+  // check can, and its answer unblocks the term from the next turn.
+  it("stores the terms the check says the learner named, and the next turn's reply may use them", async () => {
+    await setFinishOffer();
+    const installId = await mintInstallId();
+    const send = async (messages: { role: string; text: string }[]) => {
+      const res = await SELF.fetch("https://worker.test/v1/chat", {
+        method: "POST",
+        headers: { "X-Install-Id": installId, "X-User-Key": "gsk_test_learner_key", "content-type": "application/json" },
+        body: JSON.stringify({ problem_id: "vp-0001", messages }),
+      });
+      return readChatSSE(res);
+    };
+
+    // Turn 1: no literal never_say word, but the check recognises one.
+    mockTutor();
+    mockFinishCheck({ status: 200, body: groqCompletionBody('{"reached":[],"named":["hash map","not-a-term"]}') });
+    const turn1 = [{ role: "user", text: "I'd keep a dictionary of what I have seen so far" }];
+    await send(turn1);
+    const row = await env.DB.prepare("SELECT named_terms, reached_keys FROM device_day WHERE device_hash = ?1")
+      .bind(installId.split(".")[0])
+      .first<{ named_terms: string; reached_keys: string | null }>();
+    expect(JSON.parse(row!.named_terms)).toEqual(["hash map"]);
+    // Naming a term is not having the idea.
+    expect(row!.reached_keys).toBeNull();
+
+    // Turn 2: the draft says "hash map". It is not blocked, so there is no
+    // rewrite call (an unstubbed second tutor call would fail the test).
+    mockTutor("Yes, a hash map fits. What would you store in it?");
+    mockFinishCheck({ status: 200, body: groqCompletionBody('{"reached":[],"named":[]}') });
+    const frames = await send([...turn1, { role: "tutor", text: "Go on." }, { role: "user", text: "the numbers I passed" }]);
+    const text = frames.filter((f) => f.event === "token").map((f) => (f.data as { text: string }).text).join("");
+    expect(text).toContain("hash map");
+    const meta = frames.find((f) => f.event === "meta")!.data as Record<string, unknown>;
+    expect(meta.leak_blocked).toBe(false);
+    expect(meta.ready_to_finish).toBe(false);
+  });
+
+  it("never stores learner text in named_terms, even if the check echoes it back", async () => {
+    await setFinishOffer();
+    const installId = await mintInstallId();
+    const said = "MARKER_LEARNER_SAID_THIS_EXACT_PHRASE about a dictionary";
+    mockTutor();
+    mockFinishCheck({ status: 200, body: groqCompletionBody(JSON.stringify({ reached: [], named: [said, "hash map"] })) });
+    const res = await SELF.fetch("https://worker.test/v1/chat", {
+      method: "POST",
+      headers: { "X-Install-Id": installId, "X-User-Key": "gsk_test_learner_key", "content-type": "application/json" },
+      body: JSON.stringify({ problem_id: "vp-0001", messages: [{ role: "user", text: said }] }),
+    });
+    await readChatSSE(res);
+    const rows = await env.DB.prepare("SELECT * FROM device_day WHERE device_hash = ?1").bind(installId.split(".")[0]).all();
+    expect(JSON.stringify(rows.results)).not.toContain("MARKER_LEARNER_SAID");
+    expect(JSON.parse((rows.results[0] as { named_terms: string }).named_terms)).toEqual(["hash map"]);
   });
 
   it("makes the finish-check call on the keyed path and reports it", async () => {

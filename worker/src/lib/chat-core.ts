@@ -12,6 +12,7 @@ import type { RuntimeConfig } from "./runtime-config";
 import {
   assertNotJudged,
   readCounters,
+  recordNamedTerms,
   recordReachedKeys,
   refundTurn,
   releaseSolution,
@@ -237,9 +238,12 @@ export async function runConversationalTurn(
       // which caught 62% of paraphrases and none in Arabic, and marked a
       // different insight 42% of the time, unblocking words the learner
       // never said (review F4, 2026-10-07). A word the learner used
-      // themselves is still unblocked at once (learnerNamedTerms).
+      // themselves is still unblocked at once (learnerNamedTerms). The terms
+      // the check found the learner referred to in other forms on earlier
+      // turns (an abbreviation, a mangling, another language) join them
+      // (2026-10-11, docs/tutor-focus-issues.md Issue 1).
       const reachedKeys = new Set(reserved.reachedKeys);
-      const named = learnerNamedTerms(problem, learnerHistory);
+      const named = new Set([...learnerNamedTerms(problem, learnerHistory), ...reserved.namedTerms]);
       const blockedTerms = buildBlockedTerms(problem, reachedKeys, named, released ? "solution" : null);
 
       // The whole draft is read before any of it is sent, so a blocked
@@ -287,6 +291,7 @@ export async function runConversationalTurn(
       const reachedNow = [...new Set([...reserved.reachedKeys, ...(checked?.reached ?? [])])];
       if (checked) {
         await recordReachedKeys(deps.db, key, reserved.reachedKeys, checked.reached);
+        await recordNamedTerms(deps.db, key, reserved.namedTerms, checked.named);
       }
 
       const meta: MetaFramePayload = {

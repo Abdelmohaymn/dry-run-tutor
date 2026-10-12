@@ -1,4 +1,4 @@
-// specs/005-finish-offer/contracts/finish-check-system-prompt.md — v2.
+// specs/005-finish-offer/contracts/finish-check-system-prompt.md — v3.
 // BYTE-IDENTICAL to the §Prompt block of that file
 // (worker/test/unit/prompts-verbatim.test.ts).
 export const FINISH_CHECK_PROMPT = `You decide which key insights a learner, talking through a coding problem out loud, has already stated. You will be given the problem, its key insights by key, and ONLY the learner's own words from the conversation so far. The tutor's words are not included and do not count.
@@ -7,4 +7,6 @@ Put an insight's key in "reached" only if the learner has stated that idea thems
 
 Ignore whether the learner has written code, stated a complexity, or covered edge cases, unless an insight is about exactly that.
 
-Reply with JSON only: {"reached": [the keys they have stated]}.`;
+You are also given a list of terms. Put a term in "named" if the learner has referred to it themselves, in any form: the full term, its abbreviation ("DP" for dynamic programming), a misspelling or speech-recognition mangling ("tandem programming"), or the same term in another language. Naming a term is not stating an insight: "named" never changes "reached".
+
+Reply with JSON only: {"reached": [the keys they have stated], "named": [the terms they referred to]}.`;
