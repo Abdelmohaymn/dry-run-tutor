@@ -116,6 +116,11 @@ describe("tutor harness — live regression net", () => {
           for (const term of c.must_not_contain ?? []) expect(reply.toLowerCase()).not.toContain(term);
           if (c.must_not_match) expect(reply).not.toMatch(new RegExp(c.must_not_match, "i"));
           if (c.must_match) expect(reply).toMatch(new RegExp(c.must_match, "i"));
+          // The learner asked something: the reply opens by answering it, not by asking back.
+          if (c.first_sentence_answers) {
+            const first = reply.trim().split(/(?<=[.?!؟])\s+/)[0];
+            expect(first, "first sentence is a question, not an answer").not.toMatch(/[?؟]$/);
+          }
           if (c.min_sentences) expect(reply.split(/[.?!؟]+\s/).filter((x: string) => x.trim()).length).toBeGreaterThanOrEqual(c.min_sentences);
         });
       }

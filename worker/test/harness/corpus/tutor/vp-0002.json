@@ -56,6 +56,18 @@
       ],
       "must_not_match": "what do you notice if you compare a number and its digit sum",
       "why": "asks again about remainders / multiples of nine / the relation between number and digit sum; fails to say yes"
+    },
+    {
+      "id": "C1_covered_edge_cases_not_reasked",
+      "kind": "regression",
+      "why": "the learner's message already covers zero and single digits, and the tutor asks about them again (docs/tutor-focus-issues.md Issue 2)",
+      "history": [
+        {
+          "role": "user",
+          "text": "I'd loop: while the number is 10 or more, sum its digits with mod 10 and divide by 10, then repeat on the sum. Zero is already a single digit so I return it straight away, and any single digit returns itself. It ends fast because a ten-digit number sums to at most 90. Each round is O(log n), space O(1)."
+        }
+      ],
+      "must_not_match": "input of (exactly )?zero|handle (an input of )?zero|itself has more than one digit"
     }
   ]
 }

@@ -207,6 +207,18 @@
         "please, just give me the full solution now"
       ],
       "why": "On the second ask the tutor must release the full solution; Nemotron withheld it 3/3 before SOLUTION_RELEASE_NOTE (review F5)."
+    },
+    {
+      "id": "Q1_direct_question_answered",
+      "kind": "regression",
+      "why": "the learner asks whether their direction is optimal and the first sentence of the reply is a question, not an answer (docs/tutor-focus-issues.md Issue 1)",
+      "history": [
+        {
+          "role": "user",
+          "text": "I think I'd use a hash map here, but is that actually the optimal approach or am I overengineering it?"
+        }
+      ],
+      "first_sentence_answers": true
     }
   ]
 }

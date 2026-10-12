@@ -1,0 +1,14 @@
+[
+  {
+    "role": "user",
+    "text": "I think it's a dynamic programming problem, but I'm not sure if the dynamic programming is an optimized solution or I overengineering it."
+  },
+  {
+    "role": "tutor",
+    "text": "What relationship do you think the number of ways for n steps has to the numbers of ways for the previous one-step and two-step cases?"
+  },
+  {
+    "role": "user",
+    "text": "Why you ignored my question? I said it's a tandem programming. So as it is, is there an optimal approach?"
+  }
+]
