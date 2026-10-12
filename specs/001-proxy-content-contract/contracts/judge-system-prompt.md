@@ -1,6 +1,8 @@
-# Judge system prompt — v6
+# Judge system prompt — v7
 
 **Status**: authored 2026-08-20. Its §5 verdict-mapping table is inlined into `data-model.md` §B4 so this feature needs nothing outside the repo. **Supersedes `judge-spec.md` §4 v1**, which was written for a single transcript and is explicitly marked there as needing a rewrite for conversations before Phase 1 ships. This is that rewrite.
+
+**v7, 2026-10-12** — ONE SOURCE: the insight lists now come from the progress check (`finish-check-system-prompt.md`), not from this model. The server runs that check once more on the judged conversation, joins its answer with what earlier turns stored, and shows the model the result in a `Settled insights` block after the conversation (reached in their own words, reached with the tutor's help, not reached). The new SETTLED INSIGHTS section tells the model to copy those lists and to write the approach and feedback so they agree with them. An idea the tutor put into words and the learner accepted counts as reached, labelled "with a nudge" on the wire (`insights_assisted`). The model still names the approach, and its quotes still back the approach claim (`tasks/plans/PLAN_07_ONE_SOURCE_ASSISTED.md`, vp-0003: the Finish card appeared and the judge credited nothing).
 
 **v6, 2026-10-12** — EVIDENCE: a short answer is read with the tutor question it answers, so "2 pointers" in reply to "how would you check one word?" can be quoted for the two-pointer insight (`tasks/plans/PLAN_06_JUDGE_CONTEXT.md`, vp-0003). Agreeing with an idea the tutor's question already held still earns nothing (PLAN_05).
 
@@ -52,6 +54,10 @@ Every insight key in the ground truth must appear in exactly one of insights_hit
 EVIDENCE
 
 Before you name an approach or an insight, find the learner's own words for it. Copy them exactly as they appear in the conversation, in the language they used, without the "user:" label: the approach's words go in approach_quote, and each insight's words go in that entry's quote. Only lines labelled "user:" count; the tutor's words never do. A technique's name on its own ("brute force", "recursion", "nested loop") describes nothing. A short answer is read with the tutor question it answers: "two pointers", said in reply to "how would you check one word?", describes how they check a word, so quote it. But a "yes", or a repeat of the tutor's words, is never the learner's own idea when the tutor's question already held it. If you cannot quote words that describe the idea, the insight goes in insights_missed; if you cannot quote words that describe the approach, matched_approach is "none" and approach_quote is empty.
+
+SETTLED INSIGHTS
+
+The conversation may be followed by a block headed "Settled insights". When it is there, those lists are final: copy them into insights_hit and insights_missed exactly as given, with an empty quote for each, and choose the approach and write the feedback so they agree with them. An insight settled "with the tutor's help" counts as reached; the feedback may say the tutor helped with it.
 
 WHEN YOU CANNOT TELL
 
@@ -114,6 +120,12 @@ Here is where that lands against the reference approach — have a look at the w
    - **Effect** — an insight that fails either check moves from `insights_hit` to `insights_missed`. An approach that fails either check is demoted to `"none"`, unless its authored verdict is `wrong`: dropping that could only raise the grade.
    - **Retry** — the one-more-ask on a self-contradictory answer is decided on the model's unverified claims. A zero made by these checks is deterministic, so asking again would only spend budget and invite a better-made-up quote.
    - **Privacy** — quotes live in memory for one request and are stripped here: the response carries `insights_hit` as `string[]`, as before.
+2b. **Settled insights** (prompt v7, 2026-10-12; `tasks/plans/PLAN_07_ONE_SOURCE_ASSISTED.md`, `worker/src/lib/judge-core.ts`). Before the judge call the server runs the progress check once more (`finish-check-system-prompt.md`) on the judged conversation, including the tutor's last reply, with `finish_offer.timeout_ms` as its timeout, whatever `finish_offer.enabled` says. The settled lists are the check's `reached` and `assisted` joined with what earlier turns stored (`device_day.reached_keys` / `assisted_keys`); a key in both counts as reached only. They exist when the check answered or anything is stored; otherwise step 2a applies as before.
+   - **Replace** — `insights_hit` is the settled set (authored keys only) and `insights_missed` the rest, whatever the model claimed. `insights_assisted` is the assisted keys inside `insights_hit`. The insight evidence (2a) is not used; the approach is still checked, and `gatherEvidence` is called with no insight claims.
+   - **Show** — the judge's user message ends with a `Settled insights:` block (reached in their own words, reached with the tutor's help, not reached) before `Return the assessment now.`.
+   - **Feedback** — if the model's own `insights_hit` still differs from the settled set, the feedback becomes §Fallback (as in 2a).
+   - **Restore** — an approach the evidence check demoted is restored when every insight it needs (`requiredKeysFor`) is settled.
+   - **Verdict** — `strong_pass` additionally needs every required insight of the matched approach in the learner's own words, none assisted (step 3).
 3. **Verdict override** — `mapVerdict()` per `data-model.md` §B4. The mapped value wins and the discrepancy is recorded (FR-019). Two amendments from the 2026-10-07 review (`specs/review-tutor-judge-findings.md` F3, F8): "every required insight hit" is measured against the matched approach's own `requires` when the problem authors one, so an acceptable approach explained in full maps to `pass`; and when **no** insight was hit, the model's own `unclear` stands, ahead of every other row. Its `incorrect` stands whenever it matched no approach, whatever the insight count: step 2 no longer lets an unlisted approach carry `wrong`, so the model's verdict is the only signal left (2026-10-11). Finally, when the model's `confidence` is below 0.6 the map may not lift the verdict to `pass` or `strong_pass` if the model's own verdict was neither.
 4. **Hedge check** — `feedback` is scanned for an **unhedged** verdict word. The terms are `FORBIDDEN_FEEDBACK_TERMS = ["correct", "incorrect", "wrong", "right", "perfect"]`, and a term counts **only** when it is asserted of the learner's work, which is fixed by exactly two patterns, applied case-insensitively to the **lowercased feedback with its punctuation intact**:
 

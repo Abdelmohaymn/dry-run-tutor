@@ -168,3 +168,31 @@ describe("mapVerdict() — per-approach requires and zero-evidence rows", () => 
     ).toBe("incorrect");
   });
 });
+
+// 2026-10-12, PLAN_07 D10: a nudge counts toward a pass, never toward top marks.
+describe("mapVerdict() — insights reached with the tutor's help", () => {
+  const nonRequired = problem.private.key_insights.find((i) => !i.required)!.key;
+  const hit = [...requiredKeys, nonRequired];
+
+  it("optimal, every required insight own, an edge case -> strong_pass", () => {
+    expect(mapVerdict(out({ matched_verdict: "optimal", insights_hit: hit, insights_assisted: [] }), problem)).toBe("strong_pass");
+  });
+
+  it("the same with one required insight assisted -> pass, not strong_pass", () => {
+    expect(
+      mapVerdict(out({ matched_verdict: "optimal", insights_hit: hit, insights_assisted: [requiredKeys[0]] }), problem),
+    ).toBe("pass");
+  });
+
+  it("an assisted edge-case insight does not stop strong_pass: only the required ones matter", () => {
+    expect(
+      mapVerdict(out({ matched_verdict: "optimal", insights_hit: hit, insights_assisted: [nonRequired] }), problem),
+    ).toBe("strong_pass");
+  });
+
+  it("an assisted required insight still counts toward pass", () => {
+    expect(
+      mapVerdict(out({ matched_verdict: "optimal", insights_hit: requiredKeys, insights_assisted: requiredKeys }), problem),
+    ).toBe("pass");
+  });
+});

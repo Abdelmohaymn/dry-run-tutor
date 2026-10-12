@@ -6,6 +6,7 @@ import {
   groqCompletionBody,
   interceptEvidenceCheck,
   mintInstallId,
+  interceptFinalCheckUnusable,
 } from "./helpers";
 import { JUDGE_FEEDBACK_FALLBACK } from "../../src/prompts/judge";
 
@@ -48,6 +49,7 @@ function judgeAnswer(overrides: Record<string, unknown> = {}) {
 }
 
 function interceptJudge(answer: Record<string, unknown>) {
+  interceptFinalCheckUnusable();
   fetchMock
     .get(GROQ_ORIGIN)
     .intercept({ path: GROQ_CHAT_PATH, method: "POST" })

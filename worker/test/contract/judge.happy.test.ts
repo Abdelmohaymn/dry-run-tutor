@@ -1,6 +1,6 @@
 import { SELF, fetchMock } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, interceptEvidenceCheck, mintInstallId, quotedHits } from "./helpers";
+import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, interceptEvidenceCheck, mintInstallId, quotedHits, interceptFinalCheckUnusable } from "./helpers";
 import { getPrivate, getPublicManifest } from "../../src/lib/content";
 
 beforeAll(() => {
@@ -32,6 +32,7 @@ async function sendJudge(installId: string, body: Record<string, unknown>) {
 describe("POST /v1/judge — the happy path", () => {
   it("an optimal conversation yields only authored keys, each insight in exactly one list, and editorial attached", async () => {
     const installId = await mintInstallId();
+    interceptFinalCheckUnusable();
     fetchMock
       .get(GROQ_ORIGIN)
       .intercept({ path: GROQ_CHAT_PATH, method: "POST" })

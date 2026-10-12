@@ -6,6 +6,11 @@
 // Step 2a, evidence: claimed insights and approaches need the learner's own
 // words, checked in judge-evidence.ts (docs/judge-evidence-issues.md,
 // 2026-10-11). The quotes stop here: the Assessment carries keys only.
+//
+// Settled insights (2026-10-12, PLAN_07): when the progress check's lists are
+// passed in, they ARE the insight lists. The model's own insight claims then
+// only matter for the feedback check (D8) and the insight evidence is not
+// used (D7); the approach keeps its evidence check, with a restore (D9).
 import { z } from "zod";
 import type { Problem } from "../../../tools/problem-types";
 import { AppError } from "./errors";
@@ -53,6 +58,8 @@ export interface Assessment {
   matched_verdict: "optimal" | "acceptable" | "suboptimal" | "wrong" | "none";
   insights_hit: string[];
   insights_missed: string[];
+  /** Subset of insights_hit reached by accepting an idea the tutor put into words. */
+  insights_assisted: string[];
   wrong_turns_taken: string[];
   complexity: {
     user_claimed_time: string | null;
@@ -70,6 +77,12 @@ export interface Assessment {
 /** judge prompt: "Below 0.6 means you are genuinely unsure". */
 const UNSURE_CONFIDENCE = 0.6;
 const PASSING: ReadonlySet<Verdict> = new Set(["pass", "strong_pass"]);
+
+/** The progress check's final lists: `hit` is own plus assisted, `assisted` is the subset the tutor helped with. */
+export interface SettledInsights {
+  hit: readonly string[];
+  assisted: readonly string[];
+}
 
 export interface JudgePostprocessResult {
   assessment: Assessment;
@@ -129,24 +142,38 @@ function stateComplexity(c: RawJudgeOutput["complexity"]): RawJudgeOutput["compl
  * reveal-screen markdown, attached in step 6 and never sent to the
  * provider. `evidence` is judge-evidence.ts's verdict on the model's quotes;
  * without it the model's own claims stand (the retry decision, and callers
- * that have no learner turns to check against).
+ * that have no learner turns to check against). `settled` replaces the
+ * model's insight lists (PLAN_07 D7); without it nothing changes and
+ * `insights_assisted` is `[]`.
  */
-export function postprocessJudge(raw: unknown, problem: Problem, evidence?: Evidence): JudgePostprocessResult {
+export function postprocessJudge(
+  raw: unknown,
+  problem: Problem,
+  evidence?: Evidence,
+  settled?: SettledInsights,
+): JudgePostprocessResult {
   // Step 1: refusal / malformed / non-JSON -> UNCLEAR_RETRY.
   const out = parseJudgeOutput(raw);
 
   // Step 2: insight coverage repair. Every authored key ends up in exactly
   // one of insights_hit / insights_missed; unauthored keys are dropped.
   const authoredKeys = new Set(problem.private.key_insights.map((i) => i.key));
-  const hit = new Set(out.insights_hit.map((h) => h.key).filter((k) => authoredKeys.has(k)));
-  const missed = new Set(out.insights_missed.filter((k) => authoredKeys.has(k) && !hit.has(k)));
+  const modelHit = new Set(out.insights_hit.map((h) => h.key).filter((k) => authoredKeys.has(k)));
+  const hit = settled ? new Set(settled.hit.filter((k) => authoredKeys.has(k))) : new Set(modelHit);
+  const missed = settled
+    ? new Set<string>()
+    : new Set(out.insights_missed.filter((k) => authoredKeys.has(k) && !hit.has(k)));
   for (const key of authoredKeys) {
     if (!hit.has(key) && !missed.has(key)) missed.add(key);
   }
+  // D8: the model was shown the settled lists. If its own claim still differs,
+  // its feedback may praise or fault the wrong things.
+  const settledDisagrees = !!settled && (modelHit.size !== hit.size || [...modelHit].some((k) => !hit.has(k)));
 
   // Step 2a: an insight the learner's words do not support was not reached.
+  // Settled lists are not re-checked: the progress check already decided them.
   let insightsDropped = 0;
-  if (evidence) {
+  if (evidence && !settled) {
     for (const key of [...hit]) {
       if (!evidence.supportedInsights.has(key)) {
         hit.delete(key);
@@ -166,13 +193,22 @@ export function postprocessJudge(raw: unknown, problem: Problem, evidence?: Evid
   const claimedApproach = problem.private.reference_approaches.find((a) => a.key === out.matched_approach);
   // Step 2a: an approach whose words do not describe it is "none". A `wrong`
   // approach keeps its place: dropping it could only raise the grade.
-  const approachDemoted = !!evidence && !!claimedApproach && claimedApproach.verdict !== "wrong" && !evidence.approachSupported;
+  let approachDemoted =
+    !!evidence && !!claimedApproach && claimedApproach.verdict !== "wrong" && !evidence.approachSupported;
+  // D9: an approach is defined by its insights. When every insight it needs is
+  // settled, the demotion is undone, or the screen says "Nothing matched an
+  // approach on file" beside a pass.
+  if (approachDemoted && settled && claimedApproach) {
+    const needed = [...requiredKeysFor(problem, claimedApproach.key)];
+    if (needed.length > 0 && needed.every((k) => hit.has(k))) approachDemoted = false;
+  }
   const authoredApproach = approachDemoted ? undefined : claimedApproach;
   const repaired: JudgeOutput = {
     matched_approach: approachDemoted ? "none" : out.matched_approach,
     matched_verdict: authoredApproach?.verdict ?? "none",
     insights_hit: [...hit],
     insights_missed: [...missed],
+    insights_assisted: settled ? [...new Set(settled.assisted.filter((k) => hit.has(k)))] : [],
     wrong_turns_taken: out.wrong_turns_taken.filter((k) =>
       problem.private.common_wrong_turns.some((w) => w.key === k),
     ),
@@ -200,7 +236,7 @@ export function postprocessJudge(raw: unknown, problem: Problem, evidence?: Evid
   // beside both insights listed as not reached). Once the basis changed the
   // feedback cannot be trusted (2026-10-12, PLAN_06 D7).
   const evidenceChanged = approachDemoted || insightsDropped > 0;
-  const hedgeChecked = hedgeViolation || evidenceChanged ? JUDGE_FEEDBACK_FALLBACK : out.feedback;
+  const hedgeChecked = hedgeViolation || evidenceChanged || settledDisagrees ? JUDGE_FEEDBACK_FALLBACK : out.feedback;
 
   // Step 5: truncation. Second-sentence boundary first, then 320 chars on
   // a word boundary.
@@ -212,6 +248,7 @@ export function postprocessJudge(raw: unknown, problem: Problem, evidence?: Evid
     matched_verdict: repaired.matched_verdict,
     insights_hit: repaired.insights_hit,
     insights_missed: repaired.insights_missed,
+    insights_assisted: repaired.insights_assisted ?? [],
     wrong_turns_taken: repaired.wrong_turns_taken,
     complexity: stateComplexity(out.complexity),
     verdict: mapped,

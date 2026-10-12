@@ -44,6 +44,28 @@ export function interceptEvidenceCheck(
     });
 }
 
+/**
+ * Stubs the judge-time progress check (finish_check) with a 200 that carries no
+ * usable answer, so the worker settles nothing and the judge takes today's
+ * path (model lists plus evidence check). 2026-10-12, PLAN_07: the judge now
+ * makes this extra non-stream call first, and without a stub of its own it
+ * would consume the judge's. Register it BEFORE the judge's own intercept,
+ * since interceptors on one path are consumed in registration order. Routed by
+ * the request's schema name, so it never answers any other call.
+ */
+export function interceptFinalCheckUnusable(
+  target: { origin: string; path: string } = { origin: GROQ_ORIGIN, path: GROQ_CHAT_PATH },
+) {
+  fetchMock
+    .get(target.origin)
+    .intercept({
+      path: target.path,
+      method: "POST",
+      body: (b: string) => JSON.parse(b).response_format?.json_schema?.name === "finish_check",
+    })
+    .reply(200, groqCompletionBody("{}"));
+}
+
 /** A minimal, valid streaming SSE body an OpenAI-compatible endpoint would return. */
 export function groqStreamBody(
   text: string,

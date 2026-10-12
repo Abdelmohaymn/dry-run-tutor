@@ -16,7 +16,10 @@ reads this file into `expectedPrompts`.
 Runs once per conversational turn (from turn 1 since 2026-10-12; `finish_offer.min_turn`
 gates only `ready_to_finish`), alongside the tutor
 reply (`worker/src/lib/finish-check.ts`), and once more at judge time on the whole judged
-conversation (PLAN_07). Its input is the problem statement, the
+conversation, including the tutor's last reply (`worker/src/lib/judge-core.ts`, PLAN_07 D6). The
+judge-time run happens whatever `finish_offer.enabled` says, with `finish_offer.timeout_ms` as its
+timeout, and nothing it returns is stored: the judge joins its `reached` / `assisted` with the keys
+earlier turns stored, and that union is the assessment's insight lists. Its input is the problem statement, the
 private key insights with their `required` flag, the never_say terms, and the conversation
 with both roles, each line labelled `user:` or `tutor:` (learner turns condensed out of the
 conversation come first as `user:` lines; their tutor lines are gone, so they can only produce
@@ -25,7 +28,7 @@ names an idea cannot make the learner look like they stated it, and `assisted` n
 the leak filter. Its output is the list of insight keys the learner stated, the list they
 accepted from the tutor, and the terms they named. The server turns `reached` plus `assisted`
 into `ready_to_finish` on the meta frame and `reached` alone into the leak filter's "already hit"
-set; nothing it writes is ever shown to anyone.
+set; its text is never shown to anyone (the judge-time union surfaces only as authored insight keys).
 
 ## §Prompt
 

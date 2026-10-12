@@ -1,6 +1,6 @@
 import { env, SELF, fetchMock } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, interceptEvidenceCheck, groqStreamBody, mintInstallId, readChatSSE } from "./helpers";
+import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, interceptEvidenceCheck, interceptFinalCheckUnusable, groqStreamBody, mintInstallId, readChatSSE } from "./helpers";
 
 beforeAll(() => {
   fetchMock.activate();
@@ -36,6 +36,7 @@ function mockChatReply(text = "Let's think this through.") {
 
 /** `said` must be a learner turn of the conversation judged, or the evidence check is never reached. */
 function mockJudgeReply(said = "I would use a hash map") {
+  interceptFinalCheckUnusable();
   fetchMock
     .get(GROQ_ORIGIN)
     .intercept({ path: GROQ_CHAT_PATH, method: "POST" })

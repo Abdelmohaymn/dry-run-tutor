@@ -1,6 +1,6 @@
 import { SELF, fetchMock } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, mintInstallId } from "./helpers";
+import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, mintInstallId, interceptFinalCheckUnusable } from "./helpers";
 
 beforeAll(() => {
   fetchMock.activate();
@@ -27,6 +27,7 @@ async function sendJudge(installId: string, body: Record<string, unknown>) {
 describe("POST /v1/judge — the honest 'I cannot tell' outcome", () => {
   it("a too-short/garbled conversation yields verdict unclear — a normal, retryable-looking 200, not a failure", async () => {
     const installId = await mintInstallId();
+    interceptFinalCheckUnusable();
     fetchMock
       .get(GROQ_ORIGIN)
       .intercept({ path: GROQ_CHAT_PATH, method: "POST" })
@@ -67,6 +68,7 @@ describe("POST /v1/judge — the honest 'I cannot tell' outcome", () => {
 
   it("a provider refusal yields UNCLEAR_RETRY, never a crash or raw error", async () => {
     const installId = await mintInstallId();
+    interceptFinalCheckUnusable();
     fetchMock
       .get(GROQ_ORIGIN)
       .intercept({ path: GROQ_CHAT_PATH, method: "POST" })
@@ -85,6 +87,7 @@ describe("POST /v1/judge — the honest 'I cannot tell' outcome", () => {
 
   it("an unexpected shape (missing required fields) yields UNCLEAR_RETRY", async () => {
     const installId = await mintInstallId();
+    interceptFinalCheckUnusable();
     fetchMock
       .get(GROQ_ORIGIN)
       .intercept({ path: GROQ_CHAT_PATH, method: "POST" })

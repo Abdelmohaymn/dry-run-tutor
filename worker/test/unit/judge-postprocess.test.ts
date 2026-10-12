@@ -303,3 +303,98 @@ describe("postprocessJudge() — complexity the learner never stated", () => {
     expect(c).toEqual(complexity({ time: null, space: null }, "not_stated"));
   });
 });
+
+// 2026-10-12, PLAN_07 D7-D9: the progress check's settled lists replace the
+// model's insight lists.
+describe("postprocessJudge() — settled insights (PLAN_07)", () => {
+  const [lookup, indexStorage] = requiredKeys;
+  const noEvidence = { approachSupported: true, supportedInsights: new Set<string>() };
+
+  it("without settled, insights_assisted is []", () => {
+    expect(postprocessJudge(rawOutput(), problem).assessment.insights_assisted).toEqual([]);
+  });
+
+  it("insights_hit is settled.hit (authored, deduplicated), insights_missed is the rest, whatever the model claimed", () => {
+    const { assessment } = postprocessJudge(rawOutput({ insights_hit: [], insights_missed: allInsightKeys }), problem, undefined, {
+      hit: [lookup, lookup, "not_a_real_key"],
+      assisted: [],
+    });
+    expect(assessment.insights_hit).toEqual([lookup]);
+    expect(assessment.insights_missed.sort()).toEqual(allInsightKeys.filter((k) => k !== lookup).sort());
+  });
+
+  it("insights_assisted is settled.assisted ∩ settled.hit", () => {
+    const { assessment } = postprocessJudge(rawOutput(), problem, undefined, {
+      hit: [lookup, indexStorage],
+      assisted: [indexStorage, "single_pass"],
+    });
+    expect(assessment.insights_assisted).toEqual([indexStorage]);
+    expect(assessment.insights_assisted.every((k) => assessment.insights_hit.includes(k))).toBe(true);
+  });
+
+  it("ignores the insight evidence: an evidence object that supports nothing does not drop settled keys", () => {
+    const { assessment, evidenceDropped } = postprocessJudge(rawOutput(), problem, noEvidence, {
+      hit: requiredKeys,
+      assisted: [],
+    });
+    expect(assessment.insights_hit).toEqual(requiredKeys);
+    expect(evidenceDropped?.insights).toBe(0);
+    expect(assessment.feedback).not.toBe(JUDGE_FEEDBACK_FALLBACK);
+  });
+
+  it("D8: the model's insights_hit differs from the settled set -> the feedback is the fallback", () => {
+    const { assessment } = postprocessJudge(rawOutput({ insights_hit: [lookup], feedback: "Nice work." }), problem, undefined, {
+      hit: requiredKeys,
+      assisted: [],
+    });
+    expect(assessment.feedback).toBe(JUDGE_FEEDBACK_FALLBACK);
+  });
+
+  it("D8: the same set (in any order, with unauthored keys ignored) keeps the feedback", () => {
+    const { assessment } = postprocessJudge(
+      rawOutput({ insights_hit: [...requiredKeys].reverse(), feedback: "Nice work." }),
+      problem,
+      undefined,
+      { hit: requiredKeys, assisted: [] },
+    );
+    expect(assessment.feedback).toBe("Nice work.");
+  });
+
+  it("D9: an approach the evidence demoted is restored when all its required insights are settled", () => {
+    const raw = rawOutput({ matched_approach: "sort_two_pointer", matched_verdict: "acceptable", insights_hit: [indexStorage] });
+    const demoted = postprocessJudge(raw, problem, { approachSupported: false, supportedInsights: new Set() });
+    expect(demoted.assessment.matched_approach).toBe("none");
+
+    const { assessment } = postprocessJudge(raw, problem, { approachSupported: false, supportedInsights: new Set() }, {
+      hit: [indexStorage],
+      assisted: [indexStorage],
+    });
+    expect(assessment.matched_approach).toBe("sort_two_pointer");
+    expect(assessment.matched_verdict).toBe("acceptable");
+    expect(assessment.verdict).toBe("pass");
+  });
+
+  it("D9: stays demoted when a required insight of the approach is not settled", () => {
+    const raw = rawOutput({ matched_approach: "sort_two_pointer", matched_verdict: "acceptable", insights_hit: [indexStorage] });
+    const { assessment } = postprocessJudge(raw, problem, { approachSupported: false, supportedInsights: new Set() }, {
+      hit: [lookup],
+      assisted: [],
+    });
+    expect(assessment.matched_approach).toBe("none");
+  });
+
+  it("D9: a restore does not apply to an approach the model never claimed", () => {
+    const { assessment } = postprocessJudge(rawOutput({ matched_approach: "none", matched_verdict: "none" }), problem, noEvidence, {
+      hit: [indexStorage],
+      assisted: [],
+    });
+    expect(assessment.matched_approach).toBe("none");
+  });
+
+  it("an assisted required insight keeps a pass from becoming a strong_pass (D10)", () => {
+    const nonRequired = problem.private.key_insights.find((i) => !i.required)!.key;
+    const hit = [...requiredKeys, nonRequired];
+    expect(postprocessJudge(rawOutput(), problem, undefined, { hit, assisted: [] }).assessment.verdict).toBe("strong_pass");
+    expect(postprocessJudge(rawOutput(), problem, undefined, { hit, assisted: [indexStorage] }).assessment.verdict).toBe("pass");
+  });
+});

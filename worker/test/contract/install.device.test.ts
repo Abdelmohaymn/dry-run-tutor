@@ -8,6 +8,7 @@ import {
   groqStreamBody,
   mintInstallIdFor,
   readChatSSE,
+  interceptFinalCheckUnusable,
 } from "./helpers";
 
 beforeAll(() => {
@@ -35,6 +36,7 @@ function mockChat() {
 }
 
 function mockJudge() {
+  interceptFinalCheckUnusable();
   fetchMock
     .get(GROQ_ORIGIN)
     .intercept({ path: GROQ_CHAT_PATH, method: "POST" })

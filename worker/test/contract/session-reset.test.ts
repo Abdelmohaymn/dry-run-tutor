@@ -1,6 +1,6 @@
 import { env, SELF, fetchMock } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, groqStreamBody, interceptEvidenceCheck, mintInstallId, readChatSSE } from "./helpers";
+import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, groqStreamBody, interceptEvidenceCheck, mintInstallId, readChatSSE, interceptFinalCheckUnusable } from "./helpers";
 
 beforeAll(() => {
   fetchMock.activate();
@@ -27,6 +27,7 @@ const ASSESSMENT = JSON.stringify({
 });
 
 function interceptJudgeOnce() {
+  interceptFinalCheckUnusable();
   fetchMock.get(GROQ_ORIGIN).intercept({ path: GROQ_CHAT_PATH, method: "POST" }).reply(200, groqCompletionBody(ASSESSMENT));
   interceptEvidenceCheck();
 }
