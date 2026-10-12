@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getPrivate, getPublicManifest } from "../../src/lib/content";
 import { isSelfContradictory, postprocessJudge } from "../../src/lib/judge-postprocess";
 import { AppError } from "../../src/lib/errors";
+import { JUDGE_FEEDBACK_FALLBACK } from "../../src/prompts/judge";
 import type { Problem } from "../../../tools/problem-types";
 
 const problem: Problem = {
@@ -230,5 +231,75 @@ describe("postprocessJudge() — step 2a: the learner's words must back the clai
     const { assessment } = postprocessJudge(rawOutput(), problem, supportsAll);
     expect(assessment.insights_hit.every((k) => typeof k === "string")).toBe(true);
     expect(JSON.stringify(assessment)).not.toContain(QUOTE);
+  });
+});
+
+// PLAN_06 D7: the feedback is written before the evidence check runs.
+describe("postprocessJudge() — feedback after the evidence check", () => {
+  const FEEDBACK = "You covered the idea nicely.";
+  const supportsAll = { approachSupported: true, supportedInsights: new Set(requiredKeys) };
+
+  it("an insight the evidence dropped replaces the feedback with the fallback", () => {
+    const [kept] = requiredKeys;
+    const result = postprocessJudge(rawOutput({ feedback: FEEDBACK }), problem, {
+      approachSupported: true,
+      supportedInsights: new Set([kept]),
+    });
+    expect(result.evidenceDropped?.insights).toBeGreaterThan(0);
+    expect(result.assessment.feedback).toBe(JUDGE_FEEDBACK_FALLBACK);
+  });
+
+  it("a demoted approach replaces the feedback with the fallback", () => {
+    const result = postprocessJudge(rawOutput({ insights_hit: [], feedback: FEEDBACK }), problem, {
+      approachSupported: false,
+      supportedInsights: new Set(),
+    });
+    expect(result.evidenceDropped?.approach).toBe(true);
+    expect(result.assessment.feedback).toBe(JUDGE_FEEDBACK_FALLBACK);
+  });
+
+  it("full support keeps the feedback", () => {
+    const { assessment } = postprocessJudge(rawOutput({ feedback: FEEDBACK }), problem, supportsAll);
+    expect(assessment.feedback).toBe(FEEDBACK);
+  });
+
+  it("without evidence (the retry-decision path) the feedback is kept", () => {
+    const { assessment } = postprocessJudge(rawOutput({ feedback: FEEDBACK }), problem);
+    expect(assessment.feedback).toBe(FEEDBACK);
+  });
+});
+
+// PLAN_06 D8: "matches the reference" needs a "You said" row to match against.
+describe("postprocessJudge() — complexity the learner never stated", () => {
+  const complexity = (claimed: { time: string | null; space: string | null }, assessment: string) => ({
+    user_claimed_time: claimed.time,
+    user_claimed_space: claimed.space,
+    reference_time: "O(n)",
+    reference_space: "O(n)",
+    assessment,
+  });
+  const assessed = (c: ReturnType<typeof complexity>) =>
+    postprocessJudge(rawOutput({ complexity: c }), problem).assessment.complexity.assessment;
+
+  it("null time and space force 'not_stated', whether the model said correct or mismatched", () => {
+    expect(assessed(complexity({ time: null, space: null }, "correct"))).toBe("not_stated");
+    expect(assessed(complexity({ time: null, space: null }, "mismatched"))).toBe("not_stated");
+  });
+
+  it("blank time and space count as not stated", () => {
+    expect(assessed(complexity({ time: "  ", space: "" }, "correct"))).toBe("not_stated");
+  });
+
+  it("one stated field keeps the model's assessment", () => {
+    expect(assessed(complexity({ time: "O(n*m)", space: null }, "correct"))).toBe("correct");
+    expect(assessed(complexity({ time: null, space: "O(1)" }, "mismatched"))).toBe("mismatched");
+  });
+
+  it("the other complexity fields are untouched", () => {
+    const { complexity: c } = postprocessJudge(
+      rawOutput({ complexity: complexity({ time: null, space: null }, "correct") }),
+      problem,
+    ).assessment;
+    expect(c).toEqual(complexity({ time: null, space: null }, "not_stated"));
   });
 });

@@ -7,6 +7,7 @@ import {
   interceptEvidenceCheck,
   mintInstallId,
 } from "./helpers";
+import { JUDGE_FEEDBACK_FALLBACK } from "../../src/prompts/judge";
 
 beforeAll(() => {
   fetchMock.activate();
@@ -134,6 +135,22 @@ describe("POST /v1/judge — credit needs the learner's own words", () => {
     expect(body.verdict).toBe("pass");
     expect(body.matched_approach).toBe("iterative_digit_sum");
     expect(body.insights_hit).toEqual(["process_shrinks_fast"]);
+  });
+
+  it("when the support check rejects the only claimed insight, the feedback is the fallback", async () => {
+    // PLAN_06 D7: the model wrote this praise before the claim was dropped.
+    interceptJudge(
+      judgeAnswer({
+        insights_hit: [{ quote: "nested loop", key: "process_shrinks_fast" }],
+        feedback: "You explained why the process shrinks fast.",
+      }),
+    );
+    interceptEvidenceCheck(false);
+
+    const body = await judge([{ role: "user", text: "nested loop" }]);
+
+    expect(body.insights_hit).toEqual([]);
+    expect(body.feedback).toBe(JUDGE_FEEDBACK_FALLBACK);
   });
 
   it("an idea only the tutor said never counts for the learner", async () => {

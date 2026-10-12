@@ -112,6 +112,17 @@ function truncateFeedback(feedback: string): string {
 }
 
 /**
+ * "matches the reference" needs a "You said" row to match. The model returned
+ * `correct` with both claimed fields null for a learner who never stated a
+ * complexity (vp-0003, 2026-10-12, PLAN_06 D8), so with nothing claimed the
+ * assessment is `not_stated`, whatever the model said.
+ */
+function stateComplexity(c: RawJudgeOutput["complexity"]): RawJudgeOutput["complexity"] {
+  const claimed = [c.user_claimed_time, c.user_claimed_space].some((v) => (v ?? "").trim().length > 0);
+  return claimed ? c : { ...c, assessment: "not_stated" };
+}
+
+/**
  * `raw` is the model's parsed JSON (provider-groq.ts already throws
  * UNCLEAR_RETRY on a refusal or unparseable body — step 1's remaining job
  * is a shape check on what did parse). `editorial` is the problem's
@@ -184,7 +195,12 @@ export function postprocessJudge(raw: unknown, problem: Problem, evidence?: Evid
   // Step 4: hedge check. On a hit, the WHOLE feedback string is replaced.
   const lowered = out.feedback.toLowerCase();
   const hedgeViolation = COPULA_ADJACENT.test(lowered) || STANDALONE_SENTENCE.test(lowered);
-  const hedgeChecked = hedgeViolation ? JUDGE_FEEDBACK_FALLBACK : out.feedback;
+  // The model wrote the feedback before the evidence check ran, so it can
+  // praise what was just removed ("scans in order and uses two pointers"
+  // beside both insights listed as not reached). Once the basis changed the
+  // feedback cannot be trusted (2026-10-12, PLAN_06 D7).
+  const evidenceChanged = approachDemoted || insightsDropped > 0;
+  const hedgeChecked = hedgeViolation || evidenceChanged ? JUDGE_FEEDBACK_FALLBACK : out.feedback;
 
   // Step 5: truncation. Second-sentence boundary first, then 320 chars on
   // a word boundary.
@@ -197,7 +213,7 @@ export function postprocessJudge(raw: unknown, problem: Problem, evidence?: Evid
     insights_hit: repaired.insights_hit,
     insights_missed: repaired.insights_missed,
     wrong_turns_taken: repaired.wrong_turns_taken,
-    complexity: out.complexity,
+    complexity: stateComplexity(out.complexity),
     verdict: mapped,
     confidence: out.confidence,
     feedback,
