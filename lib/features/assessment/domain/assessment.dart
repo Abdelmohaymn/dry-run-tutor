@@ -14,6 +14,7 @@ class Assessment extends Equatable {
     required this.matchedApproach,
     required this.matchedVerdict,
     required this.insightsHit,
+    required this.insightsAssisted,
     required this.insightsMissed,
     required this.wrongTurnsTaken,
     required this.complexity,
@@ -30,6 +31,10 @@ class Assessment extends Equatable {
   final String matchedApproach;
   final MatchedVerdict matchedVerdict;
   final List<String> insightsHit;
+
+  /// The subset of [insightsHit] the learner reached by accepting an idea
+  /// the tutor put into words ("with a nudge", PLAN_07 D11).
+  final List<String> insightsAssisted;
   final List<String> insightsMissed;
   final List<String> wrongTurnsTaken;
   final Complexity complexity;
@@ -56,6 +61,7 @@ class Assessment extends Equatable {
         matchedApproach,
         matchedVerdict,
         insightsHit,
+        insightsAssisted,
         insightsMissed,
         wrongTurnsTaken,
         complexity,

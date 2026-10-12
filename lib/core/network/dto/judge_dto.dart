@@ -61,6 +61,7 @@ class AssessmentDto {
     required this.matchedApproach,
     required this.matchedVerdict,
     required this.insightsHit,
+    required this.insightsAssisted,
     required this.insightsMissed,
     required this.wrongTurnsTaken,
     required this.complexity,
@@ -79,6 +80,13 @@ class AssessmentDto {
   /// `optimal` | `acceptable` | `suboptimal` | `wrong` | `none`.
   final String matchedVerdict;
   final List<String> insightsHit;
+
+  /// The subset of [insightsHit] the learner reached by accepting an idea
+  /// the tutor put into words (PLAN_07 D11). Absent from an older worker's
+  /// response, or a stored `rawJson` from before the field existed, which
+  /// reads as "nothing was assisted".
+  @JsonKey(defaultValue: <String>[])
+  final List<String> insightsAssisted;
   final List<String> insightsMissed;
   final List<String> wrongTurnsTaken;
   final ComplexityDto complexity;

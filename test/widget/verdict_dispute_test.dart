@@ -61,6 +61,7 @@ Assessment _assessment(String sessionId) => Assessment(
       matchedApproach: 'hash_map',
       matchedVerdict: MatchedVerdict.acceptable,
       insightsHit: const <String>['used a hashmap'],
+      insightsAssisted: const <String>[],
       insightsMissed: const <String>['two-pointer alternative'],
       wrongTurnsTaken: const <String>[],
       complexity: const Complexity(

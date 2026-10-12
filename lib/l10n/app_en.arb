@@ -699,6 +699,10 @@
   "@verdictInsightsHitLabel": {
     "description": "Label over the insights-hit glyph list."
   },
+  "verdictInsightAssistedTag": "with a nudge",
+  "@verdictInsightAssistedTag": {
+    "description": "Muted tag after a Reached insight the learner got by accepting an idea the tutor put into words — PLAN_07."
+  },
   "verdictInsightsMissedLabel": "Not reached",
   "@verdictInsightsMissedLabel": {
     "description": "Label over the insights-missed glyph list — a distinct glyph, not a red dot (design-tokens.md)."

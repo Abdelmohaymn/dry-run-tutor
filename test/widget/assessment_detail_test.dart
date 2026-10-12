@@ -62,6 +62,7 @@ Session _session({bool disputed = false}) => Session(
 
 Assessment _assessment({
   MatchedVerdict matched = MatchedVerdict.acceptable,
+  List<String> assisted = const <String>[],
   Complexity complexity = const Complexity(
     userClaimedTime: 'O(n*m)',
     userClaimedSpace: 'O(1)',
@@ -75,6 +76,7 @@ Assessment _assessment({
       matchedApproach: 'two_pointer_scan',
       matchedVerdict: matched,
       insightsHit: const <String>['scan_in_array_order', 'two_pointer_no_copy'],
+      insightsAssisted: assisted,
       insightsMissed: const <String>['constraints_are_forgiving'],
       wrongTurnsTaken: const <String>[],
       complexity: complexity,
@@ -143,6 +145,48 @@ void main() {
     expect(find.text('Two pointer no copy'), findsOneWidget);
     expect(find.text('Constraints are forgiving'), findsOneWidget);
     expect(find.textContaining('_'), findsNothing);
+  });
+
+  testWidgets('"with a nudge" tags the assisted Reached entries and no others', (
+    WidgetTester tester,
+  ) async {
+    final DailySessionCubit cubit = _cubit(FakeAssessmentRepository());
+    addTearDown(cubit.close);
+    cubit.emit(
+      chat.DailySessionState.verdict(
+        _session(),
+        _assessment(assisted: const <String>['two_pointer_no_copy']),
+      ),
+    );
+    await _pumpVerdict(tester, cubit);
+
+    final BuildContext context = tester.element(find.byType(VerdictScreen));
+    final String tag = AppLocalizations.of(context)!.verdictInsightAssistedTag;
+    expect(tag, 'with a nudge');
+    expect(find.text(tag), findsOneWidget);
+    // The tag sits in the same row as the assisted insight, not the other.
+    final Finder assistedRow = find.ancestor(
+      of: find.text('Two pointer no copy'),
+      matching: find.byType(Row),
+    );
+    expect(
+      find.descendant(of: assistedRow.first, matching: find.text(tag)),
+      findsOneWidget,
+    );
+    final Finder ownRow = find.ancestor(
+      of: find.text('Scan in array order'),
+      matching: find.byType(Row),
+    );
+    expect(find.descendant(of: ownRow.first, matching: find.text(tag)), findsNothing);
+  });
+
+  testWidgets('no tag at all when nothing was assisted', (WidgetTester tester) async {
+    final DailySessionCubit cubit = _cubit(FakeAssessmentRepository());
+    addTearDown(cubit.close);
+    cubit.emit(chat.DailySessionState.verdict(_session(), _assessment()));
+    await _pumpVerdict(tester, cubit);
+
+    expect(find.text('with a nudge'), findsNothing);
   });
 
   testWidgets('complexity shows what the learner claimed beside the reference', (

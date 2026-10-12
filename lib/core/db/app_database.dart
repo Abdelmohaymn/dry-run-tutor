@@ -63,11 +63,15 @@ class AppDatabase extends _$AppDatabase {
   /// to "repair never ran", which is true for every draft written before
   /// feature 004 (data-model.md §4).
   ///
+  /// v7 adds `Assessments.insightsAssisted`, nullable with no backfill —
+  /// `null` reads as empty, which is true of every assessment judged
+  /// before PLAN_07.
+  ///
   /// Nothing retained (a completed session, its messages, its assessment,
-  /// its streak day) is touched by either; `test/db/migration_test.dart`
+  /// its streak day) is touched by any of them; `test/db/migration_test.dart`
   /// asserts exactly that.
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -116,6 +120,9 @@ class AppDatabase extends _$AppDatabase {
             await m.database.customStatement('DELETE FROM install_identity');
             // The analytics buffer is gone; IF EXISTS keeps fresh installs safe.
             await m.database.customStatement('DROP TABLE IF EXISTS buffered_events');
+          }
+          if (from < 7 && to >= 7) {
+            await m.addColumn(assessments, assessments.insightsAssisted);
           }
         },
       );

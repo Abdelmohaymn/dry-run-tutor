@@ -3,15 +3,16 @@
 // every schema version pair intact. Destroying retained history quietly in
 // a migration is exactly how an "indefinite" promise breaks.
 //
-// The schema is at version 6. v2 adds the nullable
+// The schema is at version 7. v2 adds the nullable
 // `CachedProblems.examplesJson`; v3 adds `Sessions.isPractice`, defaulted
 // false; v4 adds the nullable `Drafts.repaired` (feature 004). Those three
 // are additive and touch nothing retained. v5 is the first that deletes:
 // it dedupes `install_identity` and `cached_config`, which appended a row
 // per write until their ids were pinned. v6 (feature 006) clears
 // `install_identity` (identity is now a hash of the Android ID) and drops
-// the analytics `buffered_events` table. Extend rather than rewrite when a
-// v7 lands — bump `AppDatabase.schemaVersion`, add the migration step, and
+// the analytics `buffered_events` table. v7 (PLAN_07) adds the nullable
+// `Assessments.insightsAssisted`, with no backfill. Extend rather than
+// rewrite when a v8 lands — bump `AppDatabase.schemaVersion`, add the migration step, and
 // add a case to the migration test below.
 import 'package:dry_run/core/db/app_database.dart';
 import 'package:dry_run/core/db/converters.dart';
@@ -29,10 +30,10 @@ void main() {
       await _expectSessionIntact(db);
     });
 
-    test('schemaVersion is 6 — the floor this test suite assumes', () {
+    test('schemaVersion is 7 — the floor this test suite assumes', () {
       final AppDatabase db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      expect(db.schemaVersion, 6);
+      expect(db.schemaVersion, 7);
     });
 
     test('the v1 -> v2 migration adds examplesJson and keeps the row', () async {
@@ -73,6 +74,7 @@ void main() {
 
       await _seedCompletedSession(db);
       await db.customStatement('ALTER TABLE drafts DROP COLUMN repaired');
+      await db.customStatement('ALTER TABLE assessments DROP COLUMN insights_assisted');
       await db.migration.onUpgrade(Migrator(db), 3, 4);
 
       await _expectSessionIntact(db);
@@ -157,7 +159,21 @@ void main() {
       await _expectSessionIntact(db);
     });
 
-    test('a v1 database upgraded straight to v6 keeps its session', () async {
+    test('the v6 -> v7 migration adds insightsAssisted, keeps the row, and reads empty', () async {
+      final AppDatabase db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+
+      await _seedCompletedSession(db);
+      await db.customStatement('ALTER TABLE assessments DROP COLUMN insights_assisted');
+      await db.migration.onUpgrade(Migrator(db), 6, 7);
+
+      await _expectSessionIntact(db);
+      final AssessmentRow row = await db.select(db.assessments).getSingle();
+      expect(row.insightsHit, <String>['recognised O(n)']);
+      expect(row.insightsAssisted, isNull, reason: 'no backfill; null reads as empty (D12)');
+    });
+
+    test('a v1 database upgraded straight to v7 keeps its session', () async {
       final AppDatabase db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
 
@@ -165,7 +181,8 @@ void main() {
       await db.customStatement('ALTER TABLE cached_problems DROP COLUMN examples_json');
       await db.customStatement('ALTER TABLE sessions DROP COLUMN is_practice');
       await db.customStatement('ALTER TABLE drafts DROP COLUMN repaired');
-      await db.migration.onUpgrade(Migrator(db), 1, 6);
+      await db.customStatement('ALTER TABLE assessments DROP COLUMN insights_assisted');
+      await db.migration.onUpgrade(Migrator(db), 1, 7);
 
       await _expectSessionIntact(db);
       final SessionRow session = await db.select(db.sessions).getSingle();

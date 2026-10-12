@@ -3505,6 +3505,15 @@ class $AssessmentsTable extends Assessments
     requiredDuringInsert: true,
   ).withConverter<List<String>>($AssessmentsTable.$converterinsightsHit);
   @override
+  late final GeneratedColumnWithTypeConverter<List<String>?, String>
+  insightsAssisted = GeneratedColumn<String>(
+    'insights_assisted',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  ).withConverter<List<String>?>($AssessmentsTable.$converterinsightsAssistedn);
+  @override
   late final GeneratedColumnWithTypeConverter<List<String>, String>
   insightsMissed = GeneratedColumn<String>(
     'insights_missed',
@@ -3615,6 +3624,7 @@ class $AssessmentsTable extends Assessments
     matchedApproach,
     matchedVerdict,
     insightsHit,
+    insightsAssisted,
     insightsMissed,
     wrongTurnsTaken,
     complexityJson,
@@ -3746,6 +3756,12 @@ class $AssessmentsTable extends Assessments
           data['${effectivePrefix}insights_hit'],
         )!,
       ),
+      insightsAssisted: $AssessmentsTable.$converterinsightsAssistedn.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}insights_assisted'],
+        ),
+      ),
       insightsMissed: $AssessmentsTable.$converterinsightsMissed.fromSql(
         attachedDatabase.typeMapping.read(
           DriftSqlType.string,
@@ -3806,6 +3822,10 @@ class $AssessmentsTable extends Assessments
   );
   static TypeConverter<List<String>, String> $converterinsightsHit =
       const StringListConverter();
+  static TypeConverter<List<String>, String> $converterinsightsAssisted =
+      const StringListConverter();
+  static TypeConverter<List<String>?, String?> $converterinsightsAssistedn =
+      NullAwareTypeConverter.wrap($converterinsightsAssisted);
   static TypeConverter<List<String>, String> $converterinsightsMissed =
       const StringListConverter();
   static TypeConverter<List<String>, String> $converterwrongTurnsTaken =
@@ -3819,6 +3839,10 @@ class AssessmentRow extends DataClass implements Insertable<AssessmentRow> {
   final String matchedApproach;
   final MatchedVerdict matchedVerdict;
   final List<String> insightsHit;
+
+  /// Added in v7 (PLAN_07 D12): nullable with no backfill — `null` reads
+  /// as empty, which is true of every assessment judged before it existed.
+  final List<String>? insightsAssisted;
   final List<String> insightsMissed;
   final List<String> wrongTurnsTaken;
   final String complexityJson;
@@ -3834,6 +3858,7 @@ class AssessmentRow extends DataClass implements Insertable<AssessmentRow> {
     required this.matchedApproach,
     required this.matchedVerdict,
     required this.insightsHit,
+    this.insightsAssisted,
     required this.insightsMissed,
     required this.wrongTurnsTaken,
     required this.complexityJson,
@@ -3858,6 +3883,11 @@ class AssessmentRow extends DataClass implements Insertable<AssessmentRow> {
     {
       map['insights_hit'] = Variable<String>(
         $AssessmentsTable.$converterinsightsHit.toSql(insightsHit),
+      );
+    }
+    if (!nullToAbsent || insightsAssisted != null) {
+      map['insights_assisted'] = Variable<String>(
+        $AssessmentsTable.$converterinsightsAssistedn.toSql(insightsAssisted),
       );
     }
     {
@@ -3893,6 +3923,9 @@ class AssessmentRow extends DataClass implements Insertable<AssessmentRow> {
       matchedApproach: Value(matchedApproach),
       matchedVerdict: Value(matchedVerdict),
       insightsHit: Value(insightsHit),
+      insightsAssisted: insightsAssisted == null && nullToAbsent
+          ? const Value.absent()
+          : Value(insightsAssisted),
       insightsMissed: Value(insightsMissed),
       wrongTurnsTaken: Value(wrongTurnsTaken),
       complexityJson: Value(complexityJson),
@@ -3920,6 +3953,9 @@ class AssessmentRow extends DataClass implements Insertable<AssessmentRow> {
         serializer.fromJson<String>(json['matchedVerdict']),
       ),
       insightsHit: serializer.fromJson<List<String>>(json['insightsHit']),
+      insightsAssisted: serializer.fromJson<List<String>?>(
+        json['insightsAssisted'],
+      ),
       insightsMissed: serializer.fromJson<List<String>>(json['insightsMissed']),
       wrongTurnsTaken: serializer.fromJson<List<String>>(
         json['wrongTurnsTaken'],
@@ -3946,6 +3982,7 @@ class AssessmentRow extends DataClass implements Insertable<AssessmentRow> {
         $AssessmentsTable.$convertermatchedVerdict.toJson(matchedVerdict),
       ),
       'insightsHit': serializer.toJson<List<String>>(insightsHit),
+      'insightsAssisted': serializer.toJson<List<String>?>(insightsAssisted),
       'insightsMissed': serializer.toJson<List<String>>(insightsMissed),
       'wrongTurnsTaken': serializer.toJson<List<String>>(wrongTurnsTaken),
       'complexityJson': serializer.toJson<String>(complexityJson),
@@ -3966,6 +4003,7 @@ class AssessmentRow extends DataClass implements Insertable<AssessmentRow> {
     String? matchedApproach,
     MatchedVerdict? matchedVerdict,
     List<String>? insightsHit,
+    Value<List<String>?> insightsAssisted = const Value.absent(),
     List<String>? insightsMissed,
     List<String>? wrongTurnsTaken,
     String? complexityJson,
@@ -3981,6 +4019,9 @@ class AssessmentRow extends DataClass implements Insertable<AssessmentRow> {
     matchedApproach: matchedApproach ?? this.matchedApproach,
     matchedVerdict: matchedVerdict ?? this.matchedVerdict,
     insightsHit: insightsHit ?? this.insightsHit,
+    insightsAssisted: insightsAssisted.present
+        ? insightsAssisted.value
+        : this.insightsAssisted,
     insightsMissed: insightsMissed ?? this.insightsMissed,
     wrongTurnsTaken: wrongTurnsTaken ?? this.wrongTurnsTaken,
     complexityJson: complexityJson ?? this.complexityJson,
@@ -4006,6 +4047,9 @@ class AssessmentRow extends DataClass implements Insertable<AssessmentRow> {
       insightsHit: data.insightsHit.present
           ? data.insightsHit.value
           : this.insightsHit,
+      insightsAssisted: data.insightsAssisted.present
+          ? data.insightsAssisted.value
+          : this.insightsAssisted,
       insightsMissed: data.insightsMissed.present
           ? data.insightsMissed.value
           : this.insightsMissed,
@@ -4038,6 +4082,7 @@ class AssessmentRow extends DataClass implements Insertable<AssessmentRow> {
           ..write('matchedApproach: $matchedApproach, ')
           ..write('matchedVerdict: $matchedVerdict, ')
           ..write('insightsHit: $insightsHit, ')
+          ..write('insightsAssisted: $insightsAssisted, ')
           ..write('insightsMissed: $insightsMissed, ')
           ..write('wrongTurnsTaken: $wrongTurnsTaken, ')
           ..write('complexityJson: $complexityJson, ')
@@ -4058,6 +4103,7 @@ class AssessmentRow extends DataClass implements Insertable<AssessmentRow> {
     matchedApproach,
     matchedVerdict,
     insightsHit,
+    insightsAssisted,
     insightsMissed,
     wrongTurnsTaken,
     complexityJson,
@@ -4077,6 +4123,7 @@ class AssessmentRow extends DataClass implements Insertable<AssessmentRow> {
           other.matchedApproach == this.matchedApproach &&
           other.matchedVerdict == this.matchedVerdict &&
           other.insightsHit == this.insightsHit &&
+          other.insightsAssisted == this.insightsAssisted &&
           other.insightsMissed == this.insightsMissed &&
           other.wrongTurnsTaken == this.wrongTurnsTaken &&
           other.complexityJson == this.complexityJson &&
@@ -4094,6 +4141,7 @@ class AssessmentsCompanion extends UpdateCompanion<AssessmentRow> {
   final Value<String> matchedApproach;
   final Value<MatchedVerdict> matchedVerdict;
   final Value<List<String>> insightsHit;
+  final Value<List<String>?> insightsAssisted;
   final Value<List<String>> insightsMissed;
   final Value<List<String>> wrongTurnsTaken;
   final Value<String> complexityJson;
@@ -4110,6 +4158,7 @@ class AssessmentsCompanion extends UpdateCompanion<AssessmentRow> {
     this.matchedApproach = const Value.absent(),
     this.matchedVerdict = const Value.absent(),
     this.insightsHit = const Value.absent(),
+    this.insightsAssisted = const Value.absent(),
     this.insightsMissed = const Value.absent(),
     this.wrongTurnsTaken = const Value.absent(),
     this.complexityJson = const Value.absent(),
@@ -4127,6 +4176,7 @@ class AssessmentsCompanion extends UpdateCompanion<AssessmentRow> {
     required String matchedApproach,
     required MatchedVerdict matchedVerdict,
     required List<String> insightsHit,
+    this.insightsAssisted = const Value.absent(),
     required List<String> insightsMissed,
     required List<String> wrongTurnsTaken,
     required String complexityJson,
@@ -4156,6 +4206,7 @@ class AssessmentsCompanion extends UpdateCompanion<AssessmentRow> {
     Expression<String>? matchedApproach,
     Expression<String>? matchedVerdict,
     Expression<String>? insightsHit,
+    Expression<String>? insightsAssisted,
     Expression<String>? insightsMissed,
     Expression<String>? wrongTurnsTaken,
     Expression<String>? complexityJson,
@@ -4173,6 +4224,7 @@ class AssessmentsCompanion extends UpdateCompanion<AssessmentRow> {
       if (matchedApproach != null) 'matched_approach': matchedApproach,
       if (matchedVerdict != null) 'matched_verdict': matchedVerdict,
       if (insightsHit != null) 'insights_hit': insightsHit,
+      if (insightsAssisted != null) 'insights_assisted': insightsAssisted,
       if (insightsMissed != null) 'insights_missed': insightsMissed,
       if (wrongTurnsTaken != null) 'wrong_turns_taken': wrongTurnsTaken,
       if (complexityJson != null) 'complexity_json': complexityJson,
@@ -4192,6 +4244,7 @@ class AssessmentsCompanion extends UpdateCompanion<AssessmentRow> {
     Value<String>? matchedApproach,
     Value<MatchedVerdict>? matchedVerdict,
     Value<List<String>>? insightsHit,
+    Value<List<String>?>? insightsAssisted,
     Value<List<String>>? insightsMissed,
     Value<List<String>>? wrongTurnsTaken,
     Value<String>? complexityJson,
@@ -4209,6 +4262,7 @@ class AssessmentsCompanion extends UpdateCompanion<AssessmentRow> {
       matchedApproach: matchedApproach ?? this.matchedApproach,
       matchedVerdict: matchedVerdict ?? this.matchedVerdict,
       insightsHit: insightsHit ?? this.insightsHit,
+      insightsAssisted: insightsAssisted ?? this.insightsAssisted,
       insightsMissed: insightsMissed ?? this.insightsMissed,
       wrongTurnsTaken: wrongTurnsTaken ?? this.wrongTurnsTaken,
       complexityJson: complexityJson ?? this.complexityJson,
@@ -4240,6 +4294,13 @@ class AssessmentsCompanion extends UpdateCompanion<AssessmentRow> {
     if (insightsHit.present) {
       map['insights_hit'] = Variable<String>(
         $AssessmentsTable.$converterinsightsHit.toSql(insightsHit.value),
+      );
+    }
+    if (insightsAssisted.present) {
+      map['insights_assisted'] = Variable<String>(
+        $AssessmentsTable.$converterinsightsAssistedn.toSql(
+          insightsAssisted.value,
+        ),
       );
     }
     if (insightsMissed.present) {
@@ -4293,6 +4354,7 @@ class AssessmentsCompanion extends UpdateCompanion<AssessmentRow> {
           ..write('matchedApproach: $matchedApproach, ')
           ..write('matchedVerdict: $matchedVerdict, ')
           ..write('insightsHit: $insightsHit, ')
+          ..write('insightsAssisted: $insightsAssisted, ')
           ..write('insightsMissed: $insightsMissed, ')
           ..write('wrongTurnsTaken: $wrongTurnsTaken, ')
           ..write('complexityJson: $complexityJson, ')
@@ -7967,6 +8029,7 @@ typedef $$AssessmentsTableCreateCompanionBuilder =
       required String matchedApproach,
       required MatchedVerdict matchedVerdict,
       required List<String> insightsHit,
+      Value<List<String>?> insightsAssisted,
       required List<String> insightsMissed,
       required List<String> wrongTurnsTaken,
       required String complexityJson,
@@ -7985,6 +8048,7 @@ typedef $$AssessmentsTableUpdateCompanionBuilder =
       Value<String> matchedApproach,
       Value<MatchedVerdict> matchedVerdict,
       Value<List<String>> insightsHit,
+      Value<List<String>?> insightsAssisted,
       Value<List<String>> insightsMissed,
       Value<List<String>> wrongTurnsTaken,
       Value<String> complexityJson,
@@ -8045,6 +8109,12 @@ class $$AssessmentsTableFilterComposer
   ColumnWithTypeConverterFilters<List<String>, List<String>, String>
   get insightsHit => $composableBuilder(
     column: $table.insightsHit,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<List<String>?, List<String>, String>
+  get insightsAssisted => $composableBuilder(
+    column: $table.insightsAssisted,
     builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
@@ -8149,6 +8219,11 @@ class $$AssessmentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get insightsAssisted => $composableBuilder(
+    column: $table.insightsAssisted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get insightsMissed => $composableBuilder(
     column: $table.insightsMissed,
     builder: (column) => ColumnOrderings(column),
@@ -8248,6 +8323,12 @@ class $$AssessmentsTableAnnotationComposer
         column: $table.insightsHit,
         builder: (column) => column,
       );
+
+  GeneratedColumnWithTypeConverter<List<String>?, String>
+  get insightsAssisted => $composableBuilder(
+    column: $table.insightsAssisted,
+    builder: (column) => column,
+  );
 
   GeneratedColumnWithTypeConverter<List<String>, String> get insightsMissed =>
       $composableBuilder(
@@ -8349,6 +8430,7 @@ class $$AssessmentsTableTableManager
                 Value<String> matchedApproach = const Value.absent(),
                 Value<MatchedVerdict> matchedVerdict = const Value.absent(),
                 Value<List<String>> insightsHit = const Value.absent(),
+                Value<List<String>?> insightsAssisted = const Value.absent(),
                 Value<List<String>> insightsMissed = const Value.absent(),
                 Value<List<String>> wrongTurnsTaken = const Value.absent(),
                 Value<String> complexityJson = const Value.absent(),
@@ -8365,6 +8447,7 @@ class $$AssessmentsTableTableManager
                 matchedApproach: matchedApproach,
                 matchedVerdict: matchedVerdict,
                 insightsHit: insightsHit,
+                insightsAssisted: insightsAssisted,
                 insightsMissed: insightsMissed,
                 wrongTurnsTaken: wrongTurnsTaken,
                 complexityJson: complexityJson,
@@ -8383,6 +8466,7 @@ class $$AssessmentsTableTableManager
                 required String matchedApproach,
                 required MatchedVerdict matchedVerdict,
                 required List<String> insightsHit,
+                Value<List<String>?> insightsAssisted = const Value.absent(),
                 required List<String> insightsMissed,
                 required List<String> wrongTurnsTaken,
                 required String complexityJson,
@@ -8399,6 +8483,7 @@ class $$AssessmentsTableTableManager
                 matchedApproach: matchedApproach,
                 matchedVerdict: matchedVerdict,
                 insightsHit: insightsHit,
+                insightsAssisted: insightsAssisted,
                 insightsMissed: insightsMissed,
                 wrongTurnsTaken: wrongTurnsTaken,
                 complexityJson: complexityJson,

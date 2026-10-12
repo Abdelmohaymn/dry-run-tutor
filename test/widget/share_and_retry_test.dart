@@ -29,6 +29,7 @@ Assessment _assessment({
       matchedApproach: matched == MatchedVerdict.none ? 'none' : 'two_pointer_scan',
       matchedVerdict: matched,
       insightsHit: const <String>['a', 'b', 'c'],
+      insightsAssisted: const <String>[],
       insightsMissed: const <String>['d'],
       wrongTurnsTaken: const <String>[],
       complexity: Complexity(

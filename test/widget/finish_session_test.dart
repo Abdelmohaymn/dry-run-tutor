@@ -67,6 +67,7 @@ Assessment _assessment(String sessionId) => Assessment(
       matchedApproach: 'hashmap',
       matchedVerdict: MatchedVerdict.optimal,
       insightsHit: const <String>['complement_lookup'],
+      insightsAssisted: const <String>[],
       insightsMissed: const <String>[],
       wrongTurnsTaken: const <String>[],
       complexity: const Complexity(

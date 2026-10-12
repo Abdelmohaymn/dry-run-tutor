@@ -1036,6 +1036,12 @@ abstract class AppLocalizations {
   /// **'Reached'**
   String get verdictInsightsHitLabel;
 
+  /// Muted tag after a Reached insight the learner got by accepting an idea the tutor put into words — PLAN_07.
+  ///
+  /// In en, this message translates to:
+  /// **'with a nudge'**
+  String get verdictInsightAssistedTag;
+
   /// Label over the insights-missed glyph list — a distinct glyph, not a red dot (design-tokens.md).
   ///
   /// In en, this message translates to:

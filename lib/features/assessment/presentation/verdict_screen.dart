@@ -128,6 +128,7 @@ class VerdictScreen extends StatelessWidget {
                   label: l10n.verdictInsightsHitLabel,
                   insights: assessment.insightsHit,
                   glyph: Icons.circle,
+                  assisted: assessment.insightsAssisted.toSet(),
                 ),
                 const SizedBox(height: 12),
                 _InsightGlyphList(
@@ -403,17 +404,27 @@ class _ComplexityDetail extends StatelessWidget {
 }
 
 class _InsightGlyphList extends StatelessWidget {
-  const _InsightGlyphList({required this.label, required this.insights, required this.glyph});
+  const _InsightGlyphList({
+    required this.label,
+    required this.insights,
+    required this.glyph,
+    this.assisted = const <String>{},
+  });
 
   final String label;
   final List<String> insights;
   final IconData glyph;
+
+  /// Entries of [insights] to tag "with a nudge". Only the Reached list
+  /// passes this (PLAN_07 D11).
+  final Set<String> assisted;
 
   @override
   Widget build(BuildContext context) {
     if (insights.isEmpty) {
       return const SizedBox.shrink();
     }
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -428,7 +439,18 @@ class _InsightGlyphList extends StatelessWidget {
                 Icon(glyph, size: 14, color: AppTokens.muted),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(humaniseInsightKey(insight), style: context.appTypography.sansBody),
+                  child: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    children: <Widget>[
+                      Text(humaniseInsightKey(insight), style: context.appTypography.sansBody),
+                      if (assisted.contains(insight))
+                        Text(
+                          l10n.verdictInsightAssistedTag,
+                          style: context.appTypography.sansCaption.copyWith(color: AppTokens.muted),
+                        ),
+                    ],
+                  ),
                 ),
               ],
             ),
