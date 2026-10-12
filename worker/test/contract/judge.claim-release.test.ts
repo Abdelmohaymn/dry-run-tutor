@@ -28,6 +28,7 @@ function sendJudge(installId: string) {
 }
 
 const VALID_ASSESSMENT = JSON.stringify({
+  approach_quote: "I would use a hash map keyed by value",
   matched_approach: "hashmap",
   matched_verdict: "optimal",
   insights_hit: [],

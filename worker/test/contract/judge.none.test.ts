@@ -34,6 +34,7 @@ describe("POST /v1/judge — nothing authored matches", () => {
         200,
         groqCompletionBody(
           JSON.stringify({
+            approach_quote: "",
             matched_approach: "none",
             matched_verdict: "none",
             insights_hit: [],

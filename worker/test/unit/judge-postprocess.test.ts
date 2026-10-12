@@ -12,8 +12,15 @@ const problem: Problem = {
 const allInsightKeys = problem.private.key_insights.map((i) => i.key);
 const requiredKeys = problem.private.key_insights.filter((i) => i.required).map((i) => i.key);
 
+const QUOTE = "I would keep a map from each value to its index";
+
+/** Raw judge `insights_hit` entries; plain keys in a test are given the same quote. */
+const quoted = (hits: unknown) =>
+  (hits as (string | { quote: string; key: string })[]).map((h) => (typeof h === "string" ? { quote: QUOTE, key: h } : h));
+
 function rawOutput(overrides: Record<string, unknown> = {}) {
-  return {
+  const raw = {
+    approach_quote: QUOTE,
     matched_approach: "hashmap",
     matched_verdict: "optimal",
     insights_hit: requiredKeys,
@@ -31,6 +38,7 @@ function rawOutput(overrides: Record<string, unknown> = {}) {
     feedback: "You landed on the hash map approach, which handles this well.",
     ...overrides,
   };
+  return { ...raw, insights_hit: quoted(raw.insights_hit) };
 }
 
 describe("postprocessJudge() — contracts/judge-system-prompt.md §Server-side post-processing", () => {

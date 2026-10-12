@@ -14,6 +14,7 @@ afterEach(() => {
 const CONVERSATION = [{ role: "user", text: "I would use a hash map." }];
 
 const ASSESSMENT = JSON.stringify({
+  approach_quote: "I would use a hash map",
   matched_approach: "hashmap",
   matched_verdict: "optimal",
   insights_hit: [],

@@ -59,6 +59,7 @@ describe("no D1 table ever holds a learner key, a message, a summary, or a reply
         200,
         groqCompletionBody(
           JSON.stringify({
+            approach_quote: LEARNER_TEXT,
             matched_approach: "hashmap",
             matched_verdict: "optimal",
             insights_hit: [],

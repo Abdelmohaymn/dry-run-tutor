@@ -47,6 +47,7 @@ describe("POST /v1/judge — a solution-ended session is graded on what came bef
           capturedBody = opts.body as string;
           return groqCompletionBody(
             JSON.stringify({
+              approach_quote: "I would try brute force",
               matched_approach: "hashmap",
               matched_verdict: "acceptable",
               insights_hit: [],

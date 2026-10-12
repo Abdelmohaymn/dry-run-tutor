@@ -41,6 +41,7 @@ function mockJudge() {
       200,
       groqCompletionBody(
         JSON.stringify({
+          approach_quote: "hash map idea",
           matched_approach: "hashmap",
           matched_verdict: "optimal",
           insights_hit: [],

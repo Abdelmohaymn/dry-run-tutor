@@ -14,9 +14,10 @@ import { JUDGE_FEEDBACK_FALLBACK } from "../prompts/judge";
 // defensive net against a refusal or a shape the provider client's own
 // UNCLEAR_RETRY paths did not already catch.
 const rawJudgeOutputSchema = z.object({
+  approach_quote: z.string(),
   matched_approach: z.string(),
   matched_verdict: z.enum(["optimal", "acceptable", "suboptimal", "wrong", "none"]),
-  insights_hit: z.array(z.string()),
+  insights_hit: z.array(z.object({ quote: z.string(), key: z.string() })),
   insights_missed: z.array(z.string()),
   wrong_turns_taken: z.array(z.string()),
   complexity: z.object({
@@ -110,7 +111,7 @@ export function postprocessJudge(raw: unknown, problem: Problem): JudgePostproce
   // Step 2: insight coverage repair. Every authored key ends up in exactly
   // one of insights_hit / insights_missed; unauthored keys are dropped.
   const authoredKeys = new Set(problem.private.key_insights.map((i) => i.key));
-  const hit = new Set(out.insights_hit.filter((k) => authoredKeys.has(k)));
+  const hit = new Set(out.insights_hit.map((h) => h.key).filter((k) => authoredKeys.has(k)));
   const missed = new Set(out.insights_missed.filter((k) => authoredKeys.has(k) && !hit.has(k)));
   for (const key of authoredKeys) {
     if (!hit.has(key) && !missed.has(key)) missed.add(key);

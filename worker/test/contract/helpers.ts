@@ -18,6 +18,11 @@ export async function mintInstallId(): Promise<string> {
   return mintInstallIdFor(crypto.randomUUID().replace(/-/g, "").slice(0, 16));
 }
 
+/** Raw judge `insights_hit` entries, every key quoting the same learner words. */
+export function quotedHits(keys: string[], quote: string) {
+  return keys.map((key) => ({ quote, key }));
+}
+
 /** A minimal, valid streaming SSE body an OpenAI-compatible endpoint would return. */
 export function groqStreamBody(
   text: string,

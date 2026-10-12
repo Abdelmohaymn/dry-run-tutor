@@ -18,9 +18,10 @@ const CONVERSATION = [
 ];
 
 const ASSESSMENT = JSON.stringify({
+  approach_quote: "I'd keep a map from each value to its index",
   matched_approach: "hashmap",
   matched_verdict: "optimal",
-  insights_hit: ["complement_lookup"],
+  insights_hit: [{ quote: "Target minus the current number", key: "complement_lookup" }],
   insights_missed: [],
   wrong_turns_taken: [],
   complexity: { user_claimed_time: null, user_claimed_space: null, reference_time: "O(n)", reference_space: "O(n)", assessment: "not_stated" },

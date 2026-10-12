@@ -13,6 +13,7 @@ export function buildJudgeSchema(problem: Problem): Record<string, unknown> {
     type: "object",
     additionalProperties: false,
     required: [
+      "approach_quote",
       "matched_approach",
       "matched_verdict",
       "insights_hit",
@@ -24,9 +25,25 @@ export function buildJudgeSchema(problem: Problem): Record<string, unknown> {
       "feedback",
     ],
     properties: {
+      // Evidence before label (judge-evidence D2): strict decoding emits
+      // fields in schema order, so the model writes the learner's words
+      // before it commits to the approach, and each insight's quote before
+      // its key.
+      approach_quote: { type: "string" },
       matched_approach: { type: "string", enum: approachKeys },
       matched_verdict: { type: "string", enum: ["optimal", "acceptable", "suboptimal", "wrong", "none"] },
-      insights_hit: { type: "array", items: { type: "string", enum: insightKeys } },
+      insights_hit: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["quote", "key"],
+          properties: {
+            quote: { type: "string" },
+            key: { type: "string", enum: insightKeys },
+          },
+        },
+      },
       insights_missed: { type: "array", items: { type: "string", enum: insightKeys } },
       wrong_turns_taken: { type: "array", items: { type: "string", enum: wrongTurnKeys } },
       complexity: {

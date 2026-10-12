@@ -38,6 +38,7 @@ describe("POST /v1/judge — assessed exactly once", () => {
         200,
         groqCompletionBody(
           JSON.stringify({
+            approach_quote: "I would use a hash map",
             matched_approach: "hashmap",
             matched_verdict: "optimal",
             insights_hit: [],

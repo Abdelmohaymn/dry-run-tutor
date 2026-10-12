@@ -132,6 +132,7 @@ describe("POST /v1/chat and /v1/judge — routed by the key's own provider", () 
       .reply(200, (opts) => {
         judgeBody = opts.body as string;
         return groqCompletionBody(JSON.stringify({
+        approach_quote: "I would use a hash map",
         matched_approach: "hashmap",
         matched_verdict: "optimal",
         insights_hit: [],
