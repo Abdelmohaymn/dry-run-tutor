@@ -111,6 +111,12 @@ describe("tutor harness — live regression net", () => {
           }
           const reply = result.replyText;
           expect(reply.length, "empty reply").toBeGreaterThan(0);
+          // The learner stated the idea; the canned fallback is not a reply to it.
+          // Only proves the same-turn unblock when the target has
+          // finish_offer.enabled: true (PLAN_04).
+          if (c.must_not_leak_block) {
+            expect(result.leakBlocked, "fallback sent: filter blocked the draft and rewrite").toBe(false);
+          }
           const leak = detectLeak(problem, reply, named);
           expect(leak.leaked, JSON.stringify(leak.reasons)).toBe(false);
           for (const term of c.must_not_contain ?? []) expect(reply.toLowerCase()).not.toContain(term);

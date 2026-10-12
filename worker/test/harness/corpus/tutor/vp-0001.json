@@ -219,6 +219,18 @@
         }
       ],
       "first_sentence_answers": true
+    },
+    {
+      "id": "U1_full_idea_turn1",
+      "kind": "regression",
+      "why": "the learner states the whole approach on turn 1 and gets the leak fallback instead of a reply (PLAN_04; only proves the fix when the harness target has finish_offer.enabled: true)",
+      "history": [
+        {
+          "role": "user",
+          "text": "Okay, using a hash map and let's traverse the array elements element by element and check for target minus current element in the map if we didn't find it then store the current element index in the map"
+        }
+      ],
+      "must_not_leak_block": true
     }
   ]
 }
