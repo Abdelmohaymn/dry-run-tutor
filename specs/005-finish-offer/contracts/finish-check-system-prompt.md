@@ -11,7 +11,8 @@
 `test/unit/prompts-verbatim.test.ts` asserts the copy, and `worker/vitest.config.ts`
 reads this file into `expectedPrompts`.
 
-Runs once per conversational turn from `finish_offer.min_turn`, alongside the tutor
+Runs once per conversational turn (from turn 1 since 2026-10-12; `finish_offer.min_turn`
+gates only `ready_to_finish`), alongside the tutor
 reply (`worker/src/lib/finish-check.ts`). Its input is the problem statement, the
 private key insights with their `required` flag, and the learner's own turns only.
 It never receives the tutor's turns, so a tutor that names an idea cannot make the

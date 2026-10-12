@@ -105,14 +105,37 @@ describe("finish offer — ready_to_finish on the meta frame", () => {
     expect(user).toContain("- hash map");
   });
 
-  it.each([
-    ["disabled in config", { enabled: false }],
-    ["before min_turn", { min_turn: 2 }],
-  ])("runs no check and leaves the field off when %s", async (_label, cfg) => {
-    await setFinishOffer(cfg);
+  it("runs no check and leaves the field off when disabled in config", async () => {
+    await setFinishOffer({ enabled: false });
     mockTutor();
     const meta = await chat();
     expect(meta).not.toHaveProperty("ready_to_finish");
+  });
+
+  // 2026-10-12, PLAN_04: min_turn gates only the offer. The check also feeds
+  // the leak filter, so it must run on turn 1.
+  it("before min_turn: still checks (the leak filter needs the keys) but leaves the field off", async () => {
+    await setFinishOffer({ min_turn: 2 });
+    mockTutor();
+    const seen = mockFinishCheck({ status: 200, body: groqCompletionBody('{"reached":["complement_lookup"],"named":[]}') });
+    const meta = await chat();
+    expect(seen.body).toBeDefined();
+    expect(meta).not.toHaveProperty("ready_to_finish");
+  });
+
+  it("before min_turn: the check's reached keys are still stored", async () => {
+    await setFinishOffer({ min_turn: 2 });
+    const installId = await mintInstallId();
+    mockTutor();
+    mockFinishCheck({ status: 200, body: groqCompletionBody('{"reached":["complement_lookup"],"named":[]}') });
+    const res = await SELF.fetch("https://worker.test/v1/chat", {
+      method: "POST",
+      headers: { "X-Install-Id": installId, "X-User-Key": "gsk_test_learner_key", "content-type": "application/json" },
+      body: JSON.stringify({ problem_id: "vp-0001", messages: [{ role: "user", text: LEARNER }] }),
+    });
+    await readChatSSE(res);
+    const row = await env.DB.prepare("SELECT reached_keys FROM device_day WHERE device_hash = ?1").bind(installId.split(".")[0]).first<{ reached_keys: string }>();
+    expect(JSON.parse(row!.reached_keys)).toEqual(["complement_lookup"]);
   });
 
   it("after Keep going, still checks (the leak filter needs the keys) but leaves the field off", async () => {

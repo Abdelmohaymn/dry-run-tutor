@@ -220,18 +220,18 @@ export async function runConversationalTurn(
       // Started before the tutor call so the two run side by side; awaited
       // only after the reply has gone out (feature 005). It also runs after
       // "Keep going": its reached keys feed the leak filter (below), and
-      // only the offer itself is withheld.
+      // only the offer itself is withheld. It runs from turn 1; min_turn
+      // gates only the offer (2026-10-12, PLAN_04: a learner who states the
+      // whole idea on turn 1 needs the filter to know it).
       const finishOffer = deps.cfg.finish_offer;
       const finishCheck =
-        deps.finishCheck &&
-        finishOffer.enabled &&
-        sessionEnded === null &&
-        reserved.turnIndex >= finishOffer.min_turn
+        deps.finishCheck && finishOffer.enabled && sessionEnded === null
           ? withinMs(
               runFinishCheck(problem, learnerHistory, deps.finishCheck),
               finishOffer.timeout_ms,
             )
           : null;
+      const offerOpen = reserved.turnIndex >= finishOffer.min_turn;
 
       // The insights the progress check found stated on EARLIER turns (this
       // turn's check is still running). It replaced the word-overlap guess,
@@ -303,7 +303,8 @@ export async function runConversationalTurn(
         summary_covers: condensed.called ? condensed.covered : undefined,
         session_ended: sessionEnded,
         leak_blocked: fallbackSent,
-        ready_to_finish: finishCheck && !body.finish_offer_dismissed ? isReady(problem, reachedNow) : undefined,
+        ready_to_finish:
+          finishCheck && offerOpen && !body.finish_offer_dismissed ? isReady(problem, reachedNow) : undefined,
       };
       await writeMeta(stream, meta);
       await writeDone(stream);
