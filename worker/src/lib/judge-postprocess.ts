@@ -119,11 +119,14 @@ export function postprocessJudge(raw: unknown, problem: Problem): JudgePostproce
   // The model's job is to recognise WHICH reference approach the learner
   // described; how good that approach is, is authored. Nemotron named the
   // one-pass hash map and still labelled it "suboptimal" (2026-10-04),
-  // which mapVerdict() turned into likely_tle for an optimal answer.
+  // which mapVerdict() turned into likely_tle for an optimal answer. An
+  // approach that is not authored (in practice "none") gets no tier at all:
+  // the model answered none + acceptable and the app showed "matched a
+  // solid, accepted approach" beside "Approach: None" (2026-10-11).
   const authoredApproach = problem.private.reference_approaches.find((a) => a.key === out.matched_approach);
   const repaired: JudgeOutput = {
     matched_approach: out.matched_approach,
-    matched_verdict: authoredApproach?.verdict ?? out.matched_verdict,
+    matched_verdict: authoredApproach?.verdict ?? "none",
     insights_hit: [...hit],
     insights_missed: [...missed],
     wrong_turns_taken: out.wrong_turns_taken.filter((k) =>

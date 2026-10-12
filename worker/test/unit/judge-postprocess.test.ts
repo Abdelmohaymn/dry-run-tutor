@@ -56,8 +56,13 @@ describe("postprocessJudge() — contracts/judge-system-prompt.md §Server-side 
     expect(result.assessment.verdict).not.toBe("likely_tle");
   });
 
-  it("step 2: matched_approach 'none' keeps the model's own matched_verdict", () => {
-    const result = postprocessJudge(rawOutput({ matched_approach: "none", matched_verdict: "none", insights_hit: [] }), problem);
+  it("step 2: matched_approach 'none' carries no tier, whatever the model's matched_verdict says", () => {
+    // 2026-10-11: the model answered none + acceptable and the app showed
+    // "matched a solid, accepted approach" next to "Approach: None".
+    const result = postprocessJudge(
+      rawOutput({ matched_approach: "none", matched_verdict: "acceptable", insights_hit: [] }),
+      problem,
+    );
     expect(result.assessment.matched_verdict).toBe("none");
   });
 

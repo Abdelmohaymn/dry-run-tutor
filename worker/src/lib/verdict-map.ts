@@ -58,11 +58,14 @@ export function mapVerdict(out: JudgeOutput, problem: Problem): Verdict {
   const brokeCorrectness = out.wrong_turns_taken.some((wt) => approachVerdictOf(problem, wt) === "wrong");
 
   // No insight stated at all: the matched approach is the model's only
-  // evidence, so its own "unclear" or "incorrect" stands. Without these two
-  // rows a garbled turn that brushed an approach name mapped to likely_tle,
-  // and a wrong idea no reference covers mapped to unclear (review F8).
+  // evidence, so its own "unclear" stands. Without it a garbled turn that
+  // brushed an approach name mapped to likely_tle (review F8).
   if (out.insights_hit.length === 0 && out.verdict === "unclear") return "unclear";
-  if (out.matched_approach === "none" && out.insights_hit.length === 0 && out.verdict === "incorrect") return "incorrect";
+  // An unlisted approach the model calls incorrect stays incorrect whatever
+  // the insight count: postprocessJudge() no longer lets such an approach
+  // carry "wrong", so the model's verdict is the only signal left. A wrong
+  // idea no reference covers used to map to unclear (review F8; 2026-10-11).
+  if (out.matched_approach === "none" && out.verdict === "incorrect") return "incorrect";
   if (out.matched_approach === "none" && out.insights_hit.length === 0) return "unclear";
   if (out.matched_verdict === "wrong" || brokeCorrectness) return "incorrect";
   if (out.matched_verdict === "suboptimal") return "likely_tle";
