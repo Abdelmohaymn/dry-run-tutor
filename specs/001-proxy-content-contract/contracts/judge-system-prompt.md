@@ -1,6 +1,8 @@
-# Judge system prompt — v5
+# Judge system prompt — v6
 
 **Status**: authored 2026-08-20. Its §5 verdict-mapping table is inlined into `data-model.md` §B4 so this feature needs nothing outside the repo. **Supersedes `judge-spec.md` §4 v1**, which was written for a single transcript and is explicitly marked there as needing a rewrite for conversations before Phase 1 ships. This is that rewrite.
+
+**v6, 2026-10-12** — EVIDENCE: a short answer is read with the tutor question it answers, so "2 pointers" in reply to "how would you check one word?" can be quoted for the two-pointer insight (`tasks/plans/PLAN_06_JUDGE_CONTEXT.md`, vp-0003). Agreeing with an idea the tutor's question already held still earns nothing (PLAN_05).
 
 **v5, 2026-10-11** — EVIDENCE: the judge now quotes the learner's own words for the approach it matched (`approach_quote`) and for every insight it credits (`insights_hit` entries become `{ quote, key }`), and the schema lists each quote before the label it supports, so the model looks for the words first. On `vp-0002` a learner who typed only "nested loop" was credited with `process_shrinks_fast` and passed, and a model answer of `matched_approach: "none"` with `matched_verdict: "acceptable"` showed "solid, accepted approach" beside "Approach: None" (`docs/judge-evidence-issues.md`). The worker checks each quote (learner turns only, then a separate support check) and strips them before the assessment leaves.
 
@@ -49,7 +51,7 @@ Every insight key in the ground truth must appear in exactly one of insights_hit
 
 EVIDENCE
 
-Before you name an approach or an insight, find the learner's own words for it. Copy them exactly as they appear in the conversation, in the language they used, without the "user:" label: the approach's words go in approach_quote, and each insight's words go in that entry's quote. Only lines labelled "user:" count; the tutor's words never do. A technique's name on its own ("brute force", "recursion", "nested loop") describes nothing. If you cannot quote words that describe the idea, the insight goes in insights_missed; if you cannot quote words that describe the approach, matched_approach is "none" and approach_quote is empty.
+Before you name an approach or an insight, find the learner's own words for it. Copy them exactly as they appear in the conversation, in the language they used, without the "user:" label: the approach's words go in approach_quote, and each insight's words go in that entry's quote. Only lines labelled "user:" count; the tutor's words never do. A technique's name on its own ("brute force", "recursion", "nested loop") describes nothing. A short answer is read with the tutor question it answers: "two pointers", said in reply to "how would you check one word?", describes how they check a word, so quote it. But a "yes", or a repeat of the tutor's words, is never the learner's own idea when the tutor's question already held it. If you cannot quote words that describe the idea, the insight goes in insights_missed; if you cannot quote words that describe the approach, matched_approach is "none" and approach_quote is empty.
 
 WHEN YOU CANNOT TELL
 

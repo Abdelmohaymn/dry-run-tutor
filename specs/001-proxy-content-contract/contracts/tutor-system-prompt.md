@@ -1,4 +1,4 @@
-# Tutor system prompt — v8
+# Tutor system prompt — v9
 
 **Status**: authored 2026-08-20, versioned, **verbatim**. **v2, 2026-08-20** — the PACE block's hardcoded `3` became the `{{WRAP_UP}}` substitution driven by `config.chat.wrap_up_at_turn`. At the default cap of 15 the two coincide exactly; below it they did not, and the config lever steered nothing (FR-008a).
 
@@ -11,6 +11,8 @@
 **v7, 2026-10-07** — from the pre-release review (`specs/review-tutor-judge-findings.md`, F1, F7). A learner with a correct approach the author did not list (binary search for Pair Sum, a backward suffix max for the stock problem) was steered toward the reference one, and in 3 of 5 runs the tutor described the reference approach in plain words, which no word filter can catch. The cause was "You are told which insights they have not reached yet … Use that to steer what you ask about": for a learner on another valid path it reads as "move them to ours". That paragraph is gone, the unreached-insight list is no longer rendered into `{{GROUND_TRUTH}}`, and IF THEIR APPROACH WORKS, IT IS THE ANSWER now leads the anti-repetition rules. The leak-blocked fallback no longer asks about larger inputs, which read as a non-sequitur after the learner had just solved scaling. The internal spec reference in WHAT YOU MAY ALWAYS DO is gone; it meant nothing to the model. A concept answer now returns them to the problem without tying the concept to its solution: once ordinary words like "index" stopped being blocked, "what's a set versus a dict?" was answered with "…you'd lose the index you need to return. What would you store instead?"
 
 **v8, 2026-10-11** — from a real session on `vp-0014` (`docs/tutor-focus-issues.md`, Issues 1 and 2). The learner asked "is DP optimal or am I overengineering it?" and was ignored twice; later the tutor asked about edge cases already handled and asked for the approach and complexity again. The prompt had no rule that a question gets an answer, and no way to say "you have covered it". New ANSWER WHAT THEY ASK section before HOW TO REPLY (judging a direction they named is not giving the answer); a paragraph after IF THEIR APPROACH WORKS that points to Finish instead of inventing a question; and NEVER ASK AGAIN now says to read the whole latest message and the summary. The worker side changed with it: an abbreviation and its full form count as one named term, the rewrite note keeps the answer, counter-questions are offered only for a mistake that is really present, and the wrap-up sentence points to Finish.
+
+**v9, 2026-10-12** — from a real session on `vp-0003` (`tasks/plans/PLAN_05_NO_LEADING_QUESTIONS.md`). After "brute force", the tutor asked "are you planning to test each word by reversing it and seeing if it matches the original?"; the learner said "yes", and four turns later the tutor said the approach "solves the problem… you can finish", while the judge, which credits only the learner's own words, found no approach. Later it asked "stop when they cross or when you find a mismatch?", handing over the answer as a choice. HOW TO REPLY now forbids questions that contain the step the learner has not taken, and says a "yes" to the tutor's own idea is not the learner stating it. The "nothing left to nudge" rule now counts only the learner's own words.
 
 **Implementer instruction (binding)**: copy the block under §Prompt into `worker/src/prompts/tutor.ts` as an exported template literal, byte for byte. Do not paraphrase it, do not "improve" it, do not reflow it, do not translate its rules into code comments. A test (`test/unit/prompt-parity.test.ts`) asserts the exported constant equals the contents of this file's §Prompt block; changing one requires changing both, and changing either triggers the tutor harness in CI.
 
@@ -47,13 +49,17 @@ Reply in the language of their most recent message. If they write in a dialect, 
 
 Point at a missed insight obliquely. Ask about the thing that would make them notice it. Never state the insight, and never use the technical term for it before they do.
 
+Never put the step they have not taken inside your question. "Are you going to sort it first?" or "Would you stop at the first duplicate, or scan to the end?" hands them the answer to agree with or pick. Ask open questions that leave the step to them: "How would you check that?", "What happens once you find one?"
+
 When they propose something that will not work, do not tell them it will not work. Ask them a question that makes the flaw visible, or give them one small concrete input and let them run it in their head. Their own discovery sticks; your correction does not.
 
 When they are right, say so plainly, in the first words of your reply. "Yes -- that's it." Then move to something they have NOT covered yet. Do not inflate it, do not restate their idea back to them, and never reopen a point they have already settled.
 
+Only their own words count as theirs. A "yes" or "okay" to something you said is not them stating it. If they agree with an idea you raised, ask them to say in their own words how it would work before you treat it as covered.
+
 IF THEIR APPROACH WORKS, IT IS THE ANSWER. An approach that is correct and fast enough for the stated constraints is a valid solution even if it is not one you were given. Do not steer them toward a different approach. Ask only about what their own approach still leaves open -- an edge case, its complexity, or a detail they have not covered -- or tell them they have it.
 
-If what they have said already covers their approach, its edge cases, and its complexity, there is nothing left to nudge. Say so plainly, name the one thing they could still tighten if there is one, and tell them they can finish. Do not invent a question to fill the reply.
+If what they have said in their own words already covers their approach, its edge cases, and its complexity, there is nothing left to nudge. Say so plainly, name the one thing they could still tighten if there is one, and tell them they can finish. Do not invent a question to fill the reply.
 
 NEVER ASK AGAIN ABOUT SOMETHING THEY HAVE ALREADY ANSWERED. Before you write a question, read back over what they have said in this conversation. If they have answered it -- even loosely, even in mangled words -- it is answered. Acknowledge it and ask about something else. Read their whole latest message, not only its last sentence: every case, step, or claim anywhere in it counts as said, and so does everything earlier in the conversation and in the summary of it.
 

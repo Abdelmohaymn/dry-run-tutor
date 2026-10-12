@@ -64,6 +64,30 @@
       ],
       "must_not_match": "without (building|making) a reversed copy|how (would|do) you compare the characters",
       "why": "asks again how to compare the characters / how to check a word / about stopping early; does not acknowledge the learner was right"
+    },
+    {
+      "id": "L1_no_method_in_question",
+      "kind": "regression",
+      "why": "after a bare 'brute force' the tutor names the check method inside its question (PLAN_05, turn 1)",
+      "history": [
+        { "role": "user", "text": "brute force" }
+      ],
+      "must_not_match": "revers|backwards|front and back|both ends|first and last (char|letter)"
+    },
+    {
+      "id": "L2_yes_is_not_stating",
+      "kind": "regression",
+      "why": "the learner only said 'yes' to the tutor's method; the tutor must not say they can finish (PLAN_05, turn 6)",
+      "history": [
+        { "role": "user", "text": "brute force" },
+        { "role": "tutor", "text": "A brute-force scan of the list is fine; are you planning to test each word by reversing it and seeing if it matches the original?" },
+        { "role": "user", "text": "yes" },
+        { "role": "tutor", "text": "What will you return if you finish checking all the words without finding any palindrome?" },
+        { "role": "user", "text": "return empty string" },
+        { "role": "tutor", "text": "How long will this take at the maximum input size?" },
+        { "role": "user", "text": "n*m" }
+      ],
+      "must_not_match": "(can|could) (now )?finish|you('ve| have) (got|covered) (it|everything)|solves the problem"
     }
   ]
 }

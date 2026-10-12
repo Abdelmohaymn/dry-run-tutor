@@ -121,6 +121,79 @@
           "text": "each reverse is linear in the word length, so overall it's total characters, at most 100 by 100 so it's instant"
         }
       ]
+    },
+    {
+      "id": "J_ctx_short_answer",
+      "kind": "J_ctx_short_answer",
+      "expected_verdicts": [
+        "borderline"
+      ],
+      "must_hit": [
+        "two_pointer_no_copy"
+      ],
+      "must_miss": [
+        "scan_in_array_order"
+      ],
+      "complexity_assessment": "not_stated",
+      "conversation": [
+        {
+          "role": "user",
+          "text": "brute force"
+        },
+        {
+          "role": "tutor",
+          "text": "How would you check if a single word reads the same forwards and backwards using brute force?"
+        },
+        {
+          "role": "user",
+          "text": "2 pointers"
+        },
+        {
+          "role": "tutor",
+          "text": "Yes — scanning the list in order and using two pointers to check each word gives you the first palindrome and fits the constraints. What should you return if you go through all the words without finding any?"
+        },
+        {
+          "role": "user",
+          "text": "empty string"
+        },
+        {
+          "role": "tutor",
+          "text": "Yes — that's exactly the right approach… You can go ahead and code it up."
+        }
+      ]
+    },
+    {
+      "id": "J_ctx_yes_to_leading",
+      "kind": "J_ctx_yes_to_leading",
+      "expected_verdicts": [
+        "unclear",
+        "borderline"
+      ],
+      "must_miss": [
+        "two_pointer_no_copy"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "brute force"
+        },
+        {
+          "role": "tutor",
+          "text": "Would you compare the first and last characters, then move both inward?"
+        },
+        {
+          "role": "user",
+          "text": "yes"
+        },
+        {
+          "role": "tutor",
+          "text": "What do you return if none match?"
+        },
+        {
+          "role": "user",
+          "text": "empty string"
+        }
+      ]
     }
   ]
 }

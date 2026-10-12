@@ -9,13 +9,17 @@
 //   2. Support, one extra structured call: does the quote state the idea, or
 //      only name a technique? "nested loop" is a verbatim learner quote, so
 //      provenance alone passes it (2026-10-11); only a meaning check does not.
-//      The call sees the problem, each claimed idea and its quote, never the
-//      conversation, the editorial, never_say, hints or wrong turns.
+//      The call sees the problem, each claimed idea and its quote, plus the
+//      one tutor turn before each quoted learner turn, to read a short answer
+//      in context, never as the learner's words (2026-10-12, PLAN_06: "2
+//      pointers" answering "how would you check one word?"). It never sees
+//      the rest of the conversation, the editorial, never_say, hints or wrong
+//      turns.
 //
 // Failure policy is finish-check.ts's: a provider error or an unreadable
 // answer falls back to provenance only, so a hiccup never turns a good
 // session into "unclear". Never throws. Quotes live in memory for one
-// request: nothing here logs, stores or returns them.
+// request: nothing here logs, stores or returns them, or the tutor question.
 import { EVIDENCE_CHECK_PROMPT } from "../prompts/evidence-check";
 import type { StructuredCompletionResult } from "./provider";
 import type { Problem } from "../../../tools/problem-types";
@@ -39,6 +43,27 @@ export interface EvidenceClaim {
   /** The authored text of the idea: an approach's name and sketch, an insight's text. */
   idea: string;
   quote: string;
+  /** The tutor turn just before the quoted learner turn (its tail), or null. Context only. */
+  asked: string | null;
+}
+
+/** A plain string means "no tutor turn before it". */
+export type LearnerTurn = string | { text: string; asked: string | null };
+
+const textOf = (t: LearnerTurn): string => (typeof t === "string" ? t : t.text);
+const askedOf = (t: LearnerTurn | undefined): string | null => (t === undefined || typeof t === "string" ? null : t.asked);
+
+/** How much of the tutor turn the check sees: the question is almost always at the end. */
+const ASKED_MAX_CHARS = 400;
+
+/** Whitespace collapsed; the last `max` characters, cut so that no word starts half-way. */
+function tailAtWord(text: string, max: number): string {
+  const flat = text.replace(/\s+/g, " ").trim();
+  if (flat.length <= max) return flat;
+  const tail = flat.slice(flat.length - max);
+  if (flat[flat.length - max - 1] === " ") return tail.trimStart();
+  const space = tail.indexOf(" ");
+  return space === -1 ? tail : tail.slice(space + 1);
 }
 
 interface RawEvidence {
@@ -89,22 +114,34 @@ function tokenWindowMatch(fragment: string, turn: string): boolean {
 }
 
 /**
+ * Index of the learner turn holding the quote's first fragment, or -1 if the
+ * quote is not the learner's own words. Each ellipsis-separated fragment must
+ * match ONE learner turn (a quote spanning two turns is two fragments), as a
+ * whole-word substring or, failing that, as a small paraphrase (at least 80%
+ * of its tokens inside one same-sized window).
+ */
+export function quotedTurnIndex(quote: string, learnerTurns: readonly string[]): number {
+  const fragments = quote
+    .replace(LEADING_LABEL, "")
+    .split(ELLIPSIS)
+    .map(normaliseEvidence)
+    .filter((f) => f.length > 0);
+  if (fragments.length === 0) return -1;
+  const turns = learnerTurns.map(normaliseEvidence);
+  const turnOf = (fragment: string) =>
+    turns.findIndex((turn) => ` ${turn} `.includes(` ${fragment} `) || tokenWindowMatch(fragment, turn));
+  const indexes = fragments.map(turnOf);
+  return indexes.every((i) => i >= 0) ? indexes[0] : -1;
+}
+
+/**
  * True if `quote` is the learner's own words. Each ellipsis-separated
  * fragment must match ONE learner turn (a quote spanning two turns is two
  * fragments), as a whole-word substring or, failing that, as a small
  * paraphrase (at least 80% of its tokens inside one same-sized window).
  */
 export function quotedByLearner(quote: string, learnerTurns: readonly string[]): boolean {
-  const fragments = quote
-    .replace(LEADING_LABEL, "")
-    .split(ELLIPSIS)
-    .map(normaliseEvidence)
-    .filter((f) => f.length > 0);
-  if (fragments.length === 0) return false;
-  const turns = learnerTurns.map(normaliseEvidence);
-  return fragments.every((fragment) =>
-    turns.some((turn) => ` ${turn} `.includes(` ${fragment} `) || tokenWindowMatch(fragment, turn)),
-  );
+  return quotedTurnIndex(quote, learnerTurns) >= 0;
 }
 
 /** Strict schema: one result per claim, `why` before `supported` so the reason is written first. */
@@ -140,6 +177,7 @@ export function buildEvidenceCheckInput(problem: Problem, claims: readonly Evide
     `- id: ${c.id}`,
     `  kind: ${c.kind}`,
     `  idea: ${c.idea}`,
+    ...(c.asked === null ? [] : [`  asked: "${c.asked.replace(/\s+/g, " ").trim()}"`]),
     `  quote: "${c.quote.replace(/\s+/g, " ").trim()}"`,
   ]);
   return [`Problem: ${problem.public.title}`, problem.public.statement, "", "Claims:", ...lines].join("\n");
@@ -148,18 +186,25 @@ export function buildEvidenceCheckInput(problem: Problem, claims: readonly Evide
 /** Provenance + support for one judge answer. Never throws. */
 export async function gatherEvidence(
   raw: RawEvidence,
-  learnerTurns: readonly string[],
+  learnerTurns: readonly LearnerTurn[],
   problem: Problem,
   call: EvidenceCall,
 ): Promise<Evidence> {
+  // Provenance reads the learner's text only; the tutor turn is context for
+  // the support check and is never matched against a quote.
+  const texts = learnerTurns.map(textOf);
+  const askedFor = (quote: string): string | null => {
+    const asked = askedOf(learnerTurns[quotedTurnIndex(quote, texts)]);
+    return asked === null ? null : tailAtWord(asked, ASKED_MAX_CHARS) || null;
+  };
   const approach = problem.private.reference_approaches.find((a) => a.key === raw.matched_approach);
-  const approachQuoted = !!approach && quotedByLearner(raw.approach_quote, learnerTurns);
+  const approachQuoted = !!approach && quotedByLearner(raw.approach_quote, texts);
 
   // First passing entry per authored key.
   const quoted = new Map<string, string>();
   const insightText = new Map(problem.private.key_insights.map((i) => [i.key, i.text]));
   for (const hit of raw.insights_hit) {
-    if (insightText.has(hit.key) && !quoted.has(hit.key) && quotedByLearner(hit.quote, learnerTurns)) {
+    if (insightText.has(hit.key) && !quoted.has(hit.key) && quotedByLearner(hit.quote, texts)) {
       quoted.set(hit.key, hit.quote);
     }
   }
@@ -173,10 +218,17 @@ export async function gatherEvidence(
       kind: "APPROACH",
       idea: `${approach.name}: ${approach.sketch.join("; ")}`,
       quote: raw.approach_quote.replace(LEADING_LABEL, ""),
+      asked: askedFor(raw.approach_quote),
     });
   }
   for (const [key, quote] of quoted) {
-    claims.push({ id: `insight:${key}`, kind: "INSIGHT", idea: insightText.get(key)!, quote: quote.replace(LEADING_LABEL, "") });
+    claims.push({
+      id: `insight:${key}`,
+      kind: "INSIGHT",
+      idea: insightText.get(key)!,
+      quote: quote.replace(LEADING_LABEL, ""),
+      asked: askedFor(quote),
+    });
   }
 
   if (claims.length === 0) return { approachSupported: approachQuoted, supportedInsights: new Set() };
