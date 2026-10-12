@@ -15,6 +15,17 @@ const GROQ_STT_URL = "https://api.groq.com/openai/v1/audio/transcriptions";
 // answering must not hold the learner's request for longer than this.
 const STT_TIMEOUT_MS = 30_000;
 
+// Whisper's `prompt` biases spelling toward these terms; without it,
+// "dynamic programming" came back as "tandem programming" (2026-10-11,
+// docs/tutor-focus-issues.md Issue 3). Generic on purpose: no problem's own
+// vocabulary may reach a transcript the learner did not say. Under Whisper's
+// 224-token prompt limit.
+export const STT_PROMPT_EN =
+  "A developer talks through a coding problem: dynamic programming, DP, memoization, recursion, base case, hash map, hash set, array, two pointers, sliding window, binary search, BFS, DFS, graph, tree, heap, stack, queue, linked list, prefix sum, modulo, O(n), O(n log n), O(1).";
+export const STT_PROMPT_AR =
+  "مطوّر بيشرح حل مسألة برمجة وبيستخدم مصطلحات زي dynamic programming و DP و memoization و recursion و base case و hash map و two pointers و sliding window و binary search و BFS و DFS و heap و stack و queue و O(n) و O(n log n) و O(1).";
+const STT_PROMPTS: Record<string, string> = { en: STT_PROMPT_EN, ar: STT_PROMPT_AR };
+
 // Accepted request content types -> the file extension Groq uses to sniff
 // the format of the multipart `file` part.
 export const AUDIO_TYPES: Record<string, string> = {
@@ -73,6 +84,8 @@ export async function transcribeWithGroq(p: TranscribeParams): Promise<Transcrib
   form.append("response_format", "verbose_json");
   form.append("temperature", "0");
   if (p.language) form.append("language", p.language);
+  const prompt = p.language ? STT_PROMPTS[p.language] : undefined;
+  if (prompt) form.append("prompt", prompt);
 
   let res: Response;
   try {
