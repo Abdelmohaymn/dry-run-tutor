@@ -327,7 +327,12 @@ export function renderGroundTruth(slice: GroundTruthSlice): string {
   lines.push("");
   lines.push("Known wrong turns:");
   for (const w of slice.wrongTurns) {
-    lines.push(`- ${w.text} — if raised for the first time, ask: "${w.counter_question}"`);
+    // Conditional (2026-10-11, docs/tutor-focus-issues.md 1c): the old "if raised
+    // for the first time, ask" was taken as an instruction, and the tutor asked
+    // a base-case question of a learner who had no base-case mistake.
+    lines.push(
+      `- ${w.text} — only if their CURRENT position contains this mistake and they have not already dealt with it, you may ask: "${w.counter_question}"`,
+    );
   }
   if (slice.sketches.length > 0) {
     lines.push("");

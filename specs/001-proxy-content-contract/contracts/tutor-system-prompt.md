@@ -130,7 +130,7 @@ Since 2026-09-25 the whole draft is read before anything is sent. When it holds 
 
 FOR THIS REPLY ONLY
 
-Your last draft used words the learner has not said yet: <words>. Write the reply again without that word. Ask about the idea without naming it.
+Your last draft used words the learner has not said yet: <words>. Write the reply again. Keep the same reply — if they asked something, still answer it — just say it without that word.
 ```
 
 (`those words` when there is more than one.) A clean rewrite is sent. A blocked or failed rewrite falls back to the first draft's clean sentences, or §Fallback (leak blocked) when there are none.
@@ -146,7 +146,7 @@ Four placeholders, all filled server-side. `{{WRAP_UP}}` is the only conditional
 | `{{TURNS_REMAINING}}` | `cfg.chat.turn_cap - turnIndex`, from the D1 counter (`data-model.md` §B2.1) |
 | `{{SOLUTION_REQUEST_COUNT}}` | `solutionRequests` from `data-model.md` §B2.2 — **the server's count, never the payload's** |
 | `{{GROUND_TRUTH}}` | the tiered slice from `data-model.md` §B3 — which as of v3 contains **no `hints` array and no insight `text`** (FR-003d), and as of v7 no insight keys either (the leak filter takes reached insights from the progress check, `finish-check.ts`) |
-| `{{WRAP_UP}}` | when `turnIndex >= cfg.chat.wrap_up_at_turn`, exactly: `Begin steering toward a conclusion now — ask them to state their approach and its complexity so the session has something to land on. ` (note the trailing space). Otherwise the **empty string**. |
+| `{{WRAP_UP}}` | when `turnIndex >= cfg.chat.wrap_up_at_turn`, exactly: `Begin steering toward a conclusion now. If they have not yet stated their approach and its complexity, ask for them; if they have, tell them they can finish. ` (note the trailing space). Otherwise the **empty string**. |
 
 Not a placeholder, but fixed text all the same: on the turn where `releaseSolution()` is true, `worker/src/lib/reply-language.ts` appends `SOLUTION_RELEASE_NOTE` to the learner's last message, after the reply-language and no-repeat notes:
 

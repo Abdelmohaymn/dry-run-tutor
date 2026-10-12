@@ -23,7 +23,7 @@ describe("POST /v1/chat — {{WRAP_UP}} substitution", () => {
     const bodies = rawBodies;
 
     const WRAP_UP_SENTENCE =
-      "Begin steering toward a conclusion now — ask them to state their approach and its complexity so the session has something to land on. ";
+      "Begin steering toward a conclusion now. If they have not yet stated their approach and its complexity, ask for them; if they have, tell them they can finish. ";
 
     for (let i = 0; i < 11; i++) {
       // turns 1..11

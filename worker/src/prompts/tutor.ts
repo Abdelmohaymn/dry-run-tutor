@@ -87,11 +87,11 @@ export const LEAK_BLOCKED_FALLBACK = `Let me put that another way -- what would 
 // draft was blocked (data-model.md §B1). Not inside the §Prompt fence.
 export function rewriteNote(blockedTerms: readonly string[]): string {
   const words = blockedTerms.map((t) => `"${t}"`).join(", ");
-  return `\n\nFOR THIS REPLY ONLY\n\nYour last draft used words the learner has not said yet: ${words}. Write the reply again without ${blockedTerms.length === 1 ? "that word" : "those words"}. Ask about the idea without naming it.`;
+  return `\n\nFOR THIS REPLY ONLY\n\nYour last draft used words the learner has not said yet: ${words}. Write the reply again. Keep the same reply — if they asked something, still answer it — just say it without ${blockedTerms.length === 1 ? "that word" : "those words"}.`;
 }
 
 // §Substitutions — {{WRAP_UP}}. Note the trailing space. Substituted when
 // turn_index >= cfg.chat.wrap_up_at_turn; the empty string otherwise
 // (FR-008a, O2). Not inside the §Prompt fence — not covered by the
 // byte-verbatim parity test, but fixed text nonetheless.
-export const WRAP_UP_SENTENCE = `Begin steering toward a conclusion now — ask them to state their approach and its complexity so the session has something to land on. `;
+export const WRAP_UP_SENTENCE = `Begin steering toward a conclusion now. If they have not yet stated their approach and its complexity, ask for them; if they have, tell them they can finish. `;
