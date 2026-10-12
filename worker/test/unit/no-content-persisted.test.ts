@@ -1,6 +1,6 @@
 import { env, SELF, fetchMock } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, groqStreamBody, mintInstallId, readChatSSE } from "../contract/helpers";
+import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, groqStreamBody, interceptEvidenceCheck, mintInstallId, readChatSSE } from "../contract/helpers";
 
 beforeAll(() => {
   fetchMock.activate();
@@ -59,9 +59,10 @@ describe("no D1 table ever holds a learner key, a message, a summary, or a reply
         200,
         groqCompletionBody(
           JSON.stringify({
+            approach_quote: LEARNER_TEXT,
             matched_approach: "hashmap",
             matched_verdict: "optimal",
-            insights_hit: [],
+            insights_hit: [{ quote: LEARNER_TEXT, key: "complement_lookup" }],
             insights_missed: [],
             wrong_turns_taken: [],
             complexity: {
@@ -77,6 +78,7 @@ describe("no D1 table ever holds a learner key, a message, a summary, or a reply
           }),
         ),
       );
+    interceptEvidenceCheck();
     const judgeRes = await SELF.fetch("https://worker.test/v1/judge", {
       method: "POST",
       headers: { "X-Install-Id": installId, "X-User-Key": SECRET_KEY, "content-type": "application/json" },

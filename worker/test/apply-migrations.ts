@@ -9,7 +9,7 @@ declare module "cloudflare:test" {
   interface ProvidedEnv {
     DB: D1Database;
     TEST_MIGRATIONS: D1Migration[];
-    EXPECTED_PROMPTS: { tutor: string; judge: string; condense: string; repair: string; finishCheck: string };
+    EXPECTED_PROMPTS: { tutor: string; judge: string; condense: string; repair: string; finishCheck: string; evidenceCheck: string };
     /** worker/src/**\/*.ts, path -> content, injected at config-build time (T095). */
     WORKER_SOURCE: Record<string, string>;
     INSTALL_HMAC_SECRET: string;

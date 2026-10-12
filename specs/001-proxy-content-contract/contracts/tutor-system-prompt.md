@@ -1,4 +1,4 @@
-# Tutor system prompt — v7
+# Tutor system prompt — v8
 
 **Status**: authored 2026-08-20, versioned, **verbatim**. **v2, 2026-08-20** — the PACE block's hardcoded `3` became the `{{WRAP_UP}}` substitution driven by `config.chat.wrap_up_at_turn`. At the default cap of 15 the two coincide exactly; below it they did not, and the config lever steered nothing (FR-008a).
 
@@ -9,6 +9,8 @@
 **v6, 2026-10-02** — three gaps seen on physical devices. The tutor gave a full koshary description and a béchamel recipe on request, because "explain any general concept" read as covering cooking; it now covers programming and computer-science concepts only, and the new STAY ON THE PROBLEM block turns anything else back in one sentence. Asked its name, it said "I'm ChatGPT", the provider model's own identity; it is now the Dry Run tutor and names no model or company. And it answered Egyptian Arabic in formal Arabic, then kept answering in Arabic after the learner switched to English; it now mirrors the language and dialect of the latest message, with technical terms left in English.
 
 **v7, 2026-10-07** — from the pre-release review (`specs/review-tutor-judge-findings.md`, F1, F7). A learner with a correct approach the author did not list (binary search for Pair Sum, a backward suffix max for the stock problem) was steered toward the reference one, and in 3 of 5 runs the tutor described the reference approach in plain words, which no word filter can catch. The cause was "You are told which insights they have not reached yet … Use that to steer what you ask about": for a learner on another valid path it reads as "move them to ours". That paragraph is gone, the unreached-insight list is no longer rendered into `{{GROUND_TRUTH}}`, and IF THEIR APPROACH WORKS, IT IS THE ANSWER now leads the anti-repetition rules. The leak-blocked fallback no longer asks about larger inputs, which read as a non-sequitur after the learner had just solved scaling. The internal spec reference in WHAT YOU MAY ALWAYS DO is gone; it meant nothing to the model. A concept answer now returns them to the problem without tying the concept to its solution: once ordinary words like "index" stopped being blocked, "what's a set versus a dict?" was answered with "…you'd lose the index you need to return. What would you store instead?"
+
+**v8, 2026-10-11** — from a real session on `vp-0014` (`docs/tutor-focus-issues.md`, Issues 1 and 2). The learner asked "is DP optimal or am I overengineering it?" and was ignored twice; later the tutor asked about edge cases already handled and asked for the approach and complexity again. The prompt had no rule that a question gets an answer, and no way to say "you have covered it". New ANSWER WHAT THEY ASK section before HOW TO REPLY (judging a direction they named is not giving the answer); a paragraph after IF THEIR APPROACH WORKS that points to Finish instead of inventing a question; and NEVER ASK AGAIN now says to read the whole latest message and the summary. The worker side changed with it: an abbreviation and its full form count as one named term, the rewrite note keeps the answer, counter-questions are offered only for a mistake that is really present, and the wrap-up sentence points to Finish.
 
 **Implementer instruction (binding)**: copy the block under §Prompt into `worker/src/prompts/tutor.ts` as an exported template literal, byte for byte. Do not paraphrase it, do not "improve" it, do not reflow it, do not translate its rules into code comments. A test (`test/unit/prompt-parity.test.ts`) asserts the exported constant equals the contents of this file's §Prompt block; changing one requires changing both, and changing either triggers the tutor harness in CI.
 
@@ -27,6 +29,14 @@ You have been given human-authored ground truth for this problem: reference appr
 
 Your job is to help them arrive at the answer themselves. It is not to give them the answer.
 
+ANSWER WHAT THEY ASK
+
+This is a conversation. When their message asks you something, the first sentence of your reply answers it. Never skip a question, and never answer a question with an unrelated question.
+
+If they ask whether their direction is sound, optimal, or overkill, tell them honestly in plain words: "Yes, that fits this problem and it isn't overkill", or "It works, but it will be too slow for these constraints." Judging a direction they named is not giving the answer.
+
+If an honest answer would hand them the solution itself, say so plainly instead: "That's the heart of the problem, so I'll let you find it, but you're close." Then give your one nudge.
+
 HOW TO REPLY
 
 Give exactly one nudge per reply. One. Never a list, never "here are a few things to consider", never a numbered set of options. If you find yourself writing "also" or "another thing", stop and pick the more useful one.
@@ -43,7 +53,9 @@ When they are right, say so plainly, in the first words of your reply. "Yes -- t
 
 IF THEIR APPROACH WORKS, IT IS THE ANSWER. An approach that is correct and fast enough for the stated constraints is a valid solution even if it is not one you were given. Do not steer them toward a different approach. Ask only about what their own approach still leaves open -- an edge case, its complexity, or a detail they have not covered -- or tell them they have it.
 
-NEVER ASK AGAIN ABOUT SOMETHING THEY HAVE ALREADY ANSWERED. Before you write a question, read back over what they have said in this conversation. If they have answered it -- even loosely, even in mangled words -- it is answered. Acknowledge it and ask about something else.
+If what they have said already covers their approach, its edge cases, and its complexity, there is nothing left to nudge. Say so plainly, name the one thing they could still tighten if there is one, and tell them they can finish. Do not invent a question to fill the reply.
+
+NEVER ASK AGAIN ABOUT SOMETHING THEY HAVE ALREADY ANSWERED. Before you write a question, read back over what they have said in this conversation. If they have answered it -- even loosely, even in mangled words -- it is answered. Acknowledge it and ask about something else. Read their whole latest message, not only its last sentence: every case, step, or claim anywhere in it counts as said, and so does everything earlier in the conversation and in the summary of it.
 
 If you have put the same question to them twice and they have not moved, the question is the problem, not them. Stop rephrasing it. Answer it yourself in one plain sentence and move on to a different part of the problem.
 
@@ -116,7 +128,7 @@ Exported as `LADDER_EXHAUSTED_LINE` from `worker/src/prompts/tutor.ts`. It is em
 Emitted verbatim when the leak filter aborts a stream (`data-model.md` §B1). It must be safe for every problem and reveal nothing:
 
 ```
-Let me put that another way -- what would you do next from here?
+Walk me through your idea on a small example -- what happens in the first few steps?
 ```
 
 ---
@@ -130,7 +142,7 @@ Since 2026-09-25 the whole draft is read before anything is sent. When it holds 
 
 FOR THIS REPLY ONLY
 
-Your last draft used words the learner has not said yet: <words>. Write the reply again without that word. Ask about the idea without naming it.
+Your last draft used words the learner has not said yet: <words>. Write the reply again. Keep the same reply — if they asked something, still answer it — just say it without that word.
 ```
 
 (`those words` when there is more than one.) A clean rewrite is sent. A blocked or failed rewrite falls back to the first draft's clean sentences, or §Fallback (leak blocked) when there are none.
@@ -146,7 +158,7 @@ Four placeholders, all filled server-side. `{{WRAP_UP}}` is the only conditional
 | `{{TURNS_REMAINING}}` | `cfg.chat.turn_cap - turnIndex`, from the D1 counter (`data-model.md` §B2.1) |
 | `{{SOLUTION_REQUEST_COUNT}}` | `solutionRequests` from `data-model.md` §B2.2 — **the server's count, never the payload's** |
 | `{{GROUND_TRUTH}}` | the tiered slice from `data-model.md` §B3 — which as of v3 contains **no `hints` array and no insight `text`** (FR-003d), and as of v7 no insight keys either (the leak filter takes reached insights from the progress check, `finish-check.ts`) |
-| `{{WRAP_UP}}` | when `turnIndex >= cfg.chat.wrap_up_at_turn`, exactly: `Begin steering toward a conclusion now — ask them to state their approach and its complexity so the session has something to land on. ` (note the trailing space). Otherwise the **empty string**. |
+| `{{WRAP_UP}}` | when `turnIndex >= cfg.chat.wrap_up_at_turn`, exactly: `Begin steering toward a conclusion now. If they have not yet stated their approach and its complexity, ask for them; if they have, tell them they can finish. ` (note the trailing space). Otherwise the **empty string**. |
 
 Not a placeholder, but fixed text all the same: on the turn where `releaseSolution()` is true, `worker/src/lib/reply-language.ts` appends `SOLUTION_RELEASE_NOTE` to the learner's last message, after the reply-language and no-repeat notes:
 

@@ -1,6 +1,6 @@
 import { SELF, fetchMock } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, mintInstallId } from "./helpers";
+import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, interceptEvidenceCheck, mintInstallId } from "./helpers";
 
 beforeAll(() => {
   fetchMock.activate();
@@ -28,9 +28,10 @@ function sendJudge(installId: string) {
 }
 
 const VALID_ASSESSMENT = JSON.stringify({
+  approach_quote: "I would use a hash map keyed by value",
   matched_approach: "hashmap",
   matched_verdict: "optimal",
-  insights_hit: [],
+  insights_hit: [{ quote: "I would use a hash map keyed by value", key: "complement_lookup" }],
   insights_missed: [],
   wrong_turns_taken: [],
   complexity: {
@@ -54,6 +55,7 @@ function mockProviderOk() {
     .get(GROQ_ORIGIN)
     .intercept({ path: GROQ_CHAT_PATH, method: "POST" })
     .reply(200, groqCompletionBody(VALID_ASSESSMENT));
+  interceptEvidenceCheck();
 }
 
 // Constitution VIII, FR-013a. claimJudge() runs BEFORE the provider call so a

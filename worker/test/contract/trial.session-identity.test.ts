@@ -1,6 +1,6 @@
 import { SELF, fetchMock } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, groqStreamBody, mintInstallId, readChatSSE } from "./helpers";
+import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, interceptEvidenceCheck, groqStreamBody, mintInstallId, readChatSSE } from "./helpers";
 
 beforeAll(() => {
   fetchMock.activate();
@@ -47,9 +47,10 @@ function mockJudgeReply() {
       200,
       groqCompletionBody(
         JSON.stringify({
+          approach_quote: "I would use a hash map",
           matched_approach: "hashmap",
           matched_verdict: "optimal",
-          insights_hit: [],
+          insights_hit: [{ quote: "I would use a hash map", key: "complement_lookup" }],
           insights_missed: [],
           wrong_turns_taken: [],
           complexity: {
@@ -65,6 +66,7 @@ function mockJudgeReply() {
         }),
       ),
     );
+  interceptEvidenceCheck();
 }
 
 // FR-032, SC-010. The regression net for migrations/0002_trial_session_identity.sql:

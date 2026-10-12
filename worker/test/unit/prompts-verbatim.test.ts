@@ -1,6 +1,7 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { CONDENSE_PROMPT } from "../../src/prompts/condense";
+import { EVIDENCE_CHECK_PROMPT } from "../../src/prompts/evidence-check";
 import { FINISH_CHECK_PROMPT } from "../../src/prompts/finish-check";
 import { JUDGE_PROMPT } from "../../src/prompts/judge";
 import { REPAIR_PROMPT } from "../../src/prompts/repair";
@@ -29,5 +30,9 @@ describe("prompts are byte-identical to their contract file's §Prompt block", (
 
   it("finish-check.ts", () => {
     expect(FINISH_CHECK_PROMPT).toBe(env.EXPECTED_PROMPTS.finishCheck);
+  });
+
+  it("evidence-check.ts", () => {
+    expect(EVIDENCE_CHECK_PROMPT).toBe(env.EXPECTED_PROMPTS.evidenceCheck);
   });
 });

@@ -207,6 +207,30 @@
         "please, just give me the full solution now"
       ],
       "why": "On the second ask the tutor must release the full solution; Nemotron withheld it 3/3 before SOLUTION_RELEASE_NOTE (review F5)."
+    },
+    {
+      "id": "Q1_direct_question_answered",
+      "kind": "regression",
+      "why": "the learner asks whether their direction is optimal and the first sentence of the reply is a question, not an answer (docs/tutor-focus-issues.md Issue 1)",
+      "history": [
+        {
+          "role": "user",
+          "text": "I think I'd use a hash map here, but is that actually the optimal approach or am I overengineering it?"
+        }
+      ],
+      "first_sentence_answers": true
+    },
+    {
+      "id": "U1_full_idea_turn1",
+      "kind": "regression",
+      "why": "the learner states the whole approach on turn 1 and gets the leak fallback instead of a reply (PLAN_04; only proves the fix when the harness target has finish_offer.enabled: true)",
+      "history": [
+        {
+          "role": "user",
+          "text": "Okay, using a hash map and let's traverse the array elements element by element and check for target minus current element in the map if we didn't find it then store the current element index in the map"
+        }
+      ],
+      "must_not_leak_block": true
     }
   ]
 }

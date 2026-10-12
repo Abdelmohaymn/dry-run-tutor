@@ -1,6 +1,6 @@
 import { env, SELF, fetchMock } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, groqStreamBody, mintInstallId, readChatSSE } from "./helpers";
+import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, groqStreamBody, interceptEvidenceCheck, mintInstallId, readChatSSE } from "./helpers";
 
 beforeAll(() => {
   fetchMock.activate();
@@ -18,9 +18,10 @@ const CONVERSATION = [
 ];
 
 const ASSESSMENT = JSON.stringify({
+  approach_quote: "I'd keep a map from each value to its index",
   matched_approach: "hashmap",
   matched_verdict: "optimal",
-  insights_hit: ["complement_lookup"],
+  insights_hit: [{ quote: "Target minus the current number", key: "complement_lookup" }],
   insights_missed: [],
   wrong_turns_taken: [],
   complexity: { user_claimed_time: null, user_claimed_space: null, reference_time: "O(n)", reference_space: "O(n)", assessment: "not_stated" },
@@ -54,6 +55,7 @@ describe("POST /v1/trial judge — after the session is already judged", () => {
     await readChatSSE(await trial(installId, { mode: "chat", problem_id: "vp-0001", messages: [CONVERSATION[0]] }));
 
     fetchMock.get(GROQ_ORIGIN).intercept({ path: GROQ_CHAT_PATH, method: "POST" }).reply(200, groqCompletionBody(ASSESSMENT));
+    interceptEvidenceCheck();
     const judge = { mode: "judge", problem_id: "vp-0001", conversation: CONVERSATION, ended_by: "user" };
     expect((await trial(installId, judge)).status).toBe(200);
 
@@ -65,6 +67,7 @@ describe("POST /v1/trial judge — after the session is already judged", () => {
   it("a new chat after the judged session is still TRIAL_CONSUMED", async () => {
     const installId = await mintInstallId();
     fetchMock.get(GROQ_ORIGIN).intercept({ path: GROQ_CHAT_PATH, method: "POST" }).reply(200, groqCompletionBody(ASSESSMENT));
+    interceptEvidenceCheck();
     expect((await trial(installId, { mode: "judge", problem_id: "vp-0001", conversation: CONVERSATION, ended_by: "user" })).status).toBe(200);
 
     const res = await trial(installId, { mode: "chat", problem_id: "vp-0001", messages: [{ role: "user", text: "One more?" }] });
@@ -85,6 +88,7 @@ describe("judge request shape", () => {
         sent = JSON.parse(opts.body as string);
         return { statusCode: 200, data: JSON.stringify(groqCompletionBody(ASSESSMENT)), responseOptions: { headers: { "content-type": "application/json" } } };
       });
+    interceptEvidenceCheck();
     expect((await trial(installId, { mode: "judge", problem_id: "vp-0001", conversation: CONVERSATION, ended_by: "user" })).status).toBe(200);
 
     const system = sent.messages.find((m: any) => m.role === "system").content as string;
@@ -119,6 +123,8 @@ describe("judge retries once on a self-contradictory answer", () => {
     hollow.feedback = "...";
     fetchMock.get(GROQ_ORIGIN).intercept({ path: GROQ_CHAT_PATH, method: "POST" }).reply(200, groqCompletionBody(JSON.stringify(hollow)));
     fetchMock.get(GROQ_ORIGIN).intercept({ path: GROQ_CHAT_PATH, method: "POST" }).reply(200, groqCompletionBody(ASSESSMENT));
+    // Two judge answers, then one evidence check on the answer kept.
+    interceptEvidenceCheck();
 
     const res = await trial(await mintInstallId(), { mode: "judge", problem_id: "vp-0001", conversation: CONVERSATION, ended_by: "user" });
     expect(res.status).toBe(200);

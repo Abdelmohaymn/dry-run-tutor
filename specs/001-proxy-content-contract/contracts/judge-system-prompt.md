@@ -1,6 +1,8 @@
-# Judge system prompt — v4
+# Judge system prompt — v5
 
 **Status**: authored 2026-08-20. Its §5 verdict-mapping table is inlined into `data-model.md` §B4 so this feature needs nothing outside the repo. **Supersedes `judge-spec.md` §4 v1**, which was written for a single transcript and is explicitly marked there as needing a rewrite for conversations before Phase 1 ships. This is that rewrite.
+
+**v5, 2026-10-11** — EVIDENCE: the judge now quotes the learner's own words for the approach it matched (`approach_quote`) and for every insight it credits (`insights_hit` entries become `{ quote, key }`), and the schema lists each quote before the label it supports, so the model looks for the words first. On `vp-0002` a learner who typed only "nested loop" was credited with `process_shrinks_fast` and passed, and a model answer of `matched_approach: "none"` with `matched_verdict: "acceptable"` showed "solid, accepted approach" beside "Approach: None" (`docs/judge-evidence-issues.md`). The worker checks each quote (learner turns only, then a separate support check) and strips them before the assessment leaves.
 
 **v4, 2026-10-07** — CREDIT AND ITS LIMITS: the borderline cap now follows the insights the learner's OWN approach needs, listed per approach in `{{GROUND_TRUTH}}` (an approach's authored `requires`, else the problem's required insights). A perfect explanation of an acceptable approach was capped at borderline on every model, because `required` describes the optimal one. And a conversation too thin to show an approach is unclear: "um, numbers, digits, add, I guess loop?" was read as the loop approach (`specs/review-tutor-judge-findings.md` F3, F8).
 
@@ -44,6 +46,10 @@ An insight that the approach they took needs (each reference approach lists the 
 If they took a known wrong turn and never came back from it, name it in wrong_turns_taken. If they took it and then abandoned it, do not.
 
 Every insight key in the ground truth must appear in exactly one of insights_hit or insights_missed. Neither list may contain a key that is not in the ground truth.
+
+EVIDENCE
+
+Before you name an approach or an insight, find the learner's own words for it. Copy them exactly as they appear in the conversation, in the language they used, without the "user:" label: the approach's words go in approach_quote, and each insight's words go in that entry's quote. Only lines labelled "user:" count; the tutor's words never do. A technique's name on its own ("brute force", "recursion", "nested loop") describes nothing. If you cannot quote words that describe the idea, the insight goes in insights_missed; if you cannot quote words that describe the approach, matched_approach is "none" and approach_quote is empty.
 
 WHEN YOU CANNOT TELL
 
@@ -98,8 +104,15 @@ Here is where that lands against the reference approach — have a look at the w
 ## §Server-side post-processing (all mandatory, in this order)
 
 1. **Refusal / malformed / non-JSON** → `UNCLEAR_RETRY`. Never surface a provider body (FR-039).
-2. **Insight coverage repair** — any authored insight key absent from both lists is appended to `insights_missed`; any key in either list that is not authored is dropped. Both are recorded as prompt drift (FR-017).
-3. **Verdict override** — `mapVerdict()` per `data-model.md` §B4. The mapped value wins and the discrepancy is recorded (FR-019). Two amendments from the 2026-10-07 review (`specs/review-tutor-judge-findings.md` F3, F8): "every required insight hit" is measured against the matched approach's own `requires` when the problem authors one, so an acceptable approach explained in full maps to `pass`; and when **no** insight was hit, the model's own `unclear` stands, as does its `incorrect` when it matched no approach, ahead of every other row. Finally, when the model's `confidence` is below 0.6 the map may not lift the verdict to `pass` or `strong_pass` if the model's own verdict was neither.
+2. **Insight coverage repair** — any authored insight key absent from both lists is appended to `insights_missed`; any key in either list that is not authored is dropped. Both are recorded as prompt drift (FR-017). An unauthored `matched_approach` (in practice `"none"`) always gets `matched_verdict: "none"`: an approach that does not exist cannot carry a tier (2026-10-11, the app showed "solid, accepted approach" beside "Approach: None").
+2a. **Evidence** (prompt v5, 2026-10-11; `docs/judge-evidence-issues.md`, `worker/src/lib/judge-evidence.ts`). The model's claims need the learner's own words, in this order:
+   - **Provenance** — a quote counts only if it appears in a `user` turn (tutor turns are never passed in). Unicode-aware normalisation (letters and digits of any script, case-folded), a leading `user:` label dropped, ellipsis-separated fragments each matched to one learner turn, and an 80%-of-tokens window as the fallback for a small paraphrase.
+   - **Support** — one extra structured call using `evidence-check-system-prompt.md`. Its input is the problem title and statement, each claimed idea's authored text and the quote offered for it; never the conversation, the editorial, `never_say`, hints or wrong turns. It answers whether the quote states the idea or only names a technique. It is skipped when nothing passed provenance, and a `wrong` approach is not sent.
+   - **Failure policy** — if the support call errors or returns something unreadable, the result is provenance only (fail-open, as `finish-check`), so a provider hiccup never turns a good session into `unclear`.
+   - **Effect** — an insight that fails either check moves from `insights_hit` to `insights_missed`. An approach that fails either check is demoted to `"none"`, unless its authored verdict is `wrong`: dropping that could only raise the grade.
+   - **Retry** — the one-more-ask on a self-contradictory answer is decided on the model's unverified claims. A zero made by these checks is deterministic, so asking again would only spend budget and invite a better-made-up quote.
+   - **Privacy** — quotes live in memory for one request and are stripped here: the response carries `insights_hit` as `string[]`, as before.
+3. **Verdict override** — `mapVerdict()` per `data-model.md` §B4. The mapped value wins and the discrepancy is recorded (FR-019). Two amendments from the 2026-10-07 review (`specs/review-tutor-judge-findings.md` F3, F8): "every required insight hit" is measured against the matched approach's own `requires` when the problem authors one, so an acceptable approach explained in full maps to `pass`; and when **no** insight was hit, the model's own `unclear` stands, ahead of every other row. Its `incorrect` stands whenever it matched no approach, whatever the insight count: step 2 no longer lets an unlisted approach carry `wrong`, so the model's verdict is the only signal left (2026-10-11). Finally, when the model's `confidence` is below 0.6 the map may not lift the verdict to `pass` or `strong_pass` if the model's own verdict was neither.
 4. **Hedge check** — `feedback` is scanned for an **unhedged** verdict word. The terms are `FORBIDDEN_FEEDBACK_TERMS = ["correct", "incorrect", "wrong", "right", "perfect"]`, and a term counts **only** when it is asserted of the learner's work, which is fixed by exactly two patterns, applied case-insensitively to the **lowercased feedback with its punctuation intact**:
 
    - **copula-adjacent** — `\b(is|isn'?t|was|wasn'?t|are|aren'?t|that'?s|this is|it'?s|you'?re|we'?re|were|be|been|being)\s+(not\s+|quite\s+|entirely\s+|really\s+|totally\s+){0,2}(correct|incorrect|wrong|right|perfect)\b`

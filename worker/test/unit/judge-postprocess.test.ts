@@ -12,8 +12,15 @@ const problem: Problem = {
 const allInsightKeys = problem.private.key_insights.map((i) => i.key);
 const requiredKeys = problem.private.key_insights.filter((i) => i.required).map((i) => i.key);
 
+const QUOTE = "I would keep a map from each value to its index";
+
+/** Raw judge `insights_hit` entries; plain keys in a test are given the same quote. */
+const quoted = (hits: unknown) =>
+  (hits as (string | { quote: string; key: string })[]).map((h) => (typeof h === "string" ? { quote: QUOTE, key: h } : h));
+
 function rawOutput(overrides: Record<string, unknown> = {}) {
-  return {
+  const raw = {
+    approach_quote: QUOTE,
     matched_approach: "hashmap",
     matched_verdict: "optimal",
     insights_hit: requiredKeys,
@@ -31,6 +38,7 @@ function rawOutput(overrides: Record<string, unknown> = {}) {
     feedback: "You landed on the hash map approach, which handles this well.",
     ...overrides,
   };
+  return { ...raw, insights_hit: quoted(raw.insights_hit) };
 }
 
 describe("postprocessJudge() — contracts/judge-system-prompt.md §Server-side post-processing", () => {
@@ -56,8 +64,13 @@ describe("postprocessJudge() — contracts/judge-system-prompt.md §Server-side 
     expect(result.assessment.verdict).not.toBe("likely_tle");
   });
 
-  it("step 2: matched_approach 'none' keeps the model's own matched_verdict", () => {
-    const result = postprocessJudge(rawOutput({ matched_approach: "none", matched_verdict: "none", insights_hit: [] }), problem);
+  it("step 2: matched_approach 'none' carries no tier, whatever the model's matched_verdict says", () => {
+    // 2026-10-11: the model answered none + acceptable and the app showed
+    // "matched a solid, accepted approach" next to "Approach: None".
+    const result = postprocessJudge(
+      rawOutput({ matched_approach: "none", matched_verdict: "acceptable", insights_hit: [] }),
+      problem,
+    );
     expect(result.assessment.matched_verdict).toBe("none");
   });
 
@@ -167,5 +180,55 @@ describe("postprocessJudge() — an unsure model is not lifted to a pass", () =>
       problem,
     );
     expect(assessment.verdict).toBe("likely_tle");
+  });
+});
+
+// Step 2a, docs/judge-evidence-issues.md (2026-10-11).
+describe("postprocessJudge() — step 2a: the learner's words must back the claim", () => {
+  const supportsAll = { approachSupported: true, supportedInsights: new Set(requiredKeys) };
+
+  it("moves an insight the evidence does not support from insights_hit to insights_missed", () => {
+    const [kept, dropped] = requiredKeys;
+    const result = postprocessJudge(rawOutput(), problem, { approachSupported: true, supportedInsights: new Set([kept]) });
+    expect(result.assessment.insights_hit).toEqual([kept]);
+    expect(result.assessment.insights_missed).toContain(dropped);
+    expect(result.evidenceDropped).toEqual({ approach: false, insights: 1 });
+  });
+
+  it("demotes a non-wrong approach whose words do not describe it to 'none'", () => {
+    const result = postprocessJudge(rawOutput({ insights_hit: [] }), problem, {
+      approachSupported: false,
+      supportedInsights: new Set(),
+    });
+    expect(result.assessment.matched_approach).toBe("none");
+    expect(result.assessment.matched_verdict).toBe("none");
+    // No approach and no insight: the existing row for "nothing to grade" (verdict-map.ts).
+    expect(result.assessment.verdict).toBe("unclear");
+    expect(result.evidenceDropped).toEqual({ approach: true, insights: 0 });
+  });
+
+  it("keeps a 'wrong' approach even when its words are not supported: dropping it could only raise the grade", () => {
+    const result = postprocessJudge(
+      rawOutput({ matched_approach: "sort_lose_indices", matched_verdict: "wrong", insights_hit: [] }),
+      problem,
+      { approachSupported: false, supportedInsights: new Set() },
+    );
+    expect(result.assessment.matched_approach).toBe("sort_lose_indices");
+    expect(result.assessment.verdict).toBe("incorrect");
+    expect(result.evidenceDropped?.approach).toBe(false);
+  });
+
+  it("with full support the answer is the same as without evidence, and nothing is dropped", () => {
+    const withEvidence = postprocessJudge(rawOutput(), problem, supportsAll);
+    const without = postprocessJudge(rawOutput(), problem);
+    expect(withEvidence.assessment).toEqual(without.assessment);
+    expect(withEvidence.evidenceDropped).toEqual({ approach: false, insights: 0 });
+    expect(without.evidenceDropped).toBeUndefined();
+  });
+
+  it("never lets quote text onto the assessment", () => {
+    const { assessment } = postprocessJudge(rawOutput(), problem, supportsAll);
+    expect(assessment.insights_hit.every((k) => typeof k === "string")).toBe(true);
+    expect(JSON.stringify(assessment)).not.toContain(QUOTE);
   });
 });

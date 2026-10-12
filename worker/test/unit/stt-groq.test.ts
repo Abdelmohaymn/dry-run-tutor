@@ -1,7 +1,13 @@
 import { fetchMock } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { AppError } from "../../src/lib/errors";
-import { AUDIO_TYPES, parseAudioType, transcribeWithGroq } from "../../src/lib/stt-groq";
+import {
+  AUDIO_TYPES,
+  parseAudioType,
+  STT_PROMPT_AR,
+  STT_PROMPT_EN,
+  transcribeWithGroq,
+} from "../../src/lib/stt-groq";
 
 const ORIGIN = "https://api.groq.com";
 const PATH = "/openai/v1/audio/transcriptions";
@@ -91,6 +97,43 @@ describe("transcribeWithGroq success", () => {
       expect(body).toContain("verbose_json");
       expect(body).toContain('filename="clip.m4a"');
     }
+  });
+});
+
+// 2026-10-11, docs/tutor-focus-issues.md Issue 3: "dynamic programming" came
+// back as "tandem programming" because Whisper got no vocabulary hint.
+describe("transcribeWithGroq vocabulary prompt", () => {
+  /** The multipart `prompt` part as sent, or null when absent. The mock may hand over FormData or its text. */
+  async function sentPrompt(language: string | undefined): Promise<string | null> {
+    let body: unknown;
+    intercept().reply(200, (opts) => {
+      body = opts.body;
+      return { text: "ok", duration: 1 };
+    });
+    await callGroq(language === undefined ? {} : { language });
+    if (body instanceof FormData) return (body.get("prompt") as string | null) ?? null;
+    expect(typeof body).toBe("string");
+    const match = /name="prompt"\r?\n\r?\n([\s\S]*?)\r?\n--/.exec(body as string);
+    return match ? match[1] : null;
+  }
+
+  it("sends the English vocabulary for language en", async () => {
+    expect(await sentPrompt("en")).toBe(STT_PROMPT_EN);
+  });
+
+  it("sends the Arabic-framed vocabulary for language ar", async () => {
+    expect(await sentPrompt("ar")).toBe(STT_PROMPT_AR);
+  });
+
+  it("sends no prompt for another language or none", async () => {
+    expect(await sentPrompt("fr")).toBeNull();
+    expect(await sentPrompt(undefined)).toBeNull();
+  });
+
+  it("keeps both prompts generic and under Whisper's 224-token limit", () => {
+    // Roughly four characters a token; far below the limit either way.
+    for (const prompt of [STT_PROMPT_EN, STT_PROMPT_AR]) expect(prompt.length).toBeLessThan(600);
+    expect(STT_PROMPT_EN).toContain("dynamic programming");
   });
 });
 

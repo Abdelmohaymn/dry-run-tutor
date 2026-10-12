@@ -159,4 +159,12 @@ describe("mapVerdict() — per-approach requires and zero-evidence rows", () => 
       mapVerdict(out({ matched_approach: "none", matched_verdict: "none", insights_hit: [], verdict: "incorrect" }), problem),
     ).toBe("incorrect");
   });
+
+  it("no approach matched and the model says incorrect -> incorrect even with an insight hit", () => {
+    // postprocessJudge no longer lets an unlisted approach carry "wrong", so
+    // the model's own verdict is the only signal left (judge-evidence D10).
+    expect(
+      mapVerdict(out({ matched_approach: "none", matched_verdict: "none", insights_hit: ["index_storage"], verdict: "incorrect" }), problem),
+    ).toBe("incorrect");
+  });
 });

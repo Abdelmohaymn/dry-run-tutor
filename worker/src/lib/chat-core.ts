@@ -12,6 +12,7 @@ import type { RuntimeConfig } from "./runtime-config";
 import {
   assertNotJudged,
   readCounters,
+  recordNamedTerms,
   recordReachedKeys,
   refundTurn,
   releaseSolution,
@@ -219,27 +220,31 @@ export async function runConversationalTurn(
       // Started before the tutor call so the two run side by side; awaited
       // only after the reply has gone out (feature 005). It also runs after
       // "Keep going": its reached keys feed the leak filter (below), and
-      // only the offer itself is withheld.
+      // only the offer itself is withheld. It runs from turn 1; min_turn
+      // gates only the offer (2026-10-12, PLAN_04: a learner who states the
+      // whole idea on turn 1 needs the filter to know it).
       const finishOffer = deps.cfg.finish_offer;
       const finishCheck =
-        deps.finishCheck &&
-        finishOffer.enabled &&
-        sessionEnded === null &&
-        reserved.turnIndex >= finishOffer.min_turn
+        deps.finishCheck && finishOffer.enabled && sessionEnded === null
           ? withinMs(
               runFinishCheck(problem, learnerHistory, deps.finishCheck),
               finishOffer.timeout_ms,
             )
           : null;
+      const offerOpen = reserved.turnIndex >= finishOffer.min_turn;
 
       // The insights the progress check found stated on EARLIER turns (this
       // turn's check is still running). It replaced the word-overlap guess,
       // which caught 62% of paraphrases and none in Arabic, and marked a
       // different insight 42% of the time, unblocking words the learner
       // never said (review F4, 2026-10-07). A word the learner used
-      // themselves is still unblocked at once (learnerNamedTerms).
+      // themselves is still unblocked at once (learnerNamedTerms). The terms
+      // the check found the learner referred to in other forms on earlier
+      // turns (an abbreviation, a mangling, another language) join them
+      // (2026-10-11, docs/tutor-focus-issues.md Issue 1). They apply from this
+      // turn too when a draft would otherwise be blocked (2026-10-12, PLAN_04).
       const reachedKeys = new Set(reserved.reachedKeys);
-      const named = learnerNamedTerms(problem, learnerHistory);
+      const named = new Set([...learnerNamedTerms(problem, learnerHistory), ...reserved.namedTerms]);
       const blockedTerms = buildBlockedTerms(problem, reachedKeys, named, released ? "solution" : null);
 
       // The whole draft is read before any of it is sent, so a blocked
@@ -251,7 +256,26 @@ export async function runConversationalTurn(
       await first.stream.usage();
       let reply = firstText;
 
-      const hits = blockedTermsIn(firstText, blockedTerms);
+      // A draft blocked only by words for ideas the learner stated THIS turn
+      // is let through: this turn's progress check (already running) is
+      // awaited and the blocked set rebuilt with what it found. Turns that
+      // aren't blocked don't wait. A failed or timed-out check keeps today's
+      // set (2026-10-12, PLAN_04: "store the current element index" on turn 1
+      // got the fallback).
+      let activeBlocked = blockedTerms;
+      let hits = blockedTermsIn(firstText, activeBlocked);
+      if (hits.length > 0 && finishCheck) {
+        const early = await finishCheck;
+        if (early) {
+          activeBlocked = buildBlockedTerms(
+            problem,
+            new Set([...reachedKeys, ...early.reached]),
+            new Set([...named, ...early.named]),
+            released ? "solution" : null,
+          );
+          hits = blockedTermsIn(firstText, activeBlocked);
+        }
+      }
       const leakBlocked = hits.length > 0;
       let fallbackSent = false;
       if (leakBlocked) {
@@ -263,13 +287,13 @@ export async function runConversationalTurn(
           const second = await deps.streamChat(systemPrompt + rewriteNote(hits), providerMessages);
           const secondText = await collectText(second.stream.deltas);
           await second.stream.usage();
-          if (secondText.trim() !== "" && blockedTermsIn(secondText, blockedTerms).length === 0) {
+          if (secondText.trim() !== "" && blockedTermsIn(secondText, activeBlocked).length === 0) {
             rewrite = secondText;
           }
         } catch {
           // The first draft was answered; a failed rewrite is not a failed turn.
         }
-        const lead = cleanLead(firstText, blockedTerms);
+        const lead = cleanLead(firstText, activeBlocked);
         reply = rewrite ?? (lead.trim() !== "" ? lead : LEAK_BLOCKED_FALLBACK);
         fallbackSent = rewrite === null && lead.trim() === "";
       }
@@ -287,6 +311,7 @@ export async function runConversationalTurn(
       const reachedNow = [...new Set([...reserved.reachedKeys, ...(checked?.reached ?? [])])];
       if (checked) {
         await recordReachedKeys(deps.db, key, reserved.reachedKeys, checked.reached);
+        await recordNamedTerms(deps.db, key, reserved.namedTerms, checked.named);
       }
 
       const meta: MetaFramePayload = {
@@ -298,7 +323,8 @@ export async function runConversationalTurn(
         summary_covers: condensed.called ? condensed.covered : undefined,
         session_ended: sessionEnded,
         leak_blocked: fallbackSent,
-        ready_to_finish: finishCheck && !body.finish_offer_dismissed ? isReady(problem, reachedNow) : undefined,
+        ready_to_finish:
+          finishCheck && offerOpen && !body.finish_offer_dismissed ? isReady(problem, reachedNow) : undefined,
       };
       await writeMeta(stream, meta);
       await writeDone(stream);

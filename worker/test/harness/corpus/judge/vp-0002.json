@@ -121,6 +121,45 @@
           "text": "a ten digit number sums to at most 90, then at most 17, so it's like three rounds, basically constant. and zero just returns zero"
         }
       ]
+    },
+    {
+      "id": "nested_loop_only",
+      "kind": "regression",
+      "expected_verdicts": [
+        "unclear"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "nested loop"
+        }
+      ]
+    },
+    {
+      "id": "brute_force_only",
+      "kind": "regression",
+      "expected_verdicts": [
+        "unclear"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "brute force"
+        }
+      ]
+    },
+    {
+      "id": "hash_map_only",
+      "kind": "regression",
+      "expected_verdicts": [
+        "unclear"
+      ],
+      "conversation": [
+        {
+          "role": "user",
+          "text": "hash map"
+        }
+      ]
     }
   ]
 }

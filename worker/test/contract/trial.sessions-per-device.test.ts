@@ -1,6 +1,6 @@
 import { SELF, env, fetchMock } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, groqStreamBody, mintInstallId, readChatSSE } from "./helpers";
+import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, interceptEvidenceCheck, groqStreamBody, mintInstallId, readChatSSE } from "./helpers";
 
 beforeAll(() => {
   fetchMock.activate();
@@ -48,7 +48,12 @@ function mockChatReply(text = "Let's think this through.") {
     .reply(200, groqStreamBody(text), { headers: { "content-type": "text/event-stream" } });
 }
 
-function mockJudgeReply() {
+/**
+ * The canned answer names vp-0001's approach and insight. Judged on another
+ * problem neither is authored, so nothing is claimed and there is no
+ * evidence call to stub: pass `evidence: false` there.
+ */
+function mockJudgeReply({ evidence = true } = {}) {
   fetchMock
     .get(GROQ_ORIGIN)
     .intercept({ path: GROQ_CHAT_PATH, method: "POST" })
@@ -56,9 +61,10 @@ function mockJudgeReply() {
       200,
       groqCompletionBody(
         JSON.stringify({
+          approach_quote: "I would use a hash map",
           matched_approach: "hashmap",
           matched_verdict: "optimal",
-          insights_hit: [],
+          insights_hit: [{ quote: "I would use a hash map", key: "complement_lookup" }],
           insights_missed: [],
           wrong_turns_taken: [],
           complexity: {
@@ -74,6 +80,7 @@ function mockJudgeReply() {
         }),
       ),
     );
+  if (evidence) interceptEvidenceCheck();
 }
 
 /**
@@ -144,7 +151,7 @@ describe("POST /v1/trial — trial.sessions_per_device", () => {
     mockChatReply("Second.");
     expect((await trialChat(installId, "vp-0002", "second problem")).status).toBe(200);
 
-    mockJudgeReply();
+    mockJudgeReply({ evidence: false });
     expect((await trialJudge(installId, "vp-0002")).status).toBe(200);
 
     await expectConsumed(await trialChat(installId, "vp-0003", "third problem"));

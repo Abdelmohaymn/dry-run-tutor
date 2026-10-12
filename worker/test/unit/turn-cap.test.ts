@@ -4,6 +4,7 @@ import { AppError } from "../../src/lib/errors";
 import {
   claimJudge,
   readCounters,
+  recordNamedTerms,
   refundTurn,
   releaseSolution,
   reserveTurn,
@@ -143,5 +144,45 @@ describe("refundTurn()", () => {
     await refundTurn(env.DB, key, turn1.turnIndex);
     const counters = await readCounters(env.DB, key);
     expect(counters.solutionRequests).toBe(1);
+  });
+});
+
+// Migration 0011, docs/tutor-focus-issues.md D11: authored never_say terms the
+// progress check found the learner referred to, like reached_keys. Never
+// learner text.
+describe("named_terms", () => {
+  it("the column exists once migrations are applied", async () => {
+    const columns = await env.DB.prepare("PRAGMA table_info(device_day)").all<{ name: string }>();
+    expect(columns.results.map((c) => c.name)).toContain("named_terms");
+  });
+
+  it("reserveTurn returns an empty list before anything is recorded", async () => {
+    expect((await reserveTurn(env.DB, freshKey(), 15, 0)).namedTerms).toEqual([]);
+  });
+
+  it("recordNamedTerms stores the union and the next reserveTurn returns it", async () => {
+    const key = freshKey();
+    await reserveTurn(env.DB, key, 15, 0);
+    await recordNamedTerms(env.DB, key, [], ["dp"]);
+    expect((await reserveTurn(env.DB, key, 15, 0)).namedTerms).toEqual(["dp"]);
+  });
+
+  it("only ever grows: a later turn that names less takes nothing back", async () => {
+    const key = freshKey();
+    await reserveTurn(env.DB, key, 15, 0);
+    await recordNamedTerms(env.DB, key, [], ["dp", "memoization"]);
+    await recordNamedTerms(env.DB, key, ["dp", "memoization"], []);
+    await recordNamedTerms(env.DB, key, ["dp", "memoization"], ["dp", "bfs"]);
+    expect((await reserveTurn(env.DB, key, 15, 0)).namedTerms).toEqual(["dp", "memoization", "bfs"]);
+  });
+
+  it("writes nothing when nothing is new", async () => {
+    const key = freshKey();
+    await reserveTurn(env.DB, key, 15, 0);
+    await recordNamedTerms(env.DB, key, [], []);
+    const row = await env.DB.prepare("SELECT named_terms FROM device_day WHERE device_hash = ?1")
+      .bind(key.installId)
+      .first<{ named_terms: string | null }>();
+    expect(row!.named_terms).toBeNull();
   });
 });

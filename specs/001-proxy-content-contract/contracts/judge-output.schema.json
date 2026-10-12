@@ -5,8 +5,13 @@
   "description": "This is NOT the schema sent to the provider. It is the template that buildJudgeSchema(problem) instantiates per request, replacing the three ENUM_PLACEHOLDER values with that problem's own authored keys. That substitution is what makes naming an unauthored approach or insight structurally impossible rather than merely discouraged (FR-014, SC-004). Sent as response_format: { type: 'json_schema', json_schema: { name: 'assessment', strict: true, schema: <this, instantiated> } }.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["matched_approach", "matched_verdict", "insights_hit", "insights_missed", "wrong_turns_taken", "complexity", "verdict", "confidence", "feedback"],
+  "required": ["approach_quote", "matched_approach", "matched_verdict", "insights_hit", "insights_missed", "wrong_turns_taken", "complexity", "verdict", "confidence", "feedback"],
   "properties": {
+    "approach_quote": {
+      "type": "string",
+      "description": "The learner's own words for the matched approach, copied exactly; empty when matched_approach is 'none'. Listed BEFORE matched_approach on purpose: strict decoding emits fields in schema order, so the evidence is written before the label.",
+      "x-postcondition": "Checked against the learner's own turns and for support (judge-system-prompt.md §Server-side post-processing step 2a). Never leaves the worker."
+    },
     "matched_approach": {
       "type": "string",
       "enum": ["ENUM_PLACEHOLDER__APPROACH_KEYS_PLUS_NONE"],
@@ -15,8 +20,17 @@
     "matched_verdict": { "type": "string", "enum": ["optimal", "acceptable", "suboptimal", "wrong", "none"] },
     "insights_hit": {
       "type": "array",
-      "items": { "type": "string", "enum": ["ENUM_PLACEHOLDER__INSIGHT_KEYS"] },
-      "x-build": "problem.private.key_insights.map(i => i.key)"
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["quote", "key"],
+        "properties": {
+          "quote": { "type": "string" },
+          "key": { "type": "string", "enum": ["ENUM_PLACEHOLDER__INSIGHT_KEYS"] }
+        }
+      },
+      "x-build": "problem.private.key_insights.map(i => i.key)",
+      "x-postcondition": "Each quote is checked against the learner's own turns and for support (judge-system-prompt.md §Server-side post-processing step 2a). Quotes never leave the worker; the response carries insights_hit as string[]."
     },
     "insights_missed": {
       "type": "array",

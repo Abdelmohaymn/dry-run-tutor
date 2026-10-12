@@ -4,6 +4,7 @@ import {
   GROQ_CHAT_PATH,
   GROQ_ORIGIN,
   groqCompletionBody,
+  interceptEvidenceCheck,
   groqStreamBody,
   mintInstallIdFor,
   readChatSSE,
@@ -41,9 +42,10 @@ function mockJudge() {
       200,
       groqCompletionBody(
         JSON.stringify({
+          approach_quote: "hash map idea",
           matched_approach: "hashmap",
           matched_verdict: "optimal",
-          insights_hit: [],
+          insights_hit: [{ quote: "hash map idea", key: "complement_lookup" }],
           insights_missed: [],
           wrong_turns_taken: [],
           complexity: {
@@ -59,6 +61,7 @@ function mockJudge() {
         }),
       ),
     );
+  interceptEvidenceCheck();
 }
 
 // US1 AS-1: the same phone keeps its spent taster across a reinstall.

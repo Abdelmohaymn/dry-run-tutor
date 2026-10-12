@@ -50,6 +50,9 @@ export default defineWorkersConfig(async () => {
     finishCheck: extractPromptBlock(
       readFileSync(path.join(finishContractsDir, "finish-check-system-prompt.md"), "utf-8"),
     ),
+    evidenceCheck: extractPromptBlock(
+      readFileSync(path.join(contractsDir, "evidence-check-system-prompt.md"), "utf-8"),
+    ),
   };
 
   // Same reasoning, for T095 (operator-key.test.ts): the only way to scan

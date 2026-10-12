@@ -4,7 +4,8 @@ import type { JudgeRequest, Turn } from "./schemas";
 import { claimJudge, releaseJudgeClaim, type TurnCounterKey } from "./turn-cap";
 import { judgeSlice, renderJudgeGroundTruth } from "./ground-truth";
 import { buildJudgeSchema } from "./judge-schema";
-import { isSelfContradictory, postprocessJudge, type Assessment } from "./judge-postprocess";
+import { isSelfContradictory, parseJudgeOutput, postprocessJudge, type Assessment } from "./judge-postprocess";
+import { gatherEvidence } from "./judge-evidence";
 import { JUDGE_PROMPT } from "../prompts/judge";
 import { AppError } from "./errors";
 import type { StructuredCompletionResult } from "./provider";
@@ -57,21 +58,25 @@ export async function runJudge(deps: JudgeDeps, body: JudgeRequest, problem: Pro
       name: "assessment",
       schema: buildJudgeSchema(problem),
     });
+  const learnerTurns = conversation.filter((t) => t.role === "user").map((t) => t.text);
   let postprocessed: ReturnType<typeof postprocessJudge>;
   try {
-    postprocessed = postprocessJudge((await ask()).result.json, problem);
-    // One more ask when the answer contradicts itself. The first answer
-    // stands if the second fails or is no better.
-    if (isSelfContradictory(postprocessed.assessment, problem)) {
+    let raw = (await ask()).result.json;
+    // One more ask when the answer contradicts itself, decided on the model's
+    // own claims: a zero made by the evidence checks is deterministic, so
+    // asking again would only spend budget. The first answer stands if the
+    // second fails or is no better.
+    if (isSelfContradictory(postprocessJudge(raw, problem).assessment, problem)) {
       try {
-        const secondProcessed = postprocessJudge((await ask()).result.json, problem);
-        if (!isSelfContradictory(secondProcessed.assessment, problem)) {
-          postprocessed = secondProcessed;
-        }
+        const second = (await ask()).result.json;
+        if (!isSelfContradictory(postprocessJudge(second, problem).assessment, problem)) raw = second;
       } catch {
         // Keep the first assessment.
       }
     }
+    // The quotes are checked once, on whichever answer was kept. Never throws.
+    const evidence = await gatherEvidence(parseJudgeOutput(raw), learnerTurns, problem, deps.structuredCompletion);
+    postprocessed = postprocessJudge(raw, problem, evidence);
   } catch (err) {
     // Nothing assessable came back. Hand the session's one assessment back
     // before surfacing the error, or the retry we are about to advise is a

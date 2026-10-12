@@ -1,6 +1,6 @@
 import { SELF, fetchMock } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, mintInstallId } from "./helpers";
+import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, interceptEvidenceCheck, mintInstallId, quotedHits } from "./helpers";
 import { getPrivate, getPublicManifest } from "../../src/lib/content";
 
 beforeAll(() => {
@@ -39,11 +39,12 @@ describe("POST /v1/judge — a self-contradictory verdict is overwritten", () =>
         200,
         groqCompletionBody(
           JSON.stringify({
+            approach_quote: "I would use a hash map",
             matched_approach: "hashmap",
             matched_verdict: "optimal",
             // A required insight is missing, so mapVerdict() must produce
             // "borderline" regardless of what the model claims.
-            insights_hit: requiredKeys.slice(1),
+            insights_hit: quotedHits(requiredKeys.slice(1), "I would use a hash map"),
             insights_missed: allKeys.filter((k) => !requiredKeys.slice(1).includes(k)),
             wrong_turns_taken: [],
             complexity: {
@@ -59,6 +60,7 @@ describe("POST /v1/judge — a self-contradictory verdict is overwritten", () =>
           }),
         ),
       );
+    interceptEvidenceCheck();
 
     const res = await sendJudge(installId, {
       problem_id: "vp-0001",

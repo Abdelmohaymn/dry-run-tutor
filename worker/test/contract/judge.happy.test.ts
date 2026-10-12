@@ -1,6 +1,6 @@
 import { SELF, fetchMock } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, mintInstallId } from "./helpers";
+import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, interceptEvidenceCheck, mintInstallId, quotedHits } from "./helpers";
 import { getPrivate, getPublicManifest } from "../../src/lib/content";
 
 beforeAll(() => {
@@ -39,9 +39,10 @@ describe("POST /v1/judge — the happy path", () => {
         200,
         groqCompletionBody(
           JSON.stringify({
+            approach_quote: "I think a hash map storing seen numbers would work",
             matched_approach: "hashmap",
             matched_verdict: "optimal",
-            insights_hit: requiredKeys,
+            insights_hit: quotedHits(requiredKeys, "The complement, so I can check it in one pass"),
             insights_missed: allKeys.filter((k) => !requiredKeys.includes(k)),
             wrong_turns_taken: [],
             complexity: {
@@ -57,6 +58,7 @@ describe("POST /v1/judge — the happy path", () => {
           }),
         ),
       );
+    interceptEvidenceCheck();
 
     const res = await sendJudge(installId, {
       problem_id: "vp-0001",

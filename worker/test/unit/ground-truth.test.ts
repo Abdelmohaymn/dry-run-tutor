@@ -167,3 +167,60 @@ describe("isRepeatedWrongTurn() and the failing_case tier-B gate", () => {
     expect(slice.failingCases).toContain(wrongTurn.failing_case);
   });
 });
+
+// docs/tutor-focus-issues.md 1a: after the learner said "dynamic programming"
+// the tutor's "Yes, DP fits" was blocked on "dp", the rewrite dropped the
+// answer, and the question went unanswered twice.
+describe("learnerNamedTerms() — an abbreviation is named with its full form", () => {
+  const fixture = (): Problem => {
+    const priv = getPrivate("vp-0001")!;
+    const [first, second] = priv.key_insights;
+    return {
+      public: getPublicManifest().problems.find((p) => p.id === "vp-0001")!,
+      private: {
+        ...priv,
+        key_insights: [
+          { ...first, never_say: ["dynamic programming", "dp", "memoization"] },
+          { ...second, never_say: ["bfs", "breadth-first search"] },
+        ],
+      },
+    };
+  };
+
+  it("saying the full form names the abbreviation", () => {
+    const named = learnerNamedTerms(fixture(), [userTurn("I think dynamic programming might fit")]);
+    expect(named.has("dynamic programming")).toBe(true);
+    expect(named.has("dp")).toBe(true);
+  });
+
+  it("saying the abbreviation names the full form, in any case and with dots", () => {
+    for (const said of ["maybe DP works", "maybe dp works", "maybe d.p. works", "maybe D.P works"]) {
+      const named = learnerNamedTerms(fixture(), [userTurn(said)]);
+      expect(named.has("dynamic programming"), said).toBe(true);
+    }
+  });
+
+  it("half of the phrase is not enough to name the abbreviation", () => {
+    const named = learnerNamedTerms(fixture(), [userTurn("it feels a bit dynamic")]);
+    expect(named.has("dp")).toBe(false);
+    expect(named.has("dynamic programming")).toBe(false);
+  });
+
+  it("letters that merely sit next to each other across words do not name the full form", () => {
+    // "add pairs" holds "dp" once the spaces are gone.
+    const named = learnerNamedTerms(fixture(), [userTurn("I add pairs to a set")]);
+    expect(named.has("dynamic programming")).toBe(false);
+  });
+
+  it("a hyphenated full form names its initials", () => {
+    const named = learnerNamedTerms(fixture(), [userTurn("a breadth first search from the start")]);
+    expect(named.has("bfs")).toBe(true);
+    expect(named.has("breadth-first search")).toBe(true);
+  });
+
+  it("naming one pair does not name the other pair, or an unrelated word", () => {
+    const named = learnerNamedTerms(fixture(), [userTurn("a breadth first search from the start")]);
+    expect(named.has("dp")).toBe(false);
+    expect(named.has("memoization")).toBe(false);
+  });
+});

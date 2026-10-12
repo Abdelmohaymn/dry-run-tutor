@@ -1,6 +1,6 @@
 import { SELF, fetchMock } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, mintInstallId } from "./helpers";
+import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, interceptEvidenceCheck, mintInstallId } from "./helpers";
 
 beforeAll(() => {
   fetchMock.activate();
@@ -47,9 +47,10 @@ describe("POST /v1/judge — a solution-ended session is graded on what came bef
           capturedBody = opts.body as string;
           return groqCompletionBody(
             JSON.stringify({
+              approach_quote: "I would try brute force",
               matched_approach: "hashmap",
               matched_verdict: "acceptable",
-              insights_hit: [],
+              insights_hit: [{ quote: "I would try brute force", key: "complement_lookup" }],
               insights_missed: [],
               wrong_turns_taken: [],
               complexity: {
@@ -66,6 +67,7 @@ describe("POST /v1/judge — a solution-ended session is graded on what came bef
           );
         },
       );
+    interceptEvidenceCheck();
 
     const conversation = [
       { role: "user", text: "I would try brute force MARKER_BEFORE_REVEAL" },

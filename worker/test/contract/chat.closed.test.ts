@@ -1,6 +1,6 @@
 import { SELF, fetchMock } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, mintInstallId, readChatSSE } from "./helpers";
+import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, interceptEvidenceCheck, mintInstallId, readChatSSE } from "./helpers";
 
 beforeAll(() => {
   fetchMock.activate();
@@ -68,9 +68,10 @@ describe("POST /v1/chat — closed after /v1/judge", () => {
         200,
         groqCompletionBody(
           JSON.stringify({
+            approach_quote: "I would use a hash map",
             matched_approach: "hashmap",
             matched_verdict: "optimal",
-            insights_hit: [],
+            insights_hit: [{ quote: "I would use a hash map", key: "complement_lookup" }],
             insights_missed: [],
             wrong_turns_taken: [],
             complexity: {
@@ -86,6 +87,7 @@ describe("POST /v1/chat — closed after /v1/judge", () => {
           }),
         ),
       );
+    interceptEvidenceCheck();
     const judged = await sendJudge(installId);
     expect(judged.status).toBe(200);
     await judged.json();
