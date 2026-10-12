@@ -69,9 +69,29 @@ function approachText(approach: Approach): string {
   return `${approach.key} ${approach.name} ${approach.sketch.join(" ")}`;
 }
 
+/** First letters of a multi-word term ("breadth-first search" -> "bfs"), else "". */
+function initials(normTerm: string): string {
+  const parts = normTerm.split(" ").filter(Boolean);
+  return parts.length >= 2 ? parts.map((p) => p[0]).join("") : "";
+}
+
+/** The learner wrote `abbr` as a word, or spelled it out in single letters ("d.p."). */
+function saidAbbreviation(words: string[], abbr: string): boolean {
+  if (words.includes(abbr)) return true;
+  for (let i = 0; i + abbr.length <= words.length; i++) {
+    if (words.slice(i, i + abbr.length).every((w, j) => w === abbr[j])) return true;
+  }
+  return false;
+}
+
 /**
  * FR-004a. Naming a term is not having the idea. Unblocks WORDS the learner has themselves used,
  * never marks an insight reached.
+ *
+ * An abbreviation and its full form are one term, in both directions, across all insights
+ * (2026-10-11, docs/tutor-focus-issues.md 1a): "dynamic programming" names "dp", and "DP" or
+ * "d.p." names "dynamic programming". The reverse direction needs the abbreviation written as
+ * a word, not found inside the space-stripped text, or "add pairs" would name it.
  */
 export function learnerNamedTerms(problem: Problem, messages: Turn[]): Set<string> {
   const text = normalise(allLearnerText(messages));
@@ -104,6 +124,20 @@ export function learnerNamedTerms(problem: Problem, messages: Turn[]): Set<strin
       if (namedTight.has(normTerm.replace(/ /g, "")) || namedWords.has(normTerm)) {
         named.add(term.toLowerCase());
       }
+    }
+  }
+
+  const terms = problem.private.key_insights.flatMap((i) => i.never_say);
+  const namedInitials = new Set(
+    terms.filter((t) => named.has(t.toLowerCase())).map((t) => initials(normalise(t))).filter(Boolean),
+  );
+  for (const term of terms) {
+    const normTerm = normalise(term);
+    if (normTerm.includes(" ")) {
+      const abbr = initials(normTerm);
+      if (terms.some((t) => normalise(t) === abbr) && saidAbbreviation(words, abbr)) named.add(term.toLowerCase());
+    } else if (normTerm.length >= 2 && normTerm.length <= 5 && namedInitials.has(normTerm)) {
+      named.add(term.toLowerCase());
     }
   }
   return named;
