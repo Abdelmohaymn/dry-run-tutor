@@ -91,7 +91,7 @@ GROUND TRUTH FOR THIS PROBLEM
 export const LADDER_EXHAUSTED_LINE = `That's every nudge I have for this one. Talk me through where you've got to and I'll work with what you have.`;
 
 // §Fallback (leak blocked). Emitted when the leak filter aborts a stream.
-export const LEAK_BLOCKED_FALLBACK = `Let me put that another way -- what would you do next from here?`;
+export const LEAK_BLOCKED_FALLBACK = `Walk me through your idea on a small example -- what happens in the first few steps?`;
 
 // §Rewrite note. Appended to the system prompt for the one retry after a
 // draft was blocked (data-model.md §B1). Not inside the §Prompt fence.

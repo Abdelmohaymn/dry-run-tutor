@@ -128,7 +128,7 @@ Exported as `LADDER_EXHAUSTED_LINE` from `worker/src/prompts/tutor.ts`. It is em
 Emitted verbatim when the leak filter aborts a stream (`data-model.md` §B1). It must be safe for every problem and reveal nothing:
 
 ```
-Let me put that another way -- what would you do next from here?
+Walk me through your idea on a small example -- what happens in the first few steps?
 ```
 
 ---

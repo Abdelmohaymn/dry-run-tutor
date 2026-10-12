@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { getPrivate, getPublicManifest } from "../../src/lib/content";
 import { renderGroundTruth, selectSlice } from "../../src/lib/ground-truth";
 import { getRuntimeConfig } from "../../src/lib/runtime-config";
-import { rewriteNote, WRAP_UP_SENTENCE } from "../../src/prompts/tutor";
+import { LEAK_BLOCKED_FALLBACK, rewriteNote, WRAP_UP_SENTENCE } from "../../src/prompts/tutor";
 import type { Problem } from "../../../tools/problem-types";
 
 // These strings are code, outside the §Prompt fence, so prompts-verbatim does
@@ -49,5 +49,14 @@ describe("rewriteNote()", () => {
     expect(rewriteNote(["dp"])).toContain("without that word");
     expect(rewriteNote(["dp"])).toContain("just say it without that word.");
     expect(rewriteNote(["dp", "memoization"])).toContain("just say it without those words.");
+  });
+});
+
+// 2026-10-12, PLAN_04: "put that another way" read as broken when nothing had
+// been said before the blocked draft.
+describe("LEAK_BLOCKED_FALLBACK", () => {
+  it("asks for a dry run, not a restatement", () => {
+    expect(LEAK_BLOCKED_FALLBACK).not.toContain("another way");
+    expect(LEAK_BLOCKED_FALLBACK.endsWith("?")).toBe(true);
   });
 });
