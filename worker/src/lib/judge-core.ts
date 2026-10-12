@@ -58,7 +58,12 @@ export async function runJudge(deps: JudgeDeps, body: JudgeRequest, problem: Pro
       name: "assessment",
       schema: buildJudgeSchema(problem),
     });
-  const learnerTurns = conversation.filter((t) => t.role === "user").map((t) => t.text);
+  // Each learner turn with the tutor turn just before it, so the evidence
+  // check can read "2 pointers" as the answer to "how would you check one
+  // word?" (2026-10-12, PLAN_06). Provenance still checks learner text only.
+  const learnerTurns = conversation.flatMap((t, i) =>
+    t.role === "user" ? [{ text: t.text, asked: conversation[i - 1]?.role === "tutor" ? conversation[i - 1].text : null }] : [],
+  );
   let postprocessed: ReturnType<typeof postprocessJudge>;
   try {
     let raw = (await ask()).result.json;

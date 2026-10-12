@@ -6,6 +6,7 @@ import {
   gatherEvidence,
   normaliseEvidence,
   quotedByLearner,
+  quotedTurnIndex,
   type EvidenceCall,
 } from "../../src/lib/judge-evidence";
 import type { Problem } from "../../../tools/problem-types";
@@ -86,6 +87,31 @@ describe("quotedByLearner()", () => {
     expect(quotedByLearner("", ["anything"])).toBe(false);
     expect(quotedByLearner("...", ["anything"])).toBe(false);
     expect(quotedByLearner(" … ... ", ["anything"])).toBe(false);
+  });
+});
+
+describe("quotedTurnIndex()", () => {
+  it("returns the index of the learner turn that holds the quote", () => {
+    expect(quotedTurnIndex("two pointers", ["brute force", "2 pointers", "two pointers"])).toBe(2);
+    expect(quotedTurnIndex("brute force", ["brute force", "2 pointers"])).toBe(0);
+  });
+
+  it("uses the turn that matches the first fragment of an ellipsis quote", () => {
+    const turns = ["I would loop over the digits", "okay", "and then sum them up"];
+    expect(quotedTurnIndex("loop over the digits ... sum them up", turns)).toBe(0);
+    expect(quotedTurnIndex("sum them up … loop over the digits", turns)).toBe(2);
+  });
+
+  it("returns -1 when any fragment fails, or the quote is empty", () => {
+    const turns = ["I would loop over the digits", "and then sum them up"];
+    expect(quotedTurnIndex("loop over the digits ... never said this", turns)).toBe(-1);
+    expect(quotedTurnIndex("never said this", turns)).toBe(-1);
+    expect(quotedTurnIndex("...", turns)).toBe(-1);
+  });
+
+  it("agrees with quotedByLearner on a user: label and a paraphrase", () => {
+    expect(quotedTurnIndex("user: nested loop", ["x", "nested loop"])).toBe(1);
+    expect(quotedTurnIndex("keep summing all the digits", ["we keep summing the digits again and again"])).toBe(0);
   });
 });
 
@@ -229,6 +255,107 @@ describe("gatherEvidence()", () => {
     );
     expect([...evidence.supportedInsights]).toEqual([insight]);
   });
+
+  describe("the tutor question (PLAN_06)", () => {
+    const oneWord = "How would you check if a single word reads the same forwards and backwards using brute force?";
+    const sentInput = (call: ReturnType<typeof stubCall>) => (call.mock.calls[0] as unknown[])[1] as string;
+
+    it("sends the tutor turn before the quoted learner turn as asked", async () => {
+      const call = stubCall(verdicts({ [`insight:${insight}`]: true }));
+      await gatherEvidence(
+        { approach_quote: "", matched_approach: "none", insights_hit: [{ quote: "2 pointers", key: insight }] },
+        [{ text: "brute force", asked: null }, { text: "2 pointers", asked: oneWord }],
+        problem,
+        call,
+      );
+      expect(sentInput(call)).toContain(`  asked: "${oneWord}"`);
+    });
+
+    it("sends asked for an approach claim too", async () => {
+      const call = stubCall(verdicts({ [`approach:${loop}`]: true }));
+      await gatherEvidence(
+        { approach_quote: "loop summing digits", matched_approach: loop, insights_hit: [] },
+        [{ text: "hi", asked: null }, { text: "loop summing digits", asked: "What is your plan?" }],
+        problem,
+        call,
+      );
+      expect(sentInput(call)).toContain('  asked: "What is your plan?"');
+    });
+
+    it("takes asked from the turn that holds the first fragment of the quote", async () => {
+      const call = stubCall(verdicts({ [`insight:${insight}`]: true }));
+      await gatherEvidence(
+        { approach_quote: "", matched_approach: "none", insights_hit: [{ quote: "it shrinks fast ... sums to under 100", key: insight }] },
+        [
+          { text: "it shrinks fast", asked: "first question?" },
+          { text: "ok", asked: "middle question?" },
+          { text: "a 10 digit number sums to under 100", asked: "last question?" },
+        ],
+        problem,
+        call,
+      );
+      expect(sentInput(call)).toContain('asked: "first question?"');
+      expect(sentInput(call)).not.toContain("last question?");
+    });
+
+    it("sends at most the last 400 characters of a long tutor turn, from a word boundary", async () => {
+      const call = stubCall(verdicts({ [`insight:${insight}`]: true }));
+      const long = `${"abcdefghi ".repeat(60)}…what would you check?`;
+      expect(long.length).toBeGreaterThan(600);
+      await gatherEvidence(
+        { approach_quote: "", matched_approach: "none", insights_hit: [{ quote: "2 pointers", key: insight }] },
+        [{ text: "2 pointers", asked: long }],
+        problem,
+        call,
+      );
+      const asked = /^ {2}asked: "(.*)"$/m.exec(sentInput(call))![1];
+      expect(asked.length).toBeLessThanOrEqual(400);
+      expect(asked.endsWith("what would you check?")).toBe(true);
+      expect(asked.startsWith("abcdefghi ")).toBe(true);
+    });
+
+    it("collapses whitespace in asked and leaves a short tutor turn whole", async () => {
+      const call = stubCall(verdicts({ [`insight:${insight}`]: true }));
+      await gatherEvidence(
+        { approach_quote: "", matched_approach: "none", insights_hit: [{ quote: "2 pointers", key: insight }] },
+        [{ text: "2 pointers", asked: "Which\n  approach?" }],
+        problem,
+        call,
+      );
+      expect(sentInput(call)).toContain('asked: "Which approach?"');
+    });
+
+    it("sends no asked line for plain string turns, or when there was no tutor turn", async () => {
+      const plain = stubCall(verdicts({ [`insight:${insight}`]: true }));
+      await gatherEvidence(
+        { approach_quote: "", matched_approach: "none", insights_hit: [{ quote: "2 pointers", key: insight }] },
+        ["2 pointers"],
+        problem,
+        plain,
+      );
+      expect(sentInput(plain)).not.toContain("asked:");
+      const none = stubCall(verdicts({ [`insight:${insight}`]: true }));
+      await gatherEvidence(
+        { approach_quote: "", matched_approach: "none", insights_hit: [{ quote: "2 pointers", key: insight }] },
+        [{ text: "2 pointers", asked: null }],
+        problem,
+        none,
+      );
+      expect(sentInput(none)).not.toContain("asked:");
+    });
+
+    it("provenance still checks learner text only: the asked text earns nothing", async () => {
+      const call = stubCall(verdicts({}));
+      const evidence = await gatherEvidence(
+        { approach_quote: "", matched_approach: "none", insights_hit: [{ quote: "reads the same forwards and backwards", key: insight }] },
+        [{ text: "yes", asked: oneWord }],
+        problem,
+        call,
+      );
+      expect(call).not.toHaveBeenCalled();
+      expect(evidence.supportedInsights.size).toBe(0);
+    });
+  });
 });
 
 describe("evidenceCheckSchema() / buildEvidenceCheckInput()", () => {
@@ -245,8 +372,8 @@ describe("evidenceCheckSchema() / buildEvidenceCheckInput()", () => {
     const approach = problem.private.reference_approaches.find((a) => a.key === "iterative_digit_sum")!;
     const ins = problem.private.key_insights.find((i) => i.key === "process_shrinks_fast")!;
     const input = buildEvidenceCheckInput(problem, [
-      { id: "approach:iterative_digit_sum", kind: "APPROACH", idea: `${approach.name}: ${approach.sketch.join("; ")}`, quote: "nested loop" },
-      { id: "insight:process_shrinks_fast", kind: "INSIGHT", idea: ins.text, quote: "it shrinks fast" },
+      { id: "approach:iterative_digit_sum", kind: "APPROACH", idea: `${approach.name}: ${approach.sketch.join("; ")}`, quote: "nested loop", asked: null },
+      { id: "insight:process_shrinks_fast", kind: "INSIGHT", idea: ins.text, quote: "it shrinks fast", asked: null },
     ]);
     expect(input).toContain(problem.public.title);
     expect(input).toContain(problem.public.statement);
@@ -256,5 +383,16 @@ describe("evidenceCheckSchema() / buildEvidenceCheckInput()", () => {
     expect(input).toContain('quote: "it shrinks fast"');
     expect(input).not.toContain(problem.private.editorial);
     for (const term of ins.never_say) expect(input.toLowerCase()).not.toContain(term.toLowerCase());
+  });
+
+  it("renders asked before quote when a claim has one, and no asked line when null", () => {
+    const withAsked = buildEvidenceCheckInput(problem, [
+      { id: "insight:a", kind: "INSIGHT", idea: "idea", quote: "2 pointers", asked: "How would  you check\none word?" },
+    ]);
+    expect(withAsked).toContain('  idea: idea\n  asked: "How would you check one word?"\n  quote: "2 pointers"');
+    const without = buildEvidenceCheckInput(problem, [
+      { id: "insight:a", kind: "INSIGHT", idea: "idea", quote: "2 pointers", asked: null },
+    ]);
+    expect(without).not.toContain("asked");
   });
 });
