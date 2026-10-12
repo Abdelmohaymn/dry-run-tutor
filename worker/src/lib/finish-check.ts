@@ -8,7 +8,8 @@
 //
 // It also reports `named`: the never_say terms the learner referred to in any
 // form (an abbreviation, a speech-recognition mangling, another language),
-// which the leak filter stops blocking from the next turn (2026-10-11,
+// which the leak filter stops blocking from the next turn, or this turn when a
+// draft is blocked (2026-10-11,
 // docs/tutor-focus-issues.md Issue 1). Naming a term is not having the idea:
 // `named` never touches `reached` or `ready`.
 //

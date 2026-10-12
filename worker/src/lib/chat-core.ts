@@ -241,7 +241,8 @@ export async function runConversationalTurn(
       // themselves is still unblocked at once (learnerNamedTerms). The terms
       // the check found the learner referred to in other forms on earlier
       // turns (an abbreviation, a mangling, another language) join them
-      // (2026-10-11, docs/tutor-focus-issues.md Issue 1).
+      // (2026-10-11, docs/tutor-focus-issues.md Issue 1). They apply from this
+      // turn too when a draft would otherwise be blocked (2026-10-12, PLAN_04).
       const reachedKeys = new Set(reserved.reachedKeys);
       const named = new Set([...learnerNamedTerms(problem, learnerHistory), ...reserved.namedTerms]);
       const blockedTerms = buildBlockedTerms(problem, reachedKeys, named, released ? "solution" : null);
@@ -255,7 +256,26 @@ export async function runConversationalTurn(
       await first.stream.usage();
       let reply = firstText;
 
-      const hits = blockedTermsIn(firstText, blockedTerms);
+      // A draft blocked only by words for ideas the learner stated THIS turn
+      // is let through: this turn's progress check (already running) is
+      // awaited and the blocked set rebuilt with what it found. Turns that
+      // aren't blocked don't wait. A failed or timed-out check keeps today's
+      // set (2026-10-12, PLAN_04: "store the current element index" on turn 1
+      // got the fallback).
+      let activeBlocked = blockedTerms;
+      let hits = blockedTermsIn(firstText, activeBlocked);
+      if (hits.length > 0 && finishCheck) {
+        const early = await finishCheck;
+        if (early) {
+          activeBlocked = buildBlockedTerms(
+            problem,
+            new Set([...reachedKeys, ...early.reached]),
+            new Set([...named, ...early.named]),
+            released ? "solution" : null,
+          );
+          hits = blockedTermsIn(firstText, activeBlocked);
+        }
+      }
       const leakBlocked = hits.length > 0;
       let fallbackSent = false;
       if (leakBlocked) {
@@ -267,13 +287,13 @@ export async function runConversationalTurn(
           const second = await deps.streamChat(systemPrompt + rewriteNote(hits), providerMessages);
           const secondText = await collectText(second.stream.deltas);
           await second.stream.usage();
-          if (secondText.trim() !== "" && blockedTermsIn(secondText, blockedTerms).length === 0) {
+          if (secondText.trim() !== "" && blockedTermsIn(secondText, activeBlocked).length === 0) {
             rewrite = secondText;
           }
         } catch {
           // The first draft was answered; a failed rewrite is not a failed turn.
         }
-        const lead = cleanLead(firstText, blockedTerms);
+        const lead = cleanLead(firstText, activeBlocked);
         reply = rewrite ?? (lead.trim() !== "" ? lead : LEAK_BLOCKED_FALLBACK);
         fallbackSent = rewrite === null && lead.trim() === "";
       }

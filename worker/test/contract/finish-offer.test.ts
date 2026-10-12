@@ -37,6 +37,18 @@ function mockTutor(text = "What would you look up?") {
     .reply(200, groqStreamBody(text), { headers: { "content-type": "text/event-stream" } });
 }
 
+/** Like mockTutor, and records the request body (system prompt) it was sent. */
+function mockTutorCapture(text: string, seen: { body?: any } = {}) {
+  fetchMock
+    .get(GROQ_ORIGIN)
+    .intercept({ path: GROQ_CHAT_PATH, method: "POST", body: isStream })
+    .reply((opts) => {
+      seen.body = JSON.parse(opts.body as string);
+      return { statusCode: 200, data: groqStreamBody(text), responseOptions: { headers: { "content-type": "text/event-stream" } } };
+    });
+  return seen;
+}
+
 /** Captures the finish-check request body and replies with [reply]. */
 function mockFinishCheck(reply: { status: number; body: unknown }, seen: { body?: any } = {}) {
   fetchMock
@@ -245,6 +257,63 @@ describe("finish offer — ready_to_finish on the meta frame", () => {
     mockFinishCheck({ status: 200, body: groqCompletionBody('{"reached":["complement_lookup","index_storage"]}') });
     const meta = await chat();
     expect(meta.ready_to_finish).toBe(true);
+  });
+});
+
+// 2026-10-12, PLAN_04: a draft blocked only by words for ideas the learner
+// stated THIS turn is let through, using this turn's progress check.
+describe("finish offer — same-turn unblock", () => {
+  const turn = async (messages = [{ role: "user", text: LEARNER }]) => {
+    const res = await SELF.fetch("https://worker.test/v1/chat", {
+      method: "POST",
+      headers: { "X-Install-Id": await mintInstallId(), "X-User-Key": "gsk_test_learner_key", "content-type": "application/json" },
+      body: JSON.stringify({ problem_id: "vp-0001", messages }),
+    });
+    expect(res.status).toBe(200);
+    const frames = await readChatSSE(res);
+    const text = frames.filter((f) => f.event === "token").map((f) => (f.data as { text: string }).text).join("");
+    const meta = frames.find((f) => f.event === "meta")!.data as Record<string, unknown>;
+    return { text, meta };
+  };
+  const DRAFT = "Right, that complement idea works. What do you return when you find it?";
+
+  it("sends the draft as-is when the check says the idea was reached this turn", async () => {
+    await setFinishOffer();
+    mockTutor(DRAFT);
+    mockFinishCheck({ status: 200, body: groqCompletionBody('{"reached":["complement_lookup"],"named":[]}') });
+    const { text, meta } = await turn();
+    expect(text).toBe(DRAFT);
+    expect(meta.leak_blocked).toBe(false);
+  });
+
+  it("sends the draft as-is when the check says the term was named this turn", async () => {
+    await setFinishOffer();
+    mockTutor(DRAFT);
+    mockFinishCheck({ status: 200, body: groqCompletionBody('{"reached":[],"named":["complement"]}') });
+    const { text, meta } = await turn();
+    expect(text).toBe(DRAFT);
+    expect(meta.leak_blocked).toBe(false);
+  });
+
+  it("rewrites when still blocked after the recheck, listing only the remaining words", async () => {
+    await setFinishOffer();
+    mockTutor("The complement idea works, so store the index. What next?");
+    mockFinishCheck({ status: 200, body: groqCompletionBody('{"reached":["complement_lookup"],"named":[]}') });
+    const seen = mockTutorCapture("Good. What do you return?");
+    const { text } = await turn();
+    expect(text).toBe("Good. What do you return?");
+    const note = (seen.body.messages[0].content as string).split("FOR THIS REPLY ONLY")[1];
+    expect(note).toContain("store the index");
+    expect(note).not.toContain("complement");
+  });
+
+  it("keeps today's behavior when the check fails: the rewrite runs", async () => {
+    await setFinishOffer();
+    mockTutor(DRAFT);
+    mockFinishCheck({ status: 500, body: { error: "boom" } });
+    mockTutor("Good. What do you return when you find it?");
+    const { text } = await turn();
+    expect(text).toBe("Good. What do you return when you find it?");
   });
 });
 
