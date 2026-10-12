@@ -4,7 +4,10 @@ import { AppError } from "../../src/lib/errors";
 import {
   claimJudge,
   readCounters,
+  readProgress,
+  recordAssistedKeys,
   recordNamedTerms,
+  recordReachedKeys,
   refundTurn,
   releaseSolution,
   reserveTurn,
@@ -184,5 +187,67 @@ describe("named_terms", () => {
       .bind(key.installId)
       .first<{ named_terms: string | null }>();
     expect(row!.named_terms).toBeNull();
+  });
+});
+
+// Migration 0012, PLAN_07 D4: authored insight keys the learner accepted from
+// the tutor, like reached_keys. Never learner or tutor text.
+describe("assisted_keys", () => {
+  it("the column exists once migrations are applied", async () => {
+    const columns = await env.DB.prepare("PRAGMA table_info(device_day)").all<{ name: string }>();
+    expect(columns.results.map((c) => c.name)).toContain("assisted_keys");
+  });
+
+  it("reserveTurn returns an empty list before anything is recorded", async () => {
+    expect((await reserveTurn(env.DB, freshKey(), 15, 0)).assistedKeys).toEqual([]);
+  });
+
+  it("recordAssistedKeys stores the union and the next reserveTurn returns it", async () => {
+    const key = freshKey();
+    await reserveTurn(env.DB, key, 15, 0);
+    await recordAssistedKeys(env.DB, key, [], ["scan_in_array_order"]);
+    expect((await reserveTurn(env.DB, key, 15, 0)).assistedKeys).toEqual(["scan_in_array_order"]);
+  });
+
+  it("only ever grows: a later turn that finds less takes nothing back", async () => {
+    const key = freshKey();
+    await reserveTurn(env.DB, key, 15, 0);
+    await recordAssistedKeys(env.DB, key, [], ["a", "b"]);
+    await recordAssistedKeys(env.DB, key, ["a", "b"], []);
+    await recordAssistedKeys(env.DB, key, ["a", "b"], ["a", "c"]);
+    expect((await reserveTurn(env.DB, key, 15, 0)).assistedKeys).toEqual(["a", "b", "c"]);
+  });
+
+  it("writes nothing when nothing is new", async () => {
+    const key = freshKey();
+    await reserveTurn(env.DB, key, 15, 0);
+    await recordAssistedKeys(env.DB, key, [], []);
+    const row = await env.DB.prepare("SELECT assisted_keys FROM device_day WHERE device_hash = ?1")
+      .bind(key.installId)
+      .first<{ assisted_keys: string | null }>();
+    expect(row!.assisted_keys).toBeNull();
+  });
+});
+
+describe("readProgress()", () => {
+  it("returns empty lists and writes nothing when no row exists", async () => {
+    const key = freshKey();
+    expect(await readProgress(env.DB, key)).toEqual({ reached: [], assisted: [] });
+    const row = await env.DB.prepare("SELECT 1 FROM device_day WHERE device_hash = ?1").bind(key.installId).first();
+    expect(row).toBeNull();
+  });
+
+  it("returns both stored lists", async () => {
+    const key = freshKey();
+    await reserveTurn(env.DB, key, 15, 0);
+    await recordReachedKeys(env.DB, key, [], ["r1"]);
+    await recordAssistedKeys(env.DB, key, [], ["a1", "a2"]);
+    expect(await readProgress(env.DB, key)).toEqual({ reached: ["r1"], assisted: ["a1", "a2"] });
+  });
+
+  it("reads null columns as empty lists", async () => {
+    const key = freshKey();
+    await reserveTurn(env.DB, key, 15, 0);
+    expect(await readProgress(env.DB, key)).toEqual({ reached: [], assisted: [] });
   });
 });

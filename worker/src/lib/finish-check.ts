@@ -1,8 +1,9 @@
 // Feature 005, specs/005-finish-offer. Decides which key insights the
-// learner has already stated (prompt v3). The server derives two things
+// learner has reached so far (prompt v4). The server derives three things
 // from the answer: whether every required insight is in (the finish
-// offer), and which insights' never_say words the leak filter may stop
-// blocking (review F4, replacing the word-overlap guess). Runs alongside
+// offer), which insights' never_say words the leak filter may stop
+// blocking (review F4, replacing the word-overlap guess), and which
+// insights the learner reached only with the tutor's help. Runs alongside
 // the tutor reply and never fails the turn: any error, refusal or
 // malformed answer is "nothing new reached".
 //
@@ -13,9 +14,16 @@
 // docs/tutor-focus-issues.md Issue 1). Naming a term is not having the idea:
 // `named` never touches `reached` or `ready`.
 //
+// `assisted` (2026-10-12, PLAN_07): the tutor put the idea into words and the
+// learner accepted it. The check now sees both roles, because otherwise the
+// Finish card and the judge disagreed on the vp-0003 session (the learner
+// accepted "compare both ends" and the judge credited nothing). The tutor's
+// words can only ever produce `assisted`, never `reached`, so a tutor that
+// names an idea still cannot make the learner look like they said it; the
+// caller keeps `assisted` out of the leak filter.
+//
 // Input is the problem, the private key insights, their never_say terms and
-// the learner's own turns. The tutor's turns are left out on purpose: a tutor that names an
-// idea must not make the learner look ready.
+// the conversation, each line labelled `user:` or `tutor:`.
 import { FINISH_CHECK_PROMPT } from "../prompts/finish-check";
 import type { StructuredCompletionResult } from "./provider";
 import type { Turn } from "./schemas";
@@ -39,35 +47,34 @@ export function neverSayTerms(problem: Problem): string[] {
 }
 
 /**
- * Strict schema: `reached` may only name this problem's insight keys and
- * `named` only its never_say terms. `named` is left out when there are no
+ * Strict schema: `reached` and `assisted` may only name this problem's
+ * insight keys and `named` only its never_say terms. `named` is left out when there are no
  * terms: strict mode rejects an empty enum.
  */
 export function finishCheckSchema(problem: Problem): { name: string; schema: Record<string, unknown> } {
   const terms = neverSayTerms(problem);
+  const keys = problem.private.key_insights.map((i) => i.key);
   return {
     name: "finish_check",
     schema: {
       type: "object",
       properties: {
-        reached: { type: "array", items: { type: "string", enum: problem.private.key_insights.map((i) => i.key) } },
+        reached: { type: "array", items: { type: "string", enum: keys } },
+        assisted: { type: "array", items: { type: "string", enum: keys } },
         ...(terms.length > 0 ? { named: { type: "array", items: { type: "string", enum: terms } } } : {}),
       },
-      required: terms.length > 0 ? ["reached", "named"] : ["reached"],
+      required: terms.length > 0 ? ["reached", "assisted", "named"] : ["reached", "assisted"],
       additionalProperties: false,
     },
   };
 }
 
-/** The user message: problem, insights by key, then the learner's words only. */
+/** The user message: problem, insights by key, then the conversation with both roles labelled. */
 export function buildFinishCheckInput(problem: Problem, history: Turn[]): string {
   const insights = problem.private.key_insights.map((i) => `- ${i.key}: ${i.text}`).join("\n");
   const terms = neverSayTerms(problem);
   const termsBlock = terms.length > 0 ? ["Terms:", ...terms.map((t) => `- ${t}`), ""] : [];
-  const learner = history
-    .filter((t) => t.role === "user")
-    .map((t, n) => `${n + 1}. ${t.text}`)
-    .join("\n");
+  const conversation = history.map((t) => `${t.role}: ${t.text}`).join("\n");
   return [
     `Problem: ${problem.public.title}`,
     problem.public.statement,
@@ -76,8 +83,8 @@ export function buildFinishCheckInput(problem: Problem, history: Turn[]): string
     insights,
     "",
     ...termsBlock,
-    "The learner's words so far, oldest first:",
-    learner,
+    "The conversation so far, oldest first:",
+    conversation,
   ].join("\n");
 }
 
@@ -86,6 +93,8 @@ export interface FinishCheckResult {
   ready: boolean;
   /** Authored insight keys the learner has stated, per this check. */
   reached: string[];
+  /** Authored insight keys the tutor put into words and the learner accepted. Never overlaps `reached`. */
+  assisted: string[];
   /** Authored never_say terms (lowercased) the learner referred to in any form. Unblocks words only. */
   named: string[];
 }
@@ -98,12 +107,16 @@ export async function runFinishCheck(
 ): Promise<FinishCheckResult | null> {
   try {
     const { result } = await call(FINISH_CHECK_PROMPT, buildFinishCheckInput(problem, history), finishCheckSchema(problem));
-    const json = result.json as { reached?: unknown; named?: unknown } | undefined;
+    const json = result.json as { reached?: unknown; assisted?: unknown; named?: unknown } | undefined;
     if (!Array.isArray(json?.reached)) return null;
     const authored = new Set(problem.private.key_insights.map((i) => i.key));
     const reached = [...new Set(json.reached.filter((k): k is string => typeof k === "string" && authored.has(k)))];
-    // A missing or malformed `named` costs only the extra unblocking, never
-    // the `reached` result above.
+    // A missing or malformed `assisted` or `named` costs only its own list,
+    // never the `reached` result above. A key the learner stated themselves is
+    // `reached` only (PLAN_07 D4).
+    const assisted = Array.isArray(json.assisted)
+      ? [...new Set(json.assisted.filter((k): k is string => typeof k === "string" && authored.has(k) && !reached.includes(k)))]
+      : [];
     const authoredTerms = new Set(neverSayTerms(problem));
     const named = Array.isArray(json.named)
       ? [
@@ -115,7 +128,7 @@ export async function runFinishCheck(
           ),
         ]
       : [];
-    return { ready: isReady(problem, reached), reached, named };
+    return { ready: isReady(problem, reached), reached, assisted, named };
   } catch {
     return null;
   }

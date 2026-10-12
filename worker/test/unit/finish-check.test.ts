@@ -41,6 +41,11 @@ function stubCall(json: unknown): FinishCheckCall {
 }
 
 const learner = [{ role: "user" as const, text: "I would remember each number with its index" }];
+const dialogue = [
+  { role: "user" as const, text: "brute force" },
+  { role: "tutor" as const, text: "How would you check one word?" },
+  { role: "user" as const, text: "two pointers technique" },
+];
 
 // docs/tutor-focus-issues.md Issue 1 / D8: the progress check also reports
 // which never_say terms the learner referred to in any form.
@@ -64,7 +69,7 @@ describe("neverSayTerms()", () => {
 describe("finishCheckSchema()", () => {
   it("adds named, limited to the problem's terms, and requires it", () => {
     const { schema } = finishCheckSchema(problem) as { schema: any };
-    expect(schema.required).toEqual(["reached", "named"]);
+    expect(schema.required).toContain("named");
     expect(schema.properties.named.type).toBe("array");
     expect(schema.properties.named.items.enum).toEqual(neverSayTerms(problem));
     expect(schema.properties.reached.items.enum).toEqual(problem.private.key_insights.map((i) => i.key));
@@ -72,8 +77,17 @@ describe("finishCheckSchema()", () => {
 
   it("has no named property when the problem authors no terms: strict mode rejects an empty enum", () => {
     const { schema } = finishCheckSchema(noTerms) as { schema: any };
-    expect(schema.required).toEqual(["reached"]);
+    expect(schema.required).toEqual(["reached", "assisted"]);
     expect(schema.properties).not.toHaveProperty("named");
+  });
+
+  // 2026-10-12, PLAN_07 D1: assisted is limited to the insight keys, like reached.
+  it("adds assisted, limited to the insight keys, and requires it", () => {
+    const { schema } = finishCheckSchema(problem) as { schema: any };
+    const keys = problem.private.key_insights.map((i) => i.key);
+    expect(schema.properties.assisted.type).toBe("array");
+    expect(schema.properties.assisted.items.enum).toEqual(keys);
+    expect(schema.required).toEqual(["reached", "assisted", "named"]);
   });
 });
 
@@ -82,10 +96,27 @@ describe("buildFinishCheckInput()", () => {
     const input = buildFinishCheckInput(problem, learner);
     const termsAt = input.indexOf("Terms:");
     expect(termsAt).toBeGreaterThan(input.indexOf("Key insights:"));
-    expect(termsAt).toBeLessThan(input.indexOf("The learner's words so far"));
+    expect(termsAt).toBeLessThan(input.indexOf("The conversation so far, oldest first:"));
     for (const term of neverSayTerms(problem)) expect(input).toContain(`- ${term}`);
     for (const insight of problem.private.key_insights) for (const hint of insight.hints) expect(input).not.toContain(hint);
     expect(input).not.toContain(problem.private.editorial);
+  });
+
+  // PLAN_07 D2: both roles, labelled, in order.
+  it("renders user: and tutor: lines in order under the conversation heading", () => {
+    const input = buildFinishCheckInput(problem, dialogue);
+    const heading = input.indexOf("The conversation so far, oldest first:");
+    expect(heading).toBeGreaterThan(-1);
+    const tail = input.slice(heading);
+    expect(tail).toBe(
+      [
+        "The conversation so far, oldest first:",
+        "user: brute force",
+        "tutor: How would you check one word?",
+        "user: two pointers technique",
+      ].join("\n"),
+    );
+    expect(input).not.toContain("The learner's words so far");
   });
 
   it("omits the Terms block when there are none", () => {
@@ -120,6 +151,43 @@ describe("runFinishCheck()", () => {
   it("naming a term never marks an insight reached or makes the learner ready", async () => {
     const result = await runFinishCheck(problem, learner, stubCall({ reached: [], named: neverSayTerms(problem) }));
     expect(result?.reached).toEqual([]);
+    expect(result?.ready).toBe(false);
+  });
+
+  // PLAN_07 D1/D4: assisted keeps only authored keys, never overlaps reached,
+  // and a bad assisted never costs reached (the same policy as named).
+  it("returns assisted, keeping only authored keys, once each, minus any key also in reached", async () => {
+    const result = await runFinishCheck(
+      problem,
+      dialogue,
+      stubCall({
+        reached: ["complement_lookup"],
+        assisted: ["complement_lookup", "index_storage", "index_storage", "made_up_key", 7],
+        named: [],
+      }),
+    );
+    expect(result?.reached).toEqual(["complement_lookup"]);
+    expect(result?.assisted).toEqual(["index_storage"]);
+  });
+
+  it("a missing assisted yields an empty list without touching reached", async () => {
+    const result = await runFinishCheck(problem, learner, stubCall({ reached: ["complement_lookup"], named: [] }));
+    expect(result?.assisted).toEqual([]);
+    expect(result?.reached).toEqual(["complement_lookup"]);
+  });
+
+  it("an assisted that is not a list yields an empty list without touching reached", async () => {
+    const result = await runFinishCheck(problem, learner, stubCall({ reached: ["single_pass"], assisted: "index_storage" }));
+    expect(result?.assisted).toEqual([]);
+    expect(result?.reached).toEqual(["single_pass"]);
+  });
+
+  it("ready counts reached only; callers combine the lists", async () => {
+    const result = await runFinishCheck(
+      problem,
+      dialogue,
+      stubCall({ reached: ["complement_lookup"], assisted: ["index_storage"] }),
+    );
     expect(result?.ready).toBe(false);
   });
 

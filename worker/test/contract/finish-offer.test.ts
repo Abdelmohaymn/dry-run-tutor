@@ -98,7 +98,9 @@ describe("finish offer — ready_to_finish on the meta frame", () => {
     expect(meta.turn_index).toBe(1);
   });
 
-  it("sends the learner's turns only, never the tutor's, with a strict reached-keys schema", async () => {
+  // 2026-10-12, PLAN_07 D2: the check reads both roles, labelled, so a tutor
+  // line that put an idea into words can produce `assisted`.
+  it("sends the tutor's lines too, labelled, with a strict reached/assisted-keys schema", async () => {
     await setFinishOffer();
     mockTutor();
     const seen = mockFinishCheck({ status: 200, body: groqCompletionBody('{"reached":["single_pass"]}') });
@@ -108,10 +110,12 @@ describe("finish offer — ready_to_finish on the meta frame", () => {
       { role: "user", text: LEARNER },
     ]);
     const user = seen.body.messages.find((m: any) => m.role === "user").content as string;
-    expect(user).toContain(LEARNER);
-    expect(user).not.toContain("TUTOR_ONLY_PHRASE");
+    expect(user).toContain(`user: ${LEARNER}`);
+    expect(user).toContain("tutor: TUTOR_ONLY_PHRASE about a lookup");
+    expect(user.indexOf("user: Two loops")).toBeLessThan(user.indexOf("tutor: TUTOR_ONLY_PHRASE"));
     const schema = seen.body.response_format.json_schema.schema;
-    expect(schema.required).toEqual(["reached", "named"]);
+    expect(schema.required).toEqual(["reached", "assisted", "named"]);
+    expect(schema.properties.assisted.items.enum).toEqual(schema.properties.reached.items.enum);
     expect(schema.properties.reached.items.enum).toEqual(["complement_lookup", "single_pass", "index_storage", "duplicates_ok"]);
     expect(schema.properties.named.items.enum).toContain("hash map");
     expect(user).toContain("- hash map");
@@ -251,6 +255,44 @@ describe("finish offer — ready_to_finish on the meta frame", () => {
     expect(JSON.parse((rows.results[0] as { named_terms: string }).named_terms)).toEqual(["hash map"]);
   });
 
+  // 2026-10-12, PLAN_07 D4/D5: the card counts reached plus assisted, and the
+  // assisted key is stored. vp-0001 equivalent of the vp-0003 session.
+  it("is ready when the learner reached one required insight and accepted the other from the tutor, and stores it", async () => {
+    await setFinishOffer();
+    const installId = await mintInstallId();
+    mockTutor();
+    mockFinishCheck({
+      status: 200,
+      body: groqCompletionBody('{"reached":["complement_lookup"],"assisted":["index_storage"],"named":[]}'),
+    });
+    const res = await SELF.fetch("https://worker.test/v1/chat", {
+      method: "POST",
+      headers: { "X-Install-Id": installId, "X-User-Key": "gsk_test_learner_key", "content-type": "application/json" },
+      body: JSON.stringify({
+        problem_id: "vp-0001",
+        messages: [
+          { role: "user", text: LEARNER },
+          { role: "tutor", text: "You would also keep each number's index, so you can return the positions." },
+          { role: "user", text: "yes, that" },
+        ],
+      }),
+    });
+    const meta = (await readChatSSE(res)).find((f) => f.event === "meta")!.data as Record<string, unknown>;
+    expect(meta.ready_to_finish).toBe(true);
+    const row = await env.DB.prepare("SELECT reached_keys, assisted_keys FROM device_day WHERE device_hash = ?1")
+      .bind(installId.split(".")[0])
+      .first<{ reached_keys: string; assisted_keys: string }>();
+    expect(JSON.parse(row!.reached_keys)).toEqual(["complement_lookup"]);
+    expect(JSON.parse(row!.assisted_keys)).toEqual(["index_storage"]);
+  });
+
+  it("assisted alone does not make the learner ready when a required insight is missing", async () => {
+    await setFinishOffer();
+    mockTutor();
+    mockFinishCheck({ status: 200, body: groqCompletionBody('{"reached":[],"assisted":["index_storage"],"named":[]}') });
+    expect((await chat()).ready_to_finish).toBe(false);
+  });
+
   it("makes the finish-check call on the keyed path and reports it", async () => {
     await setFinishOffer();
     mockTutor();
@@ -314,6 +356,46 @@ describe("finish offer — same-turn unblock", () => {
     mockTutor("Good. What do you return when you find it?");
     const { text } = await turn();
     expect(text).toBe("Good. What do you return when you find it?");
+  });
+});
+
+// 2026-10-12, PLAN_07 D5: the leak filter keeps using `reached` only. An idea
+// the tutor put into words and the learner accepted does not release the
+// words for it.
+describe("finish offer — assisted does not unblock words", () => {
+  it("a key only in assisted keeps its never_say words blocked on the next turn", async () => {
+    await setFinishOffer();
+    const installId = await mintInstallId();
+    const send = async (messages: { role: string; text: string }[]) => {
+      const res = await SELF.fetch("https://worker.test/v1/chat", {
+        method: "POST",
+        headers: { "X-Install-Id": installId, "X-User-Key": "gsk_test_learner_key", "content-type": "application/json" },
+        body: JSON.stringify({ problem_id: "vp-0001", messages }),
+      });
+      return readChatSSE(res);
+    };
+
+    // Turn 1: complement_lookup (never_say includes "hash map") is only assisted.
+    mockTutor();
+    mockFinishCheck({ status: 200, body: groqCompletionBody('{"reached":[],"assisted":["complement_lookup"],"named":[]}') });
+    const turn1 = [{ role: "user", text: "yes, that" }];
+    await send(turn1);
+    const row = await env.DB.prepare("SELECT reached_keys, assisted_keys FROM device_day WHERE device_hash = ?1")
+      .bind(installId.split(".")[0])
+      .first<{ reached_keys: string | null; assisted_keys: string }>();
+    expect(JSON.parse(row!.assisted_keys)).toEqual(["complement_lookup"]);
+    expect(row!.reached_keys).toBeNull();
+
+    // Turn 2: the draft says "hash map". Still blocked, so a rewrite call is
+    // made (the pattern of the still-blocked test in PLAN_04).
+    mockTutor("Yes -- a hash map does that. What does it need to hold?");
+    mockFinishCheck({ status: 200, body: groqCompletionBody('{"reached":[],"assisted":[],"named":[]}') });
+    const seen = mockTutorCapture("Good. What does it need to hold?");
+    const frames = await send([...turn1, { role: "tutor", text: "Go on." }, { role: "user", text: "okay" }]);
+    const text = frames.filter((f) => f.event === "token").map((f) => (f.data as { text: string }).text).join("");
+    expect(text).toBe("Good. What does it need to hold?");
+    const note = (seen.body.messages[0].content as string).split("FOR THIS REPLY ONLY")[1];
+    expect(note).toContain("hash map");
   });
 });
 

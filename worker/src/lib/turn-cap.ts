@@ -19,6 +19,11 @@ export interface ReserveTurnResult {
   hintsRevealed: number;
   /** Insight keys the progress check found stated on earlier turns (finish-check.ts). */
   reachedKeys: string[];
+  /**
+   * Insight keys the learner accepted from the tutor on earlier turns (2026-10-12,
+   * PLAN_07). They count toward the Finish offer and the judge, never the leak filter.
+   */
+  assistedKeys: string[];
   /** Authored never_say terms the progress check found the learner referred to on earlier turns. */
   namedTerms: string[];
 }
@@ -54,7 +59,7 @@ export async function reserveTurn(
            device_day.solution_requests,
            min(?4, device_day.solution_requests + ${MAX_SOLUTION_REQUEST_INCREMENT})
          )
-       RETURNING turns, solution_requests, judged_at, hints_revealed, reached_keys, named_terms`,
+       RETURNING turns, solution_requests, judged_at, hints_revealed, reached_keys, assisted_keys, named_terms`,
     )
     .bind(key.installId, key.problemId, key.date, claimedSolutionRequests)
     .first<{
@@ -63,6 +68,7 @@ export async function reserveTurn(
       judged_at: string | null;
       hints_revealed: number;
       reached_keys: string | null;
+      assisted_keys: string | null;
       named_terms: string | null;
     }>();
 
@@ -78,6 +84,7 @@ export async function reserveTurn(
     judgedAt: row.judged_at,
     hintsRevealed: row.hints_revealed,
     reachedKeys: parseStringList(row.reached_keys),
+    assistedKeys: parseStringList(row.assisted_keys),
     namedTerms: parseStringList(row.named_terms),
   };
 }
@@ -98,6 +105,28 @@ export async function recordReachedKeys(
   await db
     .prepare(
       `UPDATE device_day SET reached_keys = ?4
+       WHERE device_hash = ?1 AND problem_id = ?2 AND date = ?3`,
+    )
+    .bind(key.installId, key.problemId, key.date, JSON.stringify(union))
+    .run();
+}
+
+/**
+ * Stores the session's assisted insight keys (accepted from the tutor), the
+ * way recordReachedKeys() stores reached ones: the union of earlier turns and
+ * this one, only ever growing (2026-10-12, PLAN_07).
+ */
+export async function recordAssistedKeys(
+  db: D1Database,
+  key: TurnCounterKey,
+  earlier: readonly string[],
+  found: readonly string[],
+): Promise<void> {
+  const union = [...new Set([...earlier, ...found])];
+  if (union.length === earlier.length) return;
+  await db
+    .prepare(
+      `UPDATE device_day SET assisted_keys = ?4
        WHERE device_hash = ?1 AND problem_id = ?2 AND date = ?3`,
     )
     .bind(key.installId, key.problemId, key.date, JSON.stringify(union))
@@ -246,6 +275,25 @@ export async function readCounters(db: D1Database, key: TurnCounterKey): Promise
     hintsRevealed: row.hints_revealed,
     judgedAt: row.judged_at,
   };
+}
+
+/**
+ * Pure read of the insights the progress check stored for the session
+ * (2026-10-12, PLAN_07: the judge settles on these plus a final check).
+ * Never advances anything. Empty lists when no row exists.
+ */
+export async function readProgress(
+  db: D1Database,
+  key: TurnCounterKey,
+): Promise<{ reached: string[]; assisted: string[] }> {
+  const row = await db
+    .prepare(
+      `SELECT reached_keys, assisted_keys FROM device_day
+       WHERE device_hash = ?1 AND problem_id = ?2 AND date = ?3`,
+    )
+    .bind(key.installId, key.problemId, key.date)
+    .first<{ reached_keys: string | null; assisted_keys: string | null }>();
+  return { reached: parseStringList(row?.reached_keys), assisted: parseStringList(row?.assisted_keys) };
 }
 
 /**
