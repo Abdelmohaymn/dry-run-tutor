@@ -335,18 +335,28 @@ describe("POST /v1/judge — the verified insights", () => {
     expect(body.insights_assisted).toEqual([]);
   });
 
-  it("D9: an approach the evidence demotes is restored when the verified insights cover it", async () => {
+  // 2026-10-13, PLAN_08 D8: a demoted approach is re-derived from the verified
+  // insights. Here they pin hashmap down, so it is still the result.
+  it("D8: an approach the evidence demotes is re-derived from the verified insights", async () => {
     const installId = await mintInstallId();
-    finalCheck({ insights: [nudged("index_storage", TUTOR_LAST)] });
+    finalCheck({ insights: [own("complement_lookup", LOOKUP), own("index_storage", STORAGE)] });
     supportCheck();
     judgeReplies(
-      judgeAnswer({ approach_quote: LEARNER, matched_approach: "sort_two_pointer", matched_verdict: "acceptable" }),
+      judgeAnswer({
+        approach_quote: LEARNER,
+        matched_approach: "hashmap",
+        matched_verdict: "optimal",
+        insights_hit: [
+          { quote: "", key: "complement_lookup" },
+          { quote: "", key: "index_storage" },
+        ],
+      }),
     );
     approachCheck(false);
 
     const body = await judge(installId);
 
-    expect(body.matched_approach).toBe("sort_two_pointer");
+    expect(body.matched_approach).toBe("hashmap");
     expect(body.verdict).toBe("pass");
   });
 });

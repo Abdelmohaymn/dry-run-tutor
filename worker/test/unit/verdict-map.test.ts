@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getPrivate, getPublicManifest } from "../../src/lib/content";
-import { mapVerdict, type JudgeOutput } from "../../src/lib/verdict-map";
+import { approachFromInsights, mapVerdict, type JudgeOutput } from "../../src/lib/verdict-map";
 import type { Problem } from "../../../tools/problem-types";
 
 const problem: Problem = {
@@ -194,5 +194,63 @@ describe("mapVerdict() — insights reached with the tutor's help", () => {
     expect(
       mapVerdict(out({ matched_verdict: "optimal", insights_hit: requiredKeys, insights_assisted: requiredKeys }), problem),
     ).toBe("pass");
+  });
+});
+
+// 2026-10-13, PLAN_08 D8: an approach is pinned down by its insights only when
+// no bigger approach contains them.
+describe("approachFromInsights()", () => {
+  const load = (id: string): Problem => ({
+    public: getPublicManifest().problems.find((p) => p.id === id)!,
+    private: getPrivate(id)!,
+  });
+  const vp0001 = problem;
+  const vp0003 = load("vp-0003");
+  const keyOf = (p: Problem, hit: string[]) => approachFromInsights(p, new Set(hit))?.key;
+
+  it("vp-0003: both required insights give two_pointer_scan, which beats collect_all_then_first on tier", () => {
+    // reverse_compare_scan's set is a strict subset of two_pointer_scan's, and
+    // collect_all_then_first (no `requires`) has the same set, so it loses the tie on tier.
+    expect(keyOf(vp0003, ["scan_in_array_order", "two_pointer_no_copy"])).toBe("two_pointer_scan");
+  });
+
+  it("vp-0003: {scan_in_array_order} alone pins down no approach (bug 3)", () => {
+    expect(keyOf(vp0003, ["scan_in_array_order"])).toBeUndefined();
+  });
+
+  it("vp-0003: {two_pointer_no_copy} alone pins down no approach", () => {
+    expect(keyOf(vp0003, ["two_pointer_no_copy"])).toBeUndefined();
+  });
+
+  it("vp-0001: {complement_lookup, index_storage} gives hashmap, ahead of brute_force on tier", () => {
+    // sort_two_pointer ({index_storage}) is a strict subset; sort_lose_indices is wrong and never a candidate.
+    expect(keyOf(vp0001, ["complement_lookup", "index_storage"])).toBe("hashmap");
+  });
+
+  it("vp-0001: {index_storage} alone, or nothing, pins down no approach", () => {
+    expect(keyOf(vp0001, ["index_storage"])).toBeUndefined();
+    expect(keyOf(vp0001, [])).toBeUndefined();
+  });
+
+  it("returns the authored approach entry itself", () => {
+    const found = approachFromInsights(vp0001, new Set(["complement_lookup", "index_storage"]));
+    expect(found).toBe(vp0001.private.reference_approaches.find((a) => a.key === "hashmap"));
+  });
+
+  it("never returns a wrong approach", () => {
+    const everything = new Set(vp0001.private.key_insights.map((i) => i.key));
+    expect(approachFromInsights(vp0001, everything)?.verdict).not.toBe("wrong");
+  });
+
+  it("an approach with an empty required set is never a candidate", () => {
+    const empty: Problem = {
+      ...vp0001,
+      private: {
+        ...vp0001.private,
+        key_insights: vp0001.private.key_insights.map((i) => ({ ...i, required: false })),
+        reference_approaches: vp0001.private.reference_approaches.map((a) => ({ ...a, requires: undefined })),
+      },
+    };
+    expect(approachFromInsights(empty, new Set(["complement_lookup"]))).toBeUndefined();
   });
 });

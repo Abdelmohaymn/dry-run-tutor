@@ -10,13 +10,15 @@
 // Settled insights (2026-10-12, PLAN_07): when the progress check's lists are
 // passed in, they ARE the insight lists. The model's own insight claims then
 // only matter for the feedback check (D8) and the insight evidence is not
-// used (D7); the approach keeps its evidence check, with a restore (D9).
-// Since 2026-10-13 (PLAN_08) those lists are verified before the judge call:
-// the progress check quotes its evidence, and `verifySettled` checks the quotes.
+// used (D7); the approach keeps its evidence check. Since 2026-10-13
+// (PLAN_08) those lists are verified before the judge call (the progress check
+// quotes its evidence, and `verifySettled` checks the quotes), and a demoted
+// approach is replaced by the one the settled insights pin down (D8, replacing
+// the PLAN_07 D9 restore).
 import { z } from "zod";
 import type { Problem } from "../../../tools/problem-types";
 import { AppError } from "./errors";
-import { mapVerdict, requiredKeysFor, type JudgeOutput, type Verdict } from "./verdict-map";
+import { approachFromInsights, mapVerdict, requiredKeysFor, type JudgeOutput, type Verdict } from "./verdict-map";
 import { takeCompleteSentence } from "./leak-filter";
 import { JUDGE_FEEDBACK_FALLBACK } from "../prompts/judge";
 import type { Evidence } from "./judge-evidence";
@@ -196,18 +198,21 @@ export function postprocessJudge(
   const claimedApproach = problem.private.reference_approaches.find((a) => a.key === out.matched_approach);
   // Step 2a: an approach whose words do not describe it is "none". A `wrong`
   // approach keeps its place: dropping it could only raise the grade.
-  let approachDemoted =
+  const approachDemoted =
     !!evidence && !!claimedApproach && claimedApproach.verdict !== "wrong" && !evidence.approachSupported;
-  // D9: an approach is defined by its insights. When every insight it needs is
-  // settled, the demotion is undone, or the screen says "Nothing matched an
-  // approach on file" beside a pass.
-  if (approachDemoted && settled && claimedApproach) {
-    const needed = [...requiredKeysFor(problem, claimedApproach.key)];
-    if (needed.length > 0 && needed.every((k) => hit.has(k))) approachDemoted = false;
-  }
-  const authoredApproach = approachDemoted ? undefined : claimedApproach;
+  // D8 (2026-10-13, PLAN_08): an approach is defined by its insights. When the
+  // evidence check demotes the claim and settled insights exist, the approach
+  // becomes the one those insights pin down, or "none". It replaces the
+  // PLAN_07 D9 restore, which put back any approach whose required set was
+  // hit: {scan_in_array_order} fits reverse_compare_scan, but it is also the
+  // first half of two_pointer_scan, so a learner who said "two pointer" was
+  // shown "Reverse compare scan".
+  const derived = approachDemoted && settled ? approachFromInsights(problem, hit) : undefined;
+  const authoredApproach = approachDemoted ? derived : claimedApproach;
+  const matchedApproach = approachDemoted ? (derived?.key ?? "none") : out.matched_approach;
+  const approachChanged = matchedApproach !== out.matched_approach;
   const repaired: JudgeOutput = {
-    matched_approach: approachDemoted ? "none" : out.matched_approach,
+    matched_approach: matchedApproach,
     matched_verdict: authoredApproach?.verdict ?? "none",
     insights_hit: [...hit],
     insights_missed: [...missed],
@@ -238,7 +243,9 @@ export function postprocessJudge(
   // praise what was just removed ("scans in order and uses two pointers"
   // beside both insights listed as not reached). Once the basis changed the
   // feedback cannot be trusted (2026-10-12, PLAN_06 D7).
-  const evidenceChanged = approachDemoted || insightsDropped > 0;
+  // A derivation that lands on the claimed approach changes nothing, so the
+  // model's feedback stands; any other change gets the fallback (PLAN_08 D8).
+  const evidenceChanged = approachChanged || insightsDropped > 0;
   const hedgeChecked = hedgeViolation || evidenceChanged || settledDisagrees ? JUDGE_FEEDBACK_FALLBACK : out.feedback;
 
   // Step 5: truncation. Second-sentence boundary first, then 320 chars on
@@ -265,7 +272,7 @@ export function postprocessJudge(
     verdictOverridden,
     from: verdictOverridden ? (out.verdict as Verdict) : undefined,
     to: verdictOverridden ? mapped : undefined,
-    evidenceDropped: evidence ? { approach: approachDemoted, insights: insightsDropped } : undefined,
+    evidenceDropped: evidence ? { approach: approachChanged, insights: insightsDropped } : undefined,
   };
 }
 

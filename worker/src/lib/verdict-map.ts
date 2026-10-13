@@ -1,7 +1,7 @@
 // data-model.md §B4. Pure. `judge-spec.md` §5's table, inlined here in
 // precedence order — first match wins. The mapped value always wins over
 // the model's own `verdict` field (FR-019).
-import type { Problem } from "../../../tools/problem-types";
+import type { Approach, Problem } from "../../../tools/problem-types";
 
 export type Verdict = "strong_pass" | "pass" | "borderline" | "likely_tle" | "incorrect" | "unclear";
 
@@ -51,6 +51,36 @@ export function requiredKeysFor(problem: Problem, approachKey: string): Set<stri
   return new Set(
     approach?.requires ?? problem.private.key_insights.filter((i) => i.required).map((i) => i.key),
   );
+}
+
+const TIER_RANK: Record<Approach["verdict"], number> = { optimal: 0, acceptable: 1, suboptimal: 2, wrong: 3 };
+
+/**
+ * The authored approach the settled insights pin down, or undefined
+ * (2026-10-13, PLAN_08 D8). A candidate is a non-"wrong" approach whose
+ * required set is non-empty and fully hit, and is not a strict subset of
+ * another non-"wrong" approach's required set: {scan_in_array_order} fits
+ * reverse_compare_scan but is also the first half of two_pointer_scan, so it
+ * pins down neither, and restoring the former showed "Reverse compare scan"
+ * to a learner who said "two pointer". Largest required set first, then the
+ * better tier (optimal, acceptable, suboptimal), then authored order.
+ */
+export function approachFromInsights(problem: Problem, hit: ReadonlySet<string>): Approach | undefined {
+  const candidates = problem.private.reference_approaches
+    .filter((a) => a.verdict !== "wrong")
+    .map((approach) => ({ approach, required: requiredKeysFor(problem, approach.key) }));
+  const isStrictSubset = (small: ReadonlySet<string>, big: ReadonlySet<string>) =>
+    small.size < big.size && [...small].every((k) => big.has(k));
+  return candidates
+    .filter(
+      (c) =>
+        c.required.size > 0 &&
+        [...c.required].every((k) => hit.has(k)) &&
+        !candidates.some((other) => other !== c && isStrictSubset(c.required, other.required)),
+    )
+    // Array.prototype.sort is stable, so authored order breaks the last tie.
+    .sort((a, b) => b.required.size - a.required.size || TIER_RANK[a.approach.verdict] - TIER_RANK[b.approach.verdict])[0]
+    ?.approach;
 }
 
 export function mapVerdict(out: JudgeOutput, problem: Problem): Verdict {
