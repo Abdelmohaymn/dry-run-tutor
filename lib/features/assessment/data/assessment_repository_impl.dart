@@ -240,6 +240,7 @@ class AssessmentRepositoryImpl implements AssessmentRepository {
         matchedApproach: assessment.matchedApproach,
         matchedVerdict: assessment.matchedVerdict,
         insightsHit: assessment.insightsHit,
+        insightsAssisted: Value(assessment.insightsAssisted),
         insightsMissed: assessment.insightsMissed,
         wrongTurnsTaken: assessment.wrongTurnsTaken,
         complexityJson: jsonEncode(_complexityToJson(assessment.complexity)),
@@ -263,6 +264,7 @@ class AssessmentRepositoryImpl implements AssessmentRepository {
         matchedApproach: dto.matchedApproach,
         matchedVerdict: _matchedVerdictFromWire(dto.matchedVerdict),
         insightsHit: dto.insightsHit,
+        insightsAssisted: dto.insightsAssisted,
         insightsMissed: dto.insightsMissed,
         wrongTurnsTaken: dto.wrongTurnsTaken,
         complexity: Complexity(
@@ -286,6 +288,7 @@ class AssessmentRepositoryImpl implements AssessmentRepository {
       matchedApproach: row.matchedApproach,
       matchedVerdict: row.matchedVerdict,
       insightsHit: row.insightsHit,
+      insightsAssisted: row.insightsAssisted ?? const <String>[],
       insightsMissed: row.insightsMissed,
       wrongTurnsTaken: row.wrongTurnsTaken,
       complexity: Complexity(

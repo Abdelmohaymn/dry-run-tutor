@@ -49,6 +49,11 @@ AssessmentDto _$AssessmentDtoFromJson(Map<String, dynamic> json) =>
       insightsHit: (json['insights_hit'] as List<dynamic>)
           .map((e) => e as String)
           .toList(),
+      insightsAssisted:
+          (json['insights_assisted'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
       insightsMissed: (json['insights_missed'] as List<dynamic>)
           .map((e) => e as String)
           .toList(),
@@ -69,6 +74,7 @@ Map<String, dynamic> _$AssessmentDtoToJson(AssessmentDto instance) =>
       'matched_approach': instance.matchedApproach,
       'matched_verdict': instance.matchedVerdict,
       'insights_hit': instance.insightsHit,
+      'insights_assisted': instance.insightsAssisted,
       'insights_missed': instance.insightsMissed,
       'wrong_turns_taken': instance.wrongTurnsTaken,
       'complexity': instance.complexity.toJson(),

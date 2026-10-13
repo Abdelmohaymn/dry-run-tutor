@@ -28,20 +28,60 @@ export function quotedHits(keys: string[], quote: string) {
  * request's own schema, so a test only says which ones are supported.
  * Register it after the judge's own intercept: interceptors on one path
  * are consumed in registration order.
+ *
+ * The judge now makes two evidence-check calls (2026-10-13, PLAN_08): the
+ * support check on the progress check's insights, before the judge, and the
+ * approach check after it. `only` routes a stub to one of them by its claim
+ * ids: "approach" matches a request that has an `approach:` claim, "settled"
+ * one that has none. Without it any evidence check matches, as before.
  */
 export function interceptEvidenceCheck(
   supported: boolean | ((id: string) => boolean) = true,
   target: { origin: string; path: string } = { origin: GROQ_ORIGIN, path: GROQ_CHAT_PATH },
+  only?: "approach" | "settled",
 ) {
+  const claimIds = (rawBody: string): string[] =>
+    JSON.parse(rawBody).response_format?.json_schema?.schema?.properties?.results?.items?.properties?.id?.enum ?? [];
   fetchMock
     .get(target.origin)
-    .intercept({ path: target.path, method: "POST" })
+    .intercept({
+      path: target.path,
+      method: "POST",
+      ...(only
+        ? {
+            body: (b: string) =>
+              JSON.parse(b).response_format?.json_schema?.name === "evidence_check" &&
+              claimIds(b).some((id) => id.startsWith("approach:")) === (only === "approach"),
+          }
+        : {}),
+    })
     .reply(200, (opts) => {
-      const req = JSON.parse(opts.body as string);
-      const ids: string[] = req.response_format.json_schema.schema.properties.results.items.properties.id.enum;
+      const ids = claimIds(opts.body as string);
       const decide = typeof supported === "function" ? supported : () => supported;
       return groqCompletionBody(JSON.stringify({ results: ids.map((id) => ({ id, why: "stub", supported: decide(id) })) }));
     });
+}
+
+/**
+ * Stubs the judge-time progress check (finish_check) with a 200 that carries no
+ * usable answer, so the worker settles nothing and the judge takes today's
+ * path (model lists plus evidence check). 2026-10-12, PLAN_07: the judge now
+ * makes this extra non-stream call first, and without a stub of its own it
+ * would consume the judge's. Register it BEFORE the judge's own intercept,
+ * since interceptors on one path are consumed in registration order. Routed by
+ * the request's schema name, so it never answers any other call.
+ */
+export function interceptFinalCheckUnusable(
+  target: { origin: string; path: string } = { origin: GROQ_ORIGIN, path: GROQ_CHAT_PATH },
+) {
+  fetchMock
+    .get(target.origin)
+    .intercept({
+      path: target.path,
+      method: "POST",
+      body: (b: string) => JSON.parse(b).response_format?.json_schema?.name === "finish_check",
+    })
+    .reply(200, groqCompletionBody("{}"));
 }
 
 /** A minimal, valid streaming SSE body an OpenAI-compatible endpoint would return. */

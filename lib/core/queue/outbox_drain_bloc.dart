@@ -212,6 +212,7 @@ class OutboxDrainBloc extends Bloc<OutboxDrainEvent, OutboxDrainState> {
         matchedApproach: dto.matchedApproach,
         matchedVerdict: MatchedVerdict.values.firstWhere((MatchedVerdict v) => v.name == dto.matchedVerdict),
         insightsHit: dto.insightsHit,
+        insightsAssisted: Value(dto.insightsAssisted),
         insightsMissed: dto.insightsMissed,
         wrongTurnsTaken: dto.wrongTurnsTaken,
         complexityJson: _complexityJson(dto),

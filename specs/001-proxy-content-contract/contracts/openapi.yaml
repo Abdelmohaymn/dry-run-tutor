@@ -260,13 +260,17 @@ components:
     Assessment:
       type: object
       additionalProperties: false
-      required: [matched_approach, matched_verdict, insights_hit, insights_missed,
+      required: [matched_approach, matched_verdict, insights_hit, insights_missed, insights_assisted,
                  wrong_turns_taken, complexity, verdict, confidence, feedback, editorial]
       properties:
         matched_approach: { type: string, description: 'An authored approach key, or "none".' }
         matched_verdict: { type: string, enum: [optimal, acceptable, suboptimal, wrong, none] }
         insights_hit: { type: array, items: { type: string } }
         insights_missed: { type: array, items: { type: string } }
+        insights_assisted:
+          type: array
+          items: { type: string }
+          description: 'Subset of insights_hit the learner reached by accepting an idea the tutor put into words.'
         wrong_turns_taken: { type: array, items: { type: string } }
         complexity:
           type: object

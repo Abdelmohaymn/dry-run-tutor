@@ -303,3 +303,145 @@ describe("postprocessJudge() — complexity the learner never stated", () => {
     expect(c).toEqual(complexity({ time: null, space: null }, "not_stated"));
   });
 });
+
+// 2026-10-12, PLAN_07 D7-D9: the progress check's settled lists replace the
+// model's insight lists. The D9 restore was replaced by D8 (2026-10-13, PLAN_08).
+describe("postprocessJudge() — settled insights (PLAN_07)", () => {
+  const [lookup, indexStorage] = requiredKeys;
+  const noEvidence = { approachSupported: true, supportedInsights: new Set<string>() };
+
+  it("without settled, insights_assisted is []", () => {
+    expect(postprocessJudge(rawOutput(), problem).assessment.insights_assisted).toEqual([]);
+  });
+
+  it("insights_hit is settled.hit (authored, deduplicated), insights_missed is the rest, whatever the model claimed", () => {
+    const { assessment } = postprocessJudge(rawOutput({ insights_hit: [], insights_missed: allInsightKeys }), problem, undefined, {
+      hit: [lookup, lookup, "not_a_real_key"],
+      assisted: [],
+    });
+    expect(assessment.insights_hit).toEqual([lookup]);
+    expect(assessment.insights_missed.sort()).toEqual(allInsightKeys.filter((k) => k !== lookup).sort());
+  });
+
+  it("insights_assisted is settled.assisted ∩ settled.hit", () => {
+    const { assessment } = postprocessJudge(rawOutput(), problem, undefined, {
+      hit: [lookup, indexStorage],
+      assisted: [indexStorage, "single_pass"],
+    });
+    expect(assessment.insights_assisted).toEqual([indexStorage]);
+    expect(assessment.insights_assisted.every((k) => assessment.insights_hit.includes(k))).toBe(true);
+  });
+
+  it("ignores the insight evidence: an evidence object that supports nothing does not drop settled keys", () => {
+    const { assessment, evidenceDropped } = postprocessJudge(rawOutput(), problem, noEvidence, {
+      hit: requiredKeys,
+      assisted: [],
+    });
+    expect(assessment.insights_hit).toEqual(requiredKeys);
+    expect(evidenceDropped?.insights).toBe(0);
+    expect(assessment.feedback).not.toBe(JUDGE_FEEDBACK_FALLBACK);
+  });
+
+  it("D8: the model's insights_hit differs from the settled set -> the feedback is the fallback", () => {
+    const { assessment } = postprocessJudge(rawOutput({ insights_hit: [lookup], feedback: "Nice work." }), problem, undefined, {
+      hit: requiredKeys,
+      assisted: [],
+    });
+    expect(assessment.feedback).toBe(JUDGE_FEEDBACK_FALLBACK);
+  });
+
+  it("D8: the same set (in any order, with unauthored keys ignored) keeps the feedback", () => {
+    const { assessment } = postprocessJudge(
+      rawOutput({ insights_hit: [...requiredKeys].reverse(), feedback: "Nice work." }),
+      problem,
+      undefined,
+      { hit: requiredKeys, assisted: [] },
+    );
+    expect(assessment.feedback).toBe("Nice work.");
+  });
+
+  // 2026-10-13, PLAN_08 D8: the approach is derived from the settled insights
+  // (replacing the PLAN_07 D9 restore). `noApproach` is what the evidence
+  // check says about a claimed approach it does not believe.
+  const noApproach = { approachSupported: false, supportedInsights: new Set<string>() };
+
+  it("D8: a demoted approach that the settled insights pin down again is kept, with the model's feedback", () => {
+    const raw = rawOutput({ matched_approach: "hashmap", matched_verdict: "optimal", insights_hit: requiredKeys, feedback: "Nice work." });
+    const result = postprocessJudge(raw, problem, noApproach, { hit: requiredKeys, assisted: [] });
+    expect(result.assessment.matched_approach).toBe("hashmap");
+    expect(result.assessment.matched_verdict).toBe("optimal");
+    expect(result.assessment.feedback).toBe("Nice work.");
+    expect(result.evidenceDropped?.approach).toBe(false);
+  });
+
+  it("D8: {index_storage} fits sort_two_pointer but is also half of hashmap's set, so the demoted claim becomes none", () => {
+    const raw = rawOutput({ matched_approach: "sort_two_pointer", matched_verdict: "acceptable", insights_hit: [indexStorage] });
+    const { assessment } = postprocessJudge(raw, problem, noApproach, { hit: [indexStorage], assisted: [indexStorage] });
+    expect(assessment.matched_approach).toBe("none");
+    expect(assessment.matched_verdict).toBe("none");
+  });
+
+  it("D8: stays none when a required insight of the claimed approach is not settled", () => {
+    const raw = rawOutput({ matched_approach: "sort_two_pointer", matched_verdict: "acceptable", insights_hit: [indexStorage] });
+    const { assessment } = postprocessJudge(raw, problem, noApproach, { hit: [lookup], assisted: [] });
+    expect(assessment.matched_approach).toBe("none");
+  });
+
+  describe("D8 on vp-0003, the bug 3 session", () => {
+    const vp0003: Problem = {
+      public: getPublicManifest().problems.find((p) => p.id === "vp-0003")!,
+      private: getPrivate("vp-0003")!,
+    };
+    const both = ["scan_in_array_order", "two_pointer_no_copy"];
+    const claimsReverse = () =>
+      rawOutput({
+        matched_approach: "reverse_compare_scan",
+        matched_verdict: "acceptable",
+        insights_hit: both,
+        feedback: "You compared the word with its reverse.",
+      });
+
+    it("the demoted reverse_compare_scan becomes two_pointer_scan when both required insights are settled, with the fallback feedback", () => {
+      const { assessment } = postprocessJudge(claimsReverse(), vp0003, noApproach, { hit: both, assisted: [] });
+      expect(assessment.matched_approach).toBe("two_pointer_scan");
+      expect(assessment.matched_verdict).toBe("optimal");
+      // The approach changed, so the model's feedback about it cannot stand.
+      expect(assessment.feedback).toBe(JUDGE_FEEDBACK_FALLBACK);
+    });
+
+    it("with only scan_in_array_order settled the approach is none, never reverse_compare_scan", () => {
+      const { assessment } = postprocessJudge(claimsReverse(), vp0003, noApproach, {
+        hit: ["scan_in_array_order"],
+        assisted: [],
+      });
+      expect(assessment.matched_approach).toBe("none");
+      expect(assessment.matched_verdict).toBe("none");
+      expect(assessment.feedback).toBe(JUDGE_FEEDBACK_FALLBACK);
+    });
+
+    it("an approach the evidence supports is left alone, even when it is not what the insights would pin down", () => {
+      const { assessment } = postprocessJudge(
+        claimsReverse(),
+        vp0003,
+        { approachSupported: true, supportedInsights: new Set() },
+        { hit: ["scan_in_array_order"], assisted: [] },
+      );
+      expect(assessment.matched_approach).toBe("reverse_compare_scan");
+    });
+  });
+
+  it("D8: nothing is derived for an approach the model never claimed", () => {
+    const { assessment } = postprocessJudge(rawOutput({ matched_approach: "none", matched_verdict: "none" }), problem, noEvidence, {
+      hit: [indexStorage],
+      assisted: [],
+    });
+    expect(assessment.matched_approach).toBe("none");
+  });
+
+  it("an assisted required insight keeps a pass from becoming a strong_pass (D10)", () => {
+    const nonRequired = problem.private.key_insights.find((i) => !i.required)!.key;
+    const hit = [...requiredKeys, nonRequired];
+    expect(postprocessJudge(rawOutput(), problem, undefined, { hit, assisted: [] }).assessment.verdict).toBe("strong_pass");
+    expect(postprocessJudge(rawOutput(), problem, undefined, { hit, assisted: [indexStorage] }).assessment.verdict).toBe("pass");
+  });
+});

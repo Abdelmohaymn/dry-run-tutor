@@ -6,10 +6,19 @@
 // Step 2a, evidence: claimed insights and approaches need the learner's own
 // words, checked in judge-evidence.ts (docs/judge-evidence-issues.md,
 // 2026-10-11). The quotes stop here: the Assessment carries keys only.
+//
+// Settled insights (2026-10-12, PLAN_07): when the progress check's lists are
+// passed in, they ARE the insight lists. The model's own insight claims then
+// only matter for the feedback check (D8) and the insight evidence is not
+// used (D7); the approach keeps its evidence check. Since 2026-10-13
+// (PLAN_08) those lists are verified before the judge call (the progress check
+// quotes its evidence, and `verifySettled` checks the quotes), and a demoted
+// approach is replaced by the one the settled insights pin down (D8, replacing
+// the PLAN_07 D9 restore).
 import { z } from "zod";
 import type { Problem } from "../../../tools/problem-types";
 import { AppError } from "./errors";
-import { mapVerdict, requiredKeysFor, type JudgeOutput, type Verdict } from "./verdict-map";
+import { approachFromInsights, mapVerdict, requiredKeysFor, type JudgeOutput, type Verdict } from "./verdict-map";
 import { takeCompleteSentence } from "./leak-filter";
 import { JUDGE_FEEDBACK_FALLBACK } from "../prompts/judge";
 import type { Evidence } from "./judge-evidence";
@@ -53,6 +62,8 @@ export interface Assessment {
   matched_verdict: "optimal" | "acceptable" | "suboptimal" | "wrong" | "none";
   insights_hit: string[];
   insights_missed: string[];
+  /** Subset of insights_hit reached by accepting an idea the tutor put into words. */
+  insights_assisted: string[];
   wrong_turns_taken: string[];
   complexity: {
     user_claimed_time: string | null;
@@ -70,6 +81,12 @@ export interface Assessment {
 /** judge prompt: "Below 0.6 means you are genuinely unsure". */
 const UNSURE_CONFIDENCE = 0.6;
 const PASSING: ReadonlySet<Verdict> = new Set(["pass", "strong_pass"]);
+
+/** The progress check's final lists: `hit` is own plus assisted, `assisted` is the subset the tutor helped with. */
+export interface SettledInsights {
+  hit: readonly string[];
+  assisted: readonly string[];
+}
 
 export interface JudgePostprocessResult {
   assessment: Assessment;
@@ -129,24 +146,39 @@ function stateComplexity(c: RawJudgeOutput["complexity"]): RawJudgeOutput["compl
  * reveal-screen markdown, attached in step 6 and never sent to the
  * provider. `evidence` is judge-evidence.ts's verdict on the model's quotes;
  * without it the model's own claims stand (the retry decision, and callers
- * that have no learner turns to check against).
+ * that have no learner turns to check against). `settled` replaces the
+ * model's insight lists (PLAN_07 D7); without it nothing changes and
+ * `insights_assisted` is `[]`.
  */
-export function postprocessJudge(raw: unknown, problem: Problem, evidence?: Evidence): JudgePostprocessResult {
+export function postprocessJudge(
+  raw: unknown,
+  problem: Problem,
+  evidence?: Evidence,
+  settled?: SettledInsights,
+): JudgePostprocessResult {
   // Step 1: refusal / malformed / non-JSON -> UNCLEAR_RETRY.
   const out = parseJudgeOutput(raw);
 
   // Step 2: insight coverage repair. Every authored key ends up in exactly
   // one of insights_hit / insights_missed; unauthored keys are dropped.
   const authoredKeys = new Set(problem.private.key_insights.map((i) => i.key));
-  const hit = new Set(out.insights_hit.map((h) => h.key).filter((k) => authoredKeys.has(k)));
-  const missed = new Set(out.insights_missed.filter((k) => authoredKeys.has(k) && !hit.has(k)));
+  const modelHit = new Set(out.insights_hit.map((h) => h.key).filter((k) => authoredKeys.has(k)));
+  const hit = settled ? new Set(settled.hit.filter((k) => authoredKeys.has(k))) : new Set(modelHit);
+  const missed = settled
+    ? new Set<string>()
+    : new Set(out.insights_missed.filter((k) => authoredKeys.has(k) && !hit.has(k)));
   for (const key of authoredKeys) {
     if (!hit.has(key) && !missed.has(key)) missed.add(key);
   }
+  // D8: the model was shown the settled lists. If its own claim still differs,
+  // its feedback may praise or fault the wrong things.
+  const settledDisagrees = !!settled && (modelHit.size !== hit.size || [...modelHit].some((k) => !hit.has(k)));
 
   // Step 2a: an insight the learner's words do not support was not reached.
+  // Settled lists are not re-checked here: verifySettled (judge-evidence.ts)
+  // checked their quotes before the judge call (2026-10-13, PLAN_08 D5).
   let insightsDropped = 0;
-  if (evidence) {
+  if (evidence && !settled) {
     for (const key of [...hit]) {
       if (!evidence.supportedInsights.has(key)) {
         hit.delete(key);
@@ -166,13 +198,25 @@ export function postprocessJudge(raw: unknown, problem: Problem, evidence?: Evid
   const claimedApproach = problem.private.reference_approaches.find((a) => a.key === out.matched_approach);
   // Step 2a: an approach whose words do not describe it is "none". A `wrong`
   // approach keeps its place: dropping it could only raise the grade.
-  const approachDemoted = !!evidence && !!claimedApproach && claimedApproach.verdict !== "wrong" && !evidence.approachSupported;
-  const authoredApproach = approachDemoted ? undefined : claimedApproach;
+  const approachDemoted =
+    !!evidence && !!claimedApproach && claimedApproach.verdict !== "wrong" && !evidence.approachSupported;
+  // D8 (2026-10-13, PLAN_08): an approach is defined by its insights. When the
+  // evidence check demotes the claim and settled insights exist, the approach
+  // becomes the one those insights pin down, or "none". It replaces the
+  // PLAN_07 D9 restore, which put back any approach whose required set was
+  // hit: {scan_in_array_order} fits reverse_compare_scan, but it is also the
+  // first half of two_pointer_scan, so a learner who said "two pointer" was
+  // shown "Reverse compare scan".
+  const derived = approachDemoted && settled ? approachFromInsights(problem, hit) : undefined;
+  const authoredApproach = approachDemoted ? derived : claimedApproach;
+  const matchedApproach = approachDemoted ? (derived?.key ?? "none") : out.matched_approach;
+  const approachChanged = matchedApproach !== out.matched_approach;
   const repaired: JudgeOutput = {
-    matched_approach: approachDemoted ? "none" : out.matched_approach,
+    matched_approach: matchedApproach,
     matched_verdict: authoredApproach?.verdict ?? "none",
     insights_hit: [...hit],
     insights_missed: [...missed],
+    insights_assisted: settled ? [...new Set(settled.assisted.filter((k) => hit.has(k)))] : [],
     wrong_turns_taken: out.wrong_turns_taken.filter((k) =>
       problem.private.common_wrong_turns.some((w) => w.key === k),
     ),
@@ -199,8 +243,10 @@ export function postprocessJudge(raw: unknown, problem: Problem, evidence?: Evid
   // praise what was just removed ("scans in order and uses two pointers"
   // beside both insights listed as not reached). Once the basis changed the
   // feedback cannot be trusted (2026-10-12, PLAN_06 D7).
-  const evidenceChanged = approachDemoted || insightsDropped > 0;
-  const hedgeChecked = hedgeViolation || evidenceChanged ? JUDGE_FEEDBACK_FALLBACK : out.feedback;
+  // A derivation that lands on the claimed approach changes nothing, so the
+  // model's feedback stands; any other change gets the fallback (PLAN_08 D8).
+  const evidenceChanged = approachChanged || insightsDropped > 0;
+  const hedgeChecked = hedgeViolation || evidenceChanged || settledDisagrees ? JUDGE_FEEDBACK_FALLBACK : out.feedback;
 
   // Step 5: truncation. Second-sentence boundary first, then 320 chars on
   // a word boundary.
@@ -212,6 +258,7 @@ export function postprocessJudge(raw: unknown, problem: Problem, evidence?: Evid
     matched_verdict: repaired.matched_verdict,
     insights_hit: repaired.insights_hit,
     insights_missed: repaired.insights_missed,
+    insights_assisted: repaired.insights_assisted ?? [],
     wrong_turns_taken: repaired.wrong_turns_taken,
     complexity: stateComplexity(out.complexity),
     verdict: mapped,
@@ -225,7 +272,7 @@ export function postprocessJudge(raw: unknown, problem: Problem, evidence?: Evid
     verdictOverridden,
     from: verdictOverridden ? (out.verdict as Verdict) : undefined,
     to: verdictOverridden ? mapped : undefined,
-    evidenceDropped: evidence ? { approach: approachDemoted, insights: insightsDropped } : undefined,
+    evidenceDropped: evidence ? { approach: approachChanged, insights: insightsDropped } : undefined,
   };
 }
 

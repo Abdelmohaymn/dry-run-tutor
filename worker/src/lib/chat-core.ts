@@ -12,6 +12,7 @@ import type { RuntimeConfig } from "./runtime-config";
 import {
   assertNotJudged,
   readCounters,
+  recordAssistedKeys,
   recordNamedTerms,
   recordReachedKeys,
   refundTurn,
@@ -185,6 +186,8 @@ export async function runConversationalTurn(
       // sends their text) and then the ones replayed verbatim. Only the
       // verbatim ones reach the provider. Without the earlier ones, a word
       // said before the last summary was blocked again (2026-09-25).
+      // (2026-10-12, PLAN_07: body.messages holds both roles, and the progress
+      // check reads them both; the earlier turns are the learner's only.)
       const learnerHistory: Turn[] = [
         ...(body.earlier_learner_turns ?? []).map((text) => ({ role: "user" as const, text })),
         ...body.messages,
@@ -243,6 +246,8 @@ export async function runConversationalTurn(
       // turns (an abbreviation, a mangling, another language) join them
       // (2026-10-11, docs/tutor-focus-issues.md Issue 1). They apply from this
       // turn too when a draft would otherwise be blocked (2026-10-12, PLAN_04).
+      // `assisted` keys never reach this set (2026-10-12, PLAN_07 D5): the
+      // filter must not release a term just because the tutor described the idea.
       const reachedKeys = new Set(reserved.reachedKeys);
       const named = new Set([...learnerNamedTerms(problem, learnerHistory), ...reserved.namedTerms]);
       const blockedTerms = buildBlockedTerms(problem, reachedKeys, named, released ? "solution" : null);
@@ -309,8 +314,14 @@ export async function runConversationalTurn(
 
       const checked = finishCheck ? await finishCheck : null;
       const reachedNow = [...new Set([...reserved.reachedKeys, ...(checked?.reached ?? [])])];
+      // The card counts what this turn's check found: reached plus accepted
+      // from the tutor, each with provenance only (2026-10-12, PLAN_07 D5). The
+      // judge re-checks the evidence before it credits anything, so the card
+      // can promise more than the judge credits (2026-10-13, PLAN_08 D4).
+      const assistedNow = [...new Set([...reserved.assistedKeys, ...(checked?.assisted ?? [])])];
       if (checked) {
         await recordReachedKeys(deps.db, key, reserved.reachedKeys, checked.reached);
+        await recordAssistedKeys(deps.db, key, reserved.assistedKeys, checked.assisted);
         await recordNamedTerms(deps.db, key, reserved.namedTerms, checked.named);
       }
 
@@ -324,7 +335,9 @@ export async function runConversationalTurn(
         session_ended: sessionEnded,
         leak_blocked: fallbackSent,
         ready_to_finish:
-          finishCheck && offerOpen && !body.finish_offer_dismissed ? isReady(problem, reachedNow) : undefined,
+          finishCheck && offerOpen && !body.finish_offer_dismissed
+            ? isReady(problem, [...reachedNow, ...assistedNow])
+            : undefined,
       };
       await writeMeta(stream, meta);
       await writeDone(stream);

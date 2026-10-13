@@ -9,6 +9,7 @@ import {
   mintInstallId,
   readChatSSE,
   setRepairConfig,
+  interceptFinalCheckUnusable,
 } from "./helpers";
 
 const GEMINI_ORIGIN = "https://generativelanguage.googleapis.com";
@@ -127,6 +128,7 @@ describe("POST /v1/chat and /v1/judge — routed by the key's own provider", () 
     const installId = await mintInstallId();
 
     let judgeBody = "";
+    interceptFinalCheckUnusable({ origin: GEMINI_ORIGIN, path: GEMINI_CHAT_PATH });
     fetchMock
       .get(GEMINI_ORIGIN)
       .intercept({ path: GEMINI_CHAT_PATH, method: "POST" })

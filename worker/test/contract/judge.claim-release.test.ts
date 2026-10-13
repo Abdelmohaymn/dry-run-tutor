@@ -1,6 +1,6 @@
 import { SELF, fetchMock } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, interceptEvidenceCheck, mintInstallId } from "./helpers";
+import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, interceptEvidenceCheck, mintInstallId, interceptFinalCheckUnusable } from "./helpers";
 
 beforeAll(() => {
   fetchMock.activate();
@@ -47,10 +47,12 @@ const VALID_ASSESSMENT = JSON.stringify({
 });
 
 function mockProviderStatus(status: number, body: object = { error: { message: "upstream said no" } }) {
+  interceptFinalCheckUnusable();
   fetchMock.get(GROQ_ORIGIN).intercept({ path: GROQ_CHAT_PATH, method: "POST" }).reply(status, body);
 }
 
 function mockProviderOk() {
+  interceptFinalCheckUnusable();
   fetchMock
     .get(GROQ_ORIGIN)
     .intercept({ path: GROQ_CHAT_PATH, method: "POST" })
@@ -82,6 +84,7 @@ describe("POST /v1/judge — a failed assessment is not spent", () => {
   it("an unparseable provider body also hands the claim back", async () => {
     const installId = await mintInstallId();
 
+    interceptFinalCheckUnusable();
     fetchMock
       .get(GROQ_ORIGIN)
       .intercept({ path: GROQ_CHAT_PATH, method: "POST" })

@@ -566,6 +566,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get verdictInsightsHitLabel => 'Reached';
 
   @override
+  String get verdictInsightAssistedTag => 'with a nudge';
+
+  @override
   String get verdictInsightsMissedLabel => 'Not reached';
 
   @override

@@ -7,7 +7,9 @@ import {
   normaliseEvidence,
   quotedByLearner,
   quotedTurnIndex,
+  verifySettled,
   type EvidenceCall,
+  type InsightEvidence,
 } from "../../src/lib/judge-evidence";
 import type { Problem } from "../../../tools/problem-types";
 
@@ -50,6 +52,13 @@ describe("quotedByLearner()", () => {
   it("drops a leading 'user:' label the model copied", () => {
     expect(quotedByLearner("user: nested loop", ["nested loop"])).toBe(true);
     expect(quotedByLearner("User: nested loop", ["nested loop"])).toBe(true);
+  });
+
+  // 2026-10-13, PLAN_08: the progress check's tutor quotes are matched against
+  // tutor turns, and a model copies the transcript's "tutor:" label too.
+  it("drops a leading 'tutor:' label the same way", () => {
+    expect(quotedByLearner("tutor: nested loop", ["nested loop"])).toBe(true);
+    expect(quotedByLearner("Tutor: nested loop", ["nested loop"])).toBe(true);
   });
 
   it("rejects words that are not in any learner turn (a tutor sentence, say)", () => {
@@ -394,5 +403,150 @@ describe("evidenceCheckSchema() / buildEvidenceCheckInput()", () => {
       { id: "insight:a", kind: "INSIGHT", idea: "idea", quote: "2 pointers", asked: null },
     ]);
     expect(without).not.toContain("asked");
+  });
+});
+
+// 2026-10-13, PLAN_08 D5/D6: the support check on the progress check's quotes,
+// run before the judge model sees the lists.
+describe("buildEvidenceCheckInput() ASSISTED claims", () => {
+  it("renders kind: ASSISTED, the tutor's quote, and no asked line", () => {
+    const input = buildEvidenceCheckInput(problem, [
+      { id: "assisted:process_shrinks_fast", kind: "ASSISTED", idea: "idea", quote: "the digits sum shrinks the number fast", asked: null },
+    ]);
+    expect(input).toContain("id: assisted:process_shrinks_fast");
+    expect(input).toContain("kind: ASSISTED");
+    expect(input).toContain('quote: "the digits sum shrinks the number fast"');
+    expect(input).not.toContain("asked");
+  });
+});
+
+describe("verifySettled()", () => {
+  const key = "process_shrinks_fast";
+  const other = "zero_is_its_own_answer";
+  const asked = "How fast does the number shrink?";
+  const turns = [
+    { text: "it shrinks fast", asked: null },
+    { text: "a 10 digit number sums to under 100", asked },
+  ];
+  const sent = (call: ReturnType<typeof stubCall>) => (call.mock.calls[0] as unknown[])[1] as string;
+  const idsOf = (call: ReturnType<typeof stubCall>) =>
+    ((call.mock.calls[0] as unknown[])[2] as any).schema.properties.results.items.properties.id.enum as string[];
+  const learnerOnly = (k: string, q: string): InsightEvidence => ({ key: k, learnerQuote: q, tutorQuote: null });
+  const tutorOnly = (k: string, q: string): InsightEvidence => ({ key: k, learnerQuote: null, tutorQuote: q });
+
+  it("a key with a learnerQuote sends an insight claim whose asked is the tutor turn before the quoted learner turn", async () => {
+    const call = stubCall(verdicts({ [`insight:${key}`]: true }));
+    await verifySettled([learnerOnly(key, "a 10 digit number sums to under 100")], turns, problem, call);
+    expect(idsOf(call)).toEqual([`insight:${key}`]);
+    expect(sent(call)).toContain("kind: INSIGHT");
+    expect(sent(call)).toContain(`  asked: "${asked}"`);
+    expect(sent(call)).toContain('quote: "a 10 digit number sums to under 100"');
+  });
+
+  it("a key with a tutorQuote sends an assisted claim with no asked", async () => {
+    const call = stubCall(verdicts({ [`assisted:${key}`]: true }));
+    await verifySettled([tutorOnly(key, "the sum shrinks the number each round")], turns, problem, call);
+    expect(idsOf(call)).toEqual([`assisted:${key}`]);
+    expect(sent(call)).toContain("kind: ASSISTED");
+    expect(sent(call)).not.toContain("asked");
+    expect(sent(call)).toContain('quote: "the sum shrinks the number each round"');
+  });
+
+  it("a key with both quotes sends both claims in the same call", async () => {
+    const call = stubCall(verdicts({ [`insight:${key}`]: false, [`assisted:${key}`]: true }));
+    await verifySettled(
+      [{ key, learnerQuote: "it shrinks fast", tutorQuote: "the sum shrinks the number each round" }],
+      turns,
+      problem,
+      call,
+    );
+    expect(call).toHaveBeenCalledTimes(1);
+    expect(idsOf(call)).toEqual([`insight:${key}`, `assisted:${key}`]);
+  });
+
+  it("strips a role label the model copied from the quote it sends", async () => {
+    const call = stubCall(verdicts({ [`insight:${key}`]: true }));
+    await verifySettled([learnerOnly(key, "user: it shrinks fast")], turns, problem, call);
+    expect(sent(call)).toContain('quote: "it shrinks fast"');
+  });
+
+  it("insight supported gives reached", async () => {
+    const call = stubCall(verdicts({ [`insight:${key}`]: true, [`assisted:${key}`]: true }));
+    const out = await verifySettled(
+      [{ key, learnerQuote: "it shrinks fast", tutorQuote: "the sum shrinks the number each round" }],
+      turns,
+      problem,
+      call,
+    );
+    expect(out).toEqual({ reached: [key], assisted: [] });
+  });
+
+  it("insight unsupported and assisted supported gives assisted", async () => {
+    const call = stubCall(verdicts({ [`insight:${key}`]: false, [`assisted:${key}`]: true }));
+    const out = await verifySettled(
+      [{ key, learnerQuote: "it shrinks fast", tutorQuote: "the sum shrinks the number each round" }],
+      turns,
+      problem,
+      call,
+    );
+    expect(out).toEqual({ reached: [], assisted: [key] });
+  });
+
+  it("both unsupported gives dropped from both lists", async () => {
+    const call = stubCall(verdicts({ [`insight:${key}`]: false, [`assisted:${key}`]: false }));
+    const out = await verifySettled(
+      [{ key, learnerQuote: "it shrinks fast", tutorQuote: "the sum shrinks the number each round" }],
+      turns,
+      problem,
+      call,
+    );
+    expect(out).toEqual({ reached: [], assisted: [] });
+  });
+
+  it("decides each key on its own claims", async () => {
+    const call = stubCall(verdicts({ [`insight:${key}`]: true, [`assisted:${other}`]: false }));
+    const out = await verifySettled(
+      [learnerOnly(key, "it shrinks fast"), tutorOnly(other, "the loop stops at one digit")],
+      turns,
+      problem,
+      call,
+    );
+    expect(out).toEqual({ reached: [key], assisted: [] });
+  });
+
+  it("a call that throws gives the provenance-only lists: learnerQuote keys reached, the rest assisted", async () => {
+    const call = vi.fn(async () => {
+      throw new Error("boom");
+    }) as never as EvidenceCall;
+    const out = await verifySettled(
+      [learnerOnly(key, "it shrinks fast"), tutorOnly(other, "the loop stops at one digit")],
+      turns,
+      problem,
+      call,
+    );
+    expect(out).toEqual({ reached: [key], assisted: [other] });
+  });
+
+  it("an answer with no results array gives the provenance-only lists", async () => {
+    const out = await verifySettled(
+      [learnerOnly(key, "it shrinks fast"), tutorOnly(other, "the loop stops at one digit")],
+      turns,
+      problem,
+      stubCall({}),
+    );
+    expect(out).toEqual({ reached: [key], assisted: [other] });
+  });
+
+  it("no evidence entries gives empty lists and no call", async () => {
+    const call = stubCall(verdicts({}));
+    expect(await verifySettled([], turns, problem, call)).toEqual({ reached: [], assisted: [] });
+    expect(call).not.toHaveBeenCalled();
+  });
+
+  it("an unauthored key is never sent", async () => {
+    const call = stubCall(verdicts({}));
+    const out = await verifySettled([learnerOnly("made_up_key", "it shrinks fast")], turns, problem, call);
+    expect(out).toEqual({ reached: [], assisted: [] });
+    expect(call).not.toHaveBeenCalled();
   });
 });

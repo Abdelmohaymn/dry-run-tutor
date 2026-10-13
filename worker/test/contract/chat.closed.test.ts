@@ -1,6 +1,6 @@
 import { SELF, fetchMock } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, interceptEvidenceCheck, mintInstallId, readChatSSE } from "./helpers";
+import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, interceptEvidenceCheck, mintInstallId, readChatSSE, interceptFinalCheckUnusable } from "./helpers";
 
 beforeAll(() => {
   fetchMock.activate();
@@ -61,6 +61,7 @@ describe("POST /v1/chat — closed after /v1/judge", () => {
   it("a further conversational turn and a further hint pull each return SESSION_ALREADY_JUDGED", async () => {
     const installId = await mintInstallId();
 
+    interceptFinalCheckUnusable();
     fetchMock
       .get(GROQ_ORIGIN)
       .intercept({ path: GROQ_CHAT_PATH, method: "POST" })

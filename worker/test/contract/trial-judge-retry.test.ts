@@ -1,6 +1,6 @@
 import { env, SELF, fetchMock } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, groqStreamBody, interceptEvidenceCheck, mintInstallId, readChatSSE } from "./helpers";
+import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, groqStreamBody, interceptEvidenceCheck, mintInstallId, readChatSSE, interceptFinalCheckUnusable } from "./helpers";
 
 beforeAll(() => {
   fetchMock.activate();
@@ -54,6 +54,7 @@ describe("POST /v1/trial judge — after the session is already judged", () => {
       .reply(200, groqStreamBody("Go on."), { headers: { "content-type": "text/event-stream" } });
     await readChatSSE(await trial(installId, { mode: "chat", problem_id: "vp-0001", messages: [CONVERSATION[0]] }));
 
+    interceptFinalCheckUnusable();
     fetchMock.get(GROQ_ORIGIN).intercept({ path: GROQ_CHAT_PATH, method: "POST" }).reply(200, groqCompletionBody(ASSESSMENT));
     interceptEvidenceCheck();
     const judge = { mode: "judge", problem_id: "vp-0001", conversation: CONVERSATION, ended_by: "user" };
@@ -66,6 +67,7 @@ describe("POST /v1/trial judge — after the session is already judged", () => {
 
   it("a new chat after the judged session is still TRIAL_CONSUMED", async () => {
     const installId = await mintInstallId();
+    interceptFinalCheckUnusable();
     fetchMock.get(GROQ_ORIGIN).intercept({ path: GROQ_CHAT_PATH, method: "POST" }).reply(200, groqCompletionBody(ASSESSMENT));
     interceptEvidenceCheck();
     expect((await trial(installId, { mode: "judge", problem_id: "vp-0001", conversation: CONVERSATION, ended_by: "user" })).status).toBe(200);
@@ -81,6 +83,7 @@ describe("judge request shape", () => {
     await setPoolExtras({ chat_template_kwargs: { enable_thinking: false } });
     const installId = await mintInstallId();
     let sent: any;
+    interceptFinalCheckUnusable();
     fetchMock
       .get(GROQ_ORIGIN)
       .intercept({ path: GROQ_CHAT_PATH, method: "POST" })
@@ -121,9 +124,10 @@ describe("judge retries once on a self-contradictory answer", () => {
     const hollow = JSON.parse(ASSESSMENT);
     hollow.insights_hit = [];
     hollow.feedback = "...";
+    interceptFinalCheckUnusable();
     fetchMock.get(GROQ_ORIGIN).intercept({ path: GROQ_CHAT_PATH, method: "POST" }).reply(200, groqCompletionBody(JSON.stringify(hollow)));
     fetchMock.get(GROQ_ORIGIN).intercept({ path: GROQ_CHAT_PATH, method: "POST" }).reply(200, groqCompletionBody(ASSESSMENT));
-    // Two judge answers, then one evidence check on the answer kept.
+    // The judge-time progress check, two judge answers, then one evidence check on the answer kept.
     interceptEvidenceCheck();
 
     const res = await trial(await mintInstallId(), { mode: "judge", problem_id: "vp-0001", conversation: CONVERSATION, ended_by: "user" });

@@ -1,6 +1,6 @@
 import { SELF, fetchMock } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, interceptEvidenceCheck, mintInstallId } from "./helpers";
+import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, interceptEvidenceCheck, mintInstallId, interceptFinalCheckUnusable } from "./helpers";
 
 beforeAll(() => {
   fetchMock.activate();
@@ -38,6 +38,7 @@ describe("POST /v1/judge — a solution-ended session is graded on what came bef
   it("turns at and after reveal_at_index never reach the provider, and the verdict returns hedged and normal", async () => {
     const installId = await mintInstallId();
     let capturedBody = "";
+    interceptFinalCheckUnusable();
     fetchMock
       .get(GROQ_ORIGIN)
       .intercept({ path: GROQ_CHAT_PATH, method: "POST" })

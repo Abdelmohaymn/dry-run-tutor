@@ -3,9 +3,8 @@
 // quotes the words it relied on for the approach it matched and for each
 // insight it credited; two checks run on those quotes:
 //
-//   1. Provenance, deterministic: the quote is in a LEARNER turn. Tutor
-//      turns are never passed in, so a tutor that names an idea cannot earn
-//      the learner credit for it.
+//   1. Provenance, deterministic: the quote is in a LEARNER turn. A tutor
+//      that names an idea cannot earn the learner credit for it.
 //   2. Support, one extra structured call: does the quote state the idea, or
 //      only name a technique? "nested loop" is a verbatim learner quote, so
 //      provenance alone passes it (2026-10-11); only a meaning check does not.
@@ -15,6 +14,14 @@
 //      pointers" answering "how would you check one word?"). It never sees
 //      the rest of the conversation, the editorial, never_say, hints or wrong
 //      turns.
+//
+// The same check also verifies the progress check's insights before the judge
+// model sees them (2026-10-13, PLAN_08 D5, `verifySettled`). Tutor text now
+// reaches it in one place: an `ASSISTED` claim quotes the tutor line the
+// learner is said to have accepted, and the check decides only whether that
+// line states the idea. "What could you do to avoid examining all those
+// pairs?" states nothing, which is how "nested loop" plus an open question
+// stopped crediting "complement lookup, with a nudge".
 //
 // Failure policy is finish-check.ts's: a provider error or an unreadable
 // answer falls back to provenance only, so a hiccup never turns a good
@@ -37,11 +44,12 @@ export interface Evidence {
 }
 
 export interface EvidenceClaim {
-  /** `approach:<key>` or `insight:<key>`. */
+  /** `approach:<key>`, `insight:<key>` or `assisted:<key>`. */
   id: string;
-  kind: "APPROACH" | "INSIGHT";
+  kind: "APPROACH" | "INSIGHT" | "ASSISTED";
   /** The authored text of the idea: an approach's name and sketch, an insight's text. */
   idea: string;
+  /** The learner's words, or for an ASSISTED claim the tutor line they accepted. */
   quote: string;
   /** The tutor turn just before the quoted learner turn (its tail), or null. Context only. */
   asked: string | null;
@@ -66,6 +74,15 @@ function tailAtWord(text: string, max: number): string {
   return space === -1 ? tail : tail.slice(space + 1);
 }
 
+/** One insight the progress check found, with the quotes that passed provenance (PLAN_08). */
+export interface InsightEvidence {
+  key: string;
+  /** In a learner turn. Set = reached in their own words. */
+  learnerQuote: string | null;
+  /** In a tutor turn, accepted by the learner. Set without learnerQuote = assisted. */
+  tutorQuote: string | null;
+}
+
 interface RawEvidence {
   approach_quote: string;
   matched_approach: string;
@@ -85,8 +102,12 @@ export function normaliseEvidence(text: string): string {
     .trim();
 }
 
-/** Models sometimes copy the transcript's "user:" label into the quote. */
-const LEADING_LABEL = /^\s*user\s*:\s*/i;
+/**
+ * Models sometimes copy the transcript's "user:" label into the quote, and
+ * since the progress check also quotes tutor lines (2026-10-13, PLAN_08), its
+ * "tutor:" label.
+ */
+const LEADING_LABEL = /^\s*(?:user|tutor)\s*:\s*/i;
 const ELLIPSIS = /\.\.\.|…/;
 
 /** Share of a fragment's tokens that must sit in one same-sized window of a turn. */
@@ -183,6 +204,15 @@ export function buildEvidenceCheckInput(problem: Problem, claims: readonly Evide
   return [`Problem: ${problem.public.title}`, problem.public.statement, "", "Claims:", ...lines].join("\n");
 }
 
+/**
+ * The tail of the tutor turn before the learner turn that holds `quote`, or
+ * null. Context for the support check only, never the learner's words.
+ */
+function askedFor(learnerTurns: readonly LearnerTurn[], quote: string): string | null {
+  const asked = askedOf(learnerTurns[quotedTurnIndex(quote, learnerTurns.map(textOf))]);
+  return asked === null ? null : tailAtWord(asked, ASKED_MAX_CHARS) || null;
+}
+
 /** Provenance + support for one judge answer. Never throws. */
 export async function gatherEvidence(
   raw: RawEvidence,
@@ -193,10 +223,6 @@ export async function gatherEvidence(
   // Provenance reads the learner's text only; the tutor turn is context for
   // the support check and is never matched against a quote.
   const texts = learnerTurns.map(textOf);
-  const askedFor = (quote: string): string | null => {
-    const asked = askedOf(learnerTurns[quotedTurnIndex(quote, texts)]);
-    return asked === null ? null : tailAtWord(asked, ASKED_MAX_CHARS) || null;
-  };
   const approach = problem.private.reference_approaches.find((a) => a.key === raw.matched_approach);
   const approachQuoted = !!approach && quotedByLearner(raw.approach_quote, texts);
 
@@ -218,7 +244,7 @@ export async function gatherEvidence(
       kind: "APPROACH",
       idea: `${approach.name}: ${approach.sketch.join("; ")}`,
       quote: raw.approach_quote.replace(LEADING_LABEL, ""),
-      asked: askedFor(raw.approach_quote),
+      asked: askedFor(learnerTurns, raw.approach_quote),
     });
   }
   for (const [key, quote] of quoted) {
@@ -227,7 +253,7 @@ export async function gatherEvidence(
       kind: "INSIGHT",
       idea: insightText.get(key)!,
       quote: quote.replace(LEADING_LABEL, ""),
-      asked: askedFor(quote),
+      asked: askedFor(learnerTurns, quote),
     });
   }
 
@@ -251,6 +277,73 @@ export async function gatherEvidence(
       approachSupported: approachQuoted && (!approachSent || supported.has(`approach:${approach!.key}`)),
       supportedInsights: new Set([...quoted.keys()].filter((k) => supported.has(`insight:${k}`))),
     };
+  } catch {
+    return provenanceOnly;
+  }
+}
+
+/**
+ * The support check on the progress check's quotes (2026-10-13, PLAN_08 D5),
+ * run before the judge model is called so it is shown verified lists only.
+ * Per key: the learner's quote supported gives reached; else the tutor's
+ * quote supported gives assisted; else the key is dropped. A provider error
+ * or an unreadable answer falls back to the provenance-only lists, the same
+ * policy as gatherEvidence. No evidence means no call. Never throws.
+ */
+export async function verifySettled(
+  found: readonly InsightEvidence[],
+  learnerTurns: readonly LearnerTurn[],
+  problem: Problem,
+  call: EvidenceCall,
+): Promise<{ reached: string[]; assisted: string[] }> {
+  const insightText = new Map(problem.private.key_insights.map((i) => [i.key, i.text]));
+  const kept = new Map<string, InsightEvidence>();
+  for (const e of found) {
+    if (insightText.has(e.key) && !kept.has(e.key) && (e.learnerQuote !== null || e.tutorQuote !== null)) kept.set(e.key, e);
+  }
+  if (kept.size === 0) return { reached: [], assisted: [] };
+
+  const claims: EvidenceClaim[] = [];
+  for (const e of kept.values()) {
+    if (e.learnerQuote !== null) {
+      claims.push({
+        id: `insight:${e.key}`,
+        kind: "INSIGHT",
+        idea: insightText.get(e.key)!,
+        quote: e.learnerQuote.replace(LEADING_LABEL, ""),
+        asked: askedFor(learnerTurns, e.learnerQuote),
+      });
+    }
+    if (e.tutorQuote !== null) {
+      claims.push({
+        id: `assisted:${e.key}`,
+        kind: "ASSISTED",
+        idea: insightText.get(e.key)!,
+        quote: e.tutorQuote.replace(LEADING_LABEL, ""),
+        asked: null,
+      });
+    }
+  }
+
+  const keys = [...kept.keys()];
+  const hasOwn = (k: string) => kept.get(k)!.learnerQuote !== null;
+  const provenanceOnly = { reached: keys.filter(hasOwn), assisted: keys.filter((k) => !hasOwn(k)) };
+  try {
+    const { result } = await call(
+      EVIDENCE_CHECK_PROMPT,
+      buildEvidenceCheckInput(problem, claims),
+      evidenceCheckSchema(claims.map((c) => c.id)),
+    );
+    const results = (result.json as { results?: unknown } | undefined)?.results;
+    if (!Array.isArray(results)) return provenanceOnly;
+    const supported = new Set<string>();
+    for (const r of results as { id?: unknown; supported?: unknown }[]) {
+      if (r && typeof r.id === "string" && r.supported === true) supported.add(r.id);
+    }
+    // Only a claim that was sent can count, whatever the answer lists.
+    const reached = keys.filter((k) => hasOwn(k) && supported.has(`insight:${k}`));
+    const assisted = keys.filter((k) => !reached.includes(k) && kept.get(k)!.tutorQuote !== null && supported.has(`assisted:${k}`));
+    return { reached, assisted };
   } catch {
     return provenanceOnly;
   }

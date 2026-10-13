@@ -277,6 +277,7 @@ trialRoute.post("/", async (c) => {
       installId,
       problemId: body.problem_id,
       date,
+      finishCheckTimeoutMs: cfg.finish_offer.timeout_ms,
       structuredCompletion: async (systemPrompt, userContent, jsonSchema) => {
         const { member, result } = await runLeg(
           "judge",

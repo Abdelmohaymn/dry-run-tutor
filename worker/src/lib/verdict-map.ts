@@ -1,7 +1,7 @@
 // data-model.md §B4. Pure. `judge-spec.md` §5's table, inlined here in
 // precedence order — first match wins. The mapped value always wins over
 // the model's own `verdict` field (FR-019).
-import type { Problem } from "../../../tools/problem-types";
+import type { Approach, Problem } from "../../../tools/problem-types";
 
 export type Verdict = "strong_pass" | "pass" | "borderline" | "likely_tle" | "incorrect" | "unclear";
 
@@ -10,6 +10,11 @@ export interface JudgeOutput {
   matched_verdict: "optimal" | "acceptable" | "suboptimal" | "wrong" | "none";
   insights_hit: string[];
   insights_missed: string[];
+  /**
+   * Subset of `insights_hit` the learner reached by accepting an idea the
+   * tutor put into words (2026-10-12, PLAN_07). Absent = none.
+   */
+  insights_assisted?: string[];
   wrong_turns_taken: string[];
   verdict: Verdict;
 }
@@ -48,10 +53,44 @@ export function requiredKeysFor(problem: Problem, approachKey: string): Set<stri
   );
 }
 
+const TIER_RANK: Record<Approach["verdict"], number> = { optimal: 0, acceptable: 1, suboptimal: 2, wrong: 3 };
+
+/**
+ * The authored approach the settled insights pin down, or undefined
+ * (2026-10-13, PLAN_08 D8). A candidate is a non-"wrong" approach whose
+ * required set is non-empty and fully hit, and is not a strict subset of
+ * another non-"wrong" approach's required set: {scan_in_array_order} fits
+ * reverse_compare_scan but is also the first half of two_pointer_scan, so it
+ * pins down neither, and restoring the former showed "Reverse compare scan"
+ * to a learner who said "two pointer". Largest required set first, then the
+ * better tier (optimal, acceptable, suboptimal), then authored order.
+ */
+export function approachFromInsights(problem: Problem, hit: ReadonlySet<string>): Approach | undefined {
+  const candidates = problem.private.reference_approaches
+    .filter((a) => a.verdict !== "wrong")
+    .map((approach) => ({ approach, required: requiredKeysFor(problem, approach.key) }));
+  const isStrictSubset = (small: ReadonlySet<string>, big: ReadonlySet<string>) =>
+    small.size < big.size && [...small].every((k) => big.has(k));
+  return candidates
+    .filter(
+      (c) =>
+        c.required.size > 0 &&
+        [...c.required].every((k) => hit.has(k)) &&
+        !candidates.some((other) => other !== c && isStrictSubset(c.required, other.required)),
+    )
+    // Array.prototype.sort is stable, so authored order breaks the last tie.
+    .sort((a, b) => b.required.size - a.required.size || TIER_RANK[a.approach.verdict] - TIER_RANK[b.approach.verdict])[0]
+    ?.approach;
+}
+
 export function mapVerdict(out: JudgeOutput, problem: Problem): Verdict {
   const requiredKeys = requiredKeysFor(problem, out.matched_approach);
   const hitSet = new Set(out.insights_hit);
   const allRequiredHit = [...requiredKeys].every((k) => hitSet.has(k));
+  // A nudge is honest help and counts toward a pass, but top marks need every
+  // required insight in the learner's own words (2026-10-12, PLAN_07 D10).
+  const assistedSet = new Set(out.insights_assisted ?? []);
+  const allRequiredOwn = [...requiredKeys].every((k) => !assistedSet.has(k));
   // §B4: a wrong_turns_taken entry "breaks correctness" when it names a key
   // that also appears among reference_approaches with verdict "wrong" —
   // exactly the pseudocode's approachVerdictOf(problem, wt) == "wrong".
@@ -70,7 +109,7 @@ export function mapVerdict(out: JudgeOutput, problem: Problem): Verdict {
   if (out.matched_verdict === "wrong" || brokeCorrectness) return "incorrect";
   if (out.matched_verdict === "suboptimal") return "likely_tle";
   if (!allRequiredHit) return "borderline";
-  if (out.matched_verdict === "optimal" && raisedAnEdgeCase(out, problem)) return "strong_pass";
+  if (out.matched_verdict === "optimal" && allRequiredOwn && raisedAnEdgeCase(out, problem)) return "strong_pass";
   if (out.matched_verdict === "optimal" || out.matched_verdict === "acceptable") return "pass";
   // An approach the catalogue does not list, that nonetheless reached every
   // required insight and took no wrong turn.

@@ -1,6 +1,6 @@
 import { SELF, fetchMock } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, mintInstallId } from "./helpers";
+import { GROQ_CHAT_PATH, GROQ_ORIGIN, groqCompletionBody, mintInstallId, interceptFinalCheckUnusable } from "./helpers";
 
 beforeAll(() => {
   fetchMock.activate();
@@ -27,6 +27,7 @@ async function sendJudge(installId: string, body: Record<string, unknown>) {
 describe("POST /v1/judge — nothing authored matches", () => {
   it("a conversation matching nothing authored reports matched_approach: 'none' rather than inventing one", async () => {
     const installId = await mintInstallId();
+    interceptFinalCheckUnusable();
     fetchMock
       .get(GROQ_ORIGIN)
       .intercept({ path: GROQ_CHAT_PATH, method: "POST" })

@@ -49,6 +49,7 @@ AssessmentDto _dto() => AssessmentDto(
       matchedApproach: 'none',
       matchedVerdict: 'none',
       insightsHit: const <String>[],
+      insightsAssisted: const <String>[],
       insightsMissed: const <String>[],
       wrongTurnsTaken: const <String>[],
       complexity: ComplexityDto(

@@ -152,6 +152,10 @@ class Assessments extends Table {
   TextColumn get matchedApproach => text()();
   TextColumn get matchedVerdict => textEnum<MatchedVerdict>()();
   TextColumn get insightsHit => text().map(const StringListConverter())();
+
+  /// Added in v7 (PLAN_07 D12): nullable with no backfill — `null` reads
+  /// as empty, which is true of every assessment judged before it existed.
+  TextColumn get insightsAssisted => text().map(const StringListConverter()).nullable()();
   TextColumn get insightsMissed => text().map(const StringListConverter())();
   TextColumn get wrongTurnsTaken => text().map(const StringListConverter())();
   TextColumn get complexityJson => text()();
