@@ -12,6 +12,7 @@ on:
       - "analysis_options.yaml"
       - "build.yaml"
       - "l10n.yaml"
+      - ".github/workflows/app.yml"
   push:
     branches: [main]
     paths:
@@ -24,6 +25,7 @@ on:
       - "analysis_options.yaml"
       - "build.yaml"
       - "l10n.yaml"
+      - ".github/workflows/app.yml"
 
 jobs:
   ci:
