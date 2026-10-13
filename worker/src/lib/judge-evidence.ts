@@ -66,6 +66,15 @@ function tailAtWord(text: string, max: number): string {
   return space === -1 ? tail : tail.slice(space + 1);
 }
 
+/** One insight the progress check found, with the quotes that passed provenance (PLAN_08). */
+export interface InsightEvidence {
+  key: string;
+  /** In a learner turn. Set = reached in their own words. */
+  learnerQuote: string | null;
+  /** In a tutor turn, accepted by the learner. Set without learnerQuote = assisted. */
+  tutorQuote: string | null;
+}
+
 interface RawEvidence {
   approach_quote: string;
   matched_approach: string;
@@ -85,8 +94,12 @@ export function normaliseEvidence(text: string): string {
     .trim();
 }
 
-/** Models sometimes copy the transcript's "user:" label into the quote. */
-const LEADING_LABEL = /^\s*user\s*:\s*/i;
+/**
+ * Models sometimes copy the transcript's "user:" label into the quote, and
+ * since the progress check also quotes tutor lines (2026-10-13, PLAN_08), its
+ * "tutor:" label.
+ */
+const LEADING_LABEL = /^\s*(?:user|tutor)\s*:\s*/i;
 const ELLIPSIS = /\.\.\.|…/;
 
 /** Share of a fragment's tokens that must sit in one same-sized window of a turn. */

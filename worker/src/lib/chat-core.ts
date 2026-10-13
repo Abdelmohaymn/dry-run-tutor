@@ -314,8 +314,10 @@ export async function runConversationalTurn(
 
       const checked = finishCheck ? await finishCheck : null;
       const reachedNow = [...new Set([...reserved.reachedKeys, ...(checked?.reached ?? [])])];
-      // The card promises what the judge will credit: reached plus accepted
-      // from the tutor (2026-10-12, PLAN_07 D5).
+      // The card counts what this turn's check found: reached plus accepted
+      // from the tutor, each with provenance only (2026-10-12, PLAN_07 D5). The
+      // judge re-checks the evidence before it credits anything, so the card
+      // can promise more than the judge credits (2026-10-13, PLAN_08 D4).
       const assistedNow = [...new Set([...reserved.assistedKeys, ...(checked?.assisted ?? [])])];
       if (checked) {
         await recordReachedKeys(deps.db, key, reserved.reachedKeys, checked.reached);

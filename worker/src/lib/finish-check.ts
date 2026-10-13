@@ -1,5 +1,5 @@
 // Feature 005, specs/005-finish-offer. Decides which key insights the
-// learner has reached so far (prompt v4). The server derives three things
+// learner has reached so far (prompt v5). The server derives three things
 // from the answer: whether every required insight is in (the finish
 // offer), which insights' never_say words the leak filter may stop
 // blocking (review F4, replacing the word-overlap guess), and which
@@ -17,14 +17,24 @@
 // `assisted` (2026-10-12, PLAN_07): the tutor put the idea into words and the
 // learner accepted it. The check now sees both roles, because otherwise the
 // Finish card and the judge disagreed on the vp-0003 session (the learner
-// accepted "compare both ends" and the judge credited nothing). The tutor's
-// words can only ever produce `assisted`, never `reached`, so a tutor that
-// names an idea still cannot make the learner look like they said it; the
-// caller keeps `assisted` out of the leak filter.
+// accepted "compare both ends" and the judge credited nothing). The caller
+// keeps `assisted` out of the leak filter.
+//
+// The check quotes its evidence (2026-10-13, PLAN_08, prompt v5), and the
+// server decides own words versus with a nudge from the quote that holds up,
+// not from a label the model chose: in the playtest an unchecked answer
+// credited "complement lookup, with a nudge" after the learner said only
+// "nested loop", and showed an idea only the tutor stated as the learner's own
+// words. So a tutor's words can only ever produce `assisted`, and that is
+// enforced by provenance, not trusted: a learner_quote found only in a tutor
+// line is `assisted`, a quote found in no line drops the key. Quotes live in
+// `FinishCheckResult.evidence` for one request: never stored, logged or
+// returned.
 //
 // Input is the problem, the private key insights, their never_say terms and
 // the conversation, each line labelled `user:` or `tutor:`.
 import { FINISH_CHECK_PROMPT } from "../prompts/finish-check";
+import { quotedTurnIndex, type InsightEvidence } from "./judge-evidence";
 import type { StructuredCompletionResult } from "./provider";
 import type { Turn } from "./schemas";
 import type { Problem } from "../../../tools/problem-types";
@@ -47,8 +57,9 @@ export function neverSayTerms(problem: Problem): string[] {
 }
 
 /**
- * Strict schema: `reached` and `assisted` may only name this problem's
- * insight keys and `named` only its never_say terms. `named` is left out when there are no
+ * Strict schema: `insights` entries may only name this problem's insight keys
+ * (each with a learner quote and a tutor quote, "" when there is none) and
+ * `named` only its never_say terms. `named` is left out when there are no
  * terms: strict mode rejects an empty enum.
  */
 export function finishCheckSchema(problem: Problem): { name: string; schema: Record<string, unknown> } {
@@ -59,11 +70,22 @@ export function finishCheckSchema(problem: Problem): { name: string; schema: Rec
     schema: {
       type: "object",
       properties: {
-        reached: { type: "array", items: { type: "string", enum: keys } },
-        assisted: { type: "array", items: { type: "string", enum: keys } },
+        insights: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              key: { type: "string", enum: keys },
+              learner_quote: { type: "string" },
+              tutor_quote: { type: "string" },
+            },
+            required: ["key", "learner_quote", "tutor_quote"],
+            additionalProperties: false,
+          },
+        },
         ...(terms.length > 0 ? { named: { type: "array", items: { type: "string", enum: terms } } } : {}),
       },
-      required: terms.length > 0 ? ["reached", "assisted", "named"] : ["reached", "assisted"],
+      required: terms.length > 0 ? ["insights", "named"] : ["insights"],
       additionalProperties: false,
     },
   };
@@ -97,9 +119,20 @@ export interface FinishCheckResult {
   assisted: string[];
   /** Authored never_say terms (lowercased) the learner referred to in any form. Unblocks words only. */
   named: string[];
+  /**
+   * One entry per kept key, with the quotes that passed provenance (PLAN_08).
+   * In memory for one request: never stored, logged or returned.
+   */
+  evidence: InsightEvidence[];
 }
 
-/** `null` when the check failed or answered nothing usable. */
+/**
+ * `null` when the check failed or answered nothing usable. Provenance (PLAN_08
+ * D2), per insight, in this order: a learner_quote found in a `user:` line is
+ * reached; else a tutor_quote found in a `tutor:` line is assisted; else a
+ * learner_quote found only in a `tutor:` line is assisted (the model credited
+ * the tutor's words to the learner); else the insight is dropped.
+ */
 export async function runFinishCheck(
   problem: Problem,
   history: Turn[],
@@ -107,16 +140,45 @@ export async function runFinishCheck(
 ): Promise<FinishCheckResult | null> {
   try {
     const { result } = await call(FINISH_CHECK_PROMPT, buildFinishCheckInput(problem, history), finishCheckSchema(problem));
-    const json = result.json as { reached?: unknown; assisted?: unknown; named?: unknown } | undefined;
-    if (!Array.isArray(json?.reached)) return null;
+    const json = result.json as { insights?: unknown; named?: unknown } | undefined;
+    if (!Array.isArray(json?.insights)) return null;
     const authored = new Set(problem.private.key_insights.map((i) => i.key));
-    const reached = [...new Set(json.reached.filter((k): k is string => typeof k === "string" && authored.has(k)))];
-    // A missing or malformed `assisted` or `named` costs only its own list,
-    // never the `reached` result above. A key the learner stated themselves is
-    // `reached` only (PLAN_07 D4).
-    const assisted = Array.isArray(json.assisted)
-      ? [...new Set(json.assisted.filter((k): k is string => typeof k === "string" && authored.has(k) && !reached.includes(k)))]
-      : [];
+    const learnerTexts = history.filter((t) => t.role === "user").map((t) => t.text);
+    const tutorTexts = history.filter((t) => t.role === "tutor").map((t) => t.text);
+    const inLearner = (quote: string) => quotedTurnIndex(quote, learnerTexts) >= 0;
+    const inTutor = (quote: string) => quotedTurnIndex(quote, tutorTexts) >= 0;
+
+    const kept = new Map<string, InsightEvidence>();
+    for (const raw of json.insights as unknown[]) {
+      const entry = raw as { key?: unknown; learner_quote?: unknown; tutor_quote?: unknown } | null;
+      if (
+        !entry ||
+        typeof entry.key !== "string" ||
+        typeof entry.learner_quote !== "string" ||
+        typeof entry.tutor_quote !== "string" ||
+        !authored.has(entry.key)
+      ) {
+        continue;
+      }
+      const { key, learner_quote: learner, tutor_quote: tutor } = entry as { key: string; learner_quote: string; tutor_quote: string };
+      const found: InsightEvidence | null = inLearner(learner)
+        ? { key, learnerQuote: learner, tutorQuote: inTutor(tutor) ? tutor : null }
+        : inTutor(tutor)
+          ? { key, learnerQuote: null, tutorQuote: tutor }
+          : inTutor(learner)
+            ? { key, learnerQuote: null, tutorQuote: learner }
+            : null;
+      if (!found) continue;
+      // The same key twice is one entry, and reached wins over assisted.
+      const earlier = kept.get(key);
+      if (!earlier || (earlier.learnerQuote === null && found.learnerQuote !== null)) kept.set(key, found);
+    }
+    const evidence = [...kept.values()];
+    const reached = evidence.filter((e) => e.learnerQuote !== null).map((e) => e.key);
+    const assisted = evidence.filter((e) => e.learnerQuote === null).map((e) => e.key);
+
+    // A missing or malformed `named` costs only its own list, never the
+    // insights above.
     const authoredTerms = new Set(neverSayTerms(problem));
     const named = Array.isArray(json.named)
       ? [
@@ -128,7 +190,7 @@ export async function runFinishCheck(
           ),
         ]
       : [];
-    return { ready: isReady(problem, reached), reached, assisted, named };
+    return { ready: isReady(problem, reached), reached, assisted, named, evidence };
   } catch {
     return null;
   }

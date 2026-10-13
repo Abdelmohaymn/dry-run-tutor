@@ -52,6 +52,13 @@ describe("quotedByLearner()", () => {
     expect(quotedByLearner("User: nested loop", ["nested loop"])).toBe(true);
   });
 
+  // 2026-10-13, PLAN_08: the progress check's tutor quotes are matched against
+  // tutor turns, and a model copies the transcript's "tutor:" label too.
+  it("drops a leading 'tutor:' label the same way", () => {
+    expect(quotedByLearner("tutor: nested loop", ["nested loop"])).toBe(true);
+    expect(quotedByLearner("Tutor: nested loop", ["nested loop"])).toBe(true);
+  });
+
   it("rejects words that are not in any learner turn (a tutor sentence, say)", () => {
     expect(quotedByLearner("it shrinks fast", ["loop until one digit"])).toBe(false);
   });

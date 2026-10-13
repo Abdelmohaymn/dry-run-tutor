@@ -77,6 +77,13 @@ const CONVERSATION = [
   { role: "tutor", text: TUTOR_LAST },
 ];
 
+// 2026-10-13, PLAN_08: the progress check quotes its evidence and the server
+// checks each quote against the conversation, so a stub quotes real words.
+const own = (key: string, learner_quote: string) => ({ key, learner_quote, tutor_quote: "" });
+const nudged = (key: string, tutor_quote: string) => ({ key, learner_quote: "", tutor_quote });
+const LOOKUP = "look up the target minus the number";
+const STORAGE = "keep a map from each number to its index";
+
 async function seed(installId: string, reached: string[], assisted: string[]) {
   await env.DB
     .prepare(
@@ -103,7 +110,7 @@ describe("POST /v1/judge — the settled insights", () => {
   it("insights_hit is the stored keys plus the final check's, and insights_assisted the accepted ones", async () => {
     const installId = await mintInstallId();
     await seed(installId, ["complement_lookup"], []);
-    const checkSeen = finalCheck({ reached: [], assisted: ["index_storage"] });
+    const checkSeen = finalCheck({ insights: [nudged("index_storage", TUTOR_LAST)] });
     const judgeSeen = judgeReplies(
       judgeAnswer({
         approach_quote: LEARNER,
@@ -150,7 +157,7 @@ describe("POST /v1/judge — the settled insights", () => {
   it("a model whose lists agree with the settled ones keeps its feedback", async () => {
     const installId = await mintInstallId();
     await seed(installId, ["complement_lookup", "index_storage"], []);
-    finalCheck({ reached: ["complement_lookup", "index_storage"], assisted: [] });
+    finalCheck({ insights: [own("complement_lookup", LOOKUP), own("index_storage", STORAGE)] });
     judgeReplies(
       judgeAnswer({
         insights_hit: [
@@ -203,7 +210,7 @@ describe("POST /v1/judge — the settled insights", () => {
   it("a key stored as assisted that the final check finds reached is reached only", async () => {
     const installId = await mintInstallId();
     await seed(installId, [], ["index_storage"]);
-    finalCheck({ reached: ["index_storage"], assisted: [] });
+    finalCheck({ insights: [own("index_storage", STORAGE)] });
     judgeReplies(judgeAnswer());
 
     const body = await judge(installId);
@@ -215,7 +222,7 @@ describe("POST /v1/judge — the settled insights", () => {
   it("D9: an approach the evidence demotes is restored when the settled insights cover it", async () => {
     const installId = await mintInstallId();
     await seed(installId, [], ["index_storage"]);
-    finalCheck({ reached: [], assisted: ["index_storage"] });
+    finalCheck({ insights: [nudged("index_storage", TUTOR_LAST)] });
     judgeReplies(
       judgeAnswer({ approach_quote: LEARNER, matched_approach: "sort_two_pointer", matched_verdict: "acceptable" }),
     );
