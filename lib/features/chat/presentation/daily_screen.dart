@@ -540,6 +540,16 @@ class _ProblemCard extends StatefulWidget {
 
 class _ProblemCardState extends State<_ProblemCard> {
   bool _expanded = false;
+  // Owned here so the always-visible scrollbar has a controller to track;
+  // without one it falls back to the PrimaryScrollController — the
+  // conversation's — and asserts.
+  final ScrollController _statementScroll = ScrollController();
+
+  @override
+  void dispose() {
+    _statementScroll.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -588,46 +598,60 @@ class _ProblemCardState extends State<_ProblemCard> {
                   // it scrolls — the composer and the conversation keep
                   // their room.
                   constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height / 3),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Text(problem.statement, style: context.appTypography.sansBody),
-                        if (problem.constraints.isNotEmpty) ...<Widget>[
-                          const SizedBox(height: 12),
-                          Text(l10n.problemConstraintsLabel, style: context.appTypography.monoLabel),
-                          const SizedBox(height: 4),
-                          for (final String constraint in problem.constraints)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 2),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: <Widget>[
-                                  // A drawn bullet rather than a literal
-                                  // dash in the Text: authored constraint
-                                  // copy is the only string here, and
-                                  // `arb_completeness_test` rightly refuses
-                                  // any bare literal handed to Text().
-                                  const Padding(
-                                    padding: EdgeInsets.only(top: 6, right: 6),
-                                    child: Icon(Icons.remove, size: 10, color: AppTokens.faint),
-                                  ),
-                                  Expanded(
-                                    // `1000000000` says nothing about the
-                                    // order of magnitude a constraint
-                                    // exists to state; `10⁹` does.
-                                    child: Text(
-                                      MathNotation.format(constraint),
-                                      style: context.appTypography.monoBody
-                                          .copyWith(color: AppTokens.muted),
+                  // Always visible and in the accent: a statement clipped at the
+                  // box edge reads as finished unless something says there is more.
+                  child: RawScrollbar(
+                    controller: _statementScroll,
+                    thumbVisibility: true,
+                    thumbColor: AppTokens.accent,
+                    thickness: 3,
+                    radius: const Radius.circular(2),
+                    // Insets the track so the thumb runs shorter than the box.
+                    mainAxisMargin: 24,
+                    child: SingleChildScrollView(
+                      controller: _statementScroll,
+                      // Keeps the text clear of the thumb.
+                      padding: const EdgeInsets.only(right: 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Text(problem.statement, style: context.appTypography.sansBody),
+                          if (problem.constraints.isNotEmpty) ...<Widget>[
+                            const SizedBox(height: 12),
+                            Text(l10n.problemConstraintsLabel, style: context.appTypography.monoLabel),
+                            const SizedBox(height: 4),
+                            for (final String constraint in problem.constraints)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 2),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    // A drawn bullet rather than a literal
+                                    // dash in the Text: authored constraint
+                                    // copy is the only string here, and
+                                    // `arb_completeness_test` rightly refuses
+                                    // any bare literal handed to Text().
+                                    const Padding(
+                                      padding: EdgeInsets.only(top: 6, right: 6),
+                                      child: Icon(Icons.remove, size: 10, color: AppTokens.faint),
                                     ),
-                                  ),
-                                ],
+                                    Expanded(
+                                      // `1000000000` says nothing about the
+                                      // order of magnitude a constraint
+                                      // exists to state; `10⁹` does.
+                                      child: Text(
+                                        MathNotation.format(constraint),
+                                        style: context.appTypography.monoBody
+                                            .copyWith(color: AppTokens.muted),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
                 )
