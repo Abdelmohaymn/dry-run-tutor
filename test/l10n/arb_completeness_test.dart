@@ -16,8 +16,10 @@ import 'package:flutter_test/flutter_test.dart';
 /// simple (no full AST parse, matching this file's `dart:io` sibling)
 /// rather than precise about every possible Dart expression shape; it
 /// still catches exactly what T052's lint targets — a raw string handed
-/// straight to `Text`.
-final RegExp _textLiteralCall = RegExp('''Text\\(\\s*['"]''');
+/// straight to `Text`. A string that opens with `${` only joins values that
+/// were already resolved (e.g. an error copy and its code), so it is let
+/// through; any literal words before the first `${` still fail.
+final RegExp _textLiteralCall = RegExp('''Text\\(\\s*['"](?!\\\$\\{)''');
 
 /// Widgets with no learner-facing copy of their own are exempt by
 /// directory or by name, mirroring T052's own lint scope and
