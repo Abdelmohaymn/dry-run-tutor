@@ -11,6 +11,8 @@
 // passed in, they ARE the insight lists. The model's own insight claims then
 // only matter for the feedback check (D8) and the insight evidence is not
 // used (D7); the approach keeps its evidence check, with a restore (D9).
+// Since 2026-10-13 (PLAN_08) those lists are verified before the judge call:
+// the progress check quotes its evidence, and `verifySettled` checks the quotes.
 import { z } from "zod";
 import type { Problem } from "../../../tools/problem-types";
 import { AppError } from "./errors";
@@ -171,7 +173,8 @@ export function postprocessJudge(
   const settledDisagrees = !!settled && (modelHit.size !== hit.size || [...modelHit].some((k) => !hit.has(k)));
 
   // Step 2a: an insight the learner's words do not support was not reached.
-  // Settled lists are not re-checked: the progress check already decided them.
+  // Settled lists are not re-checked here: verifySettled (judge-evidence.ts)
+  // checked their quotes before the judge call (2026-10-13, PLAN_08 D5).
   let insightsDropped = 0;
   if (evidence && !settled) {
     for (const key of [...hit]) {

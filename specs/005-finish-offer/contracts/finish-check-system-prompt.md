@@ -20,8 +20,10 @@ gates only `ready_to_finish`), alongside the tutor
 reply (`worker/src/lib/finish-check.ts`), and once more at judge time on the whole judged
 conversation, including the tutor's last reply (`worker/src/lib/judge-core.ts`, PLAN_07 D6). The
 judge-time run happens whatever `finish_offer.enabled` says, with `finish_offer.timeout_ms` as its
-timeout, and nothing it returns is stored: the judge joins its `reached` / `assisted` lists with
-the keys earlier turns stored, and that union is the assessment's insight lists. Its input is the problem statement, the
+timeout, and nothing it returns is stored. Since v5 it is the only source of the assessment's
+insight lists: the judge reads no stored keys, and the quotes in its answer go through the
+evidence check (`evidence-check-system-prompt.md`; `ASSISTED` claims for tutor quotes) before the
+judge model is shown the lists (PLAN_08 D3, D5). Its input is the problem statement, the
 private key insights, the never_say terms, and the conversation with both roles, each line
 labelled `user:` or `tutor:` (learner turns condensed out of the conversation come first as
 `user:` lines; their tutor lines are gone, so a quote of theirs can only be the learner's).

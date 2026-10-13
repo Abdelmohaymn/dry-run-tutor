@@ -21,7 +21,8 @@ export interface ReserveTurnResult {
   reachedKeys: string[];
   /**
    * Insight keys the learner accepted from the tutor on earlier turns (2026-10-12,
-   * PLAN_07). They count toward the Finish offer and the judge, never the leak filter.
+   * PLAN_07). They count toward the Finish offer only, never the leak filter,
+   * and the judge re-derives its own lists from a final check (2026-10-13, PLAN_08).
    */
   assistedKeys: string[];
   /** Authored never_say terms the progress check found the learner referred to on earlier turns. */
@@ -275,25 +276,6 @@ export async function readCounters(db: D1Database, key: TurnCounterKey): Promise
     hintsRevealed: row.hints_revealed,
     judgedAt: row.judged_at,
   };
-}
-
-/**
- * Pure read of the insights the progress check stored for the session
- * (2026-10-12, PLAN_07: the judge settles on these plus a final check).
- * Never advances anything. Empty lists when no row exists.
- */
-export async function readProgress(
-  db: D1Database,
-  key: TurnCounterKey,
-): Promise<{ reached: string[]; assisted: string[] }> {
-  const row = await db
-    .prepare(
-      `SELECT reached_keys, assisted_keys FROM device_day
-       WHERE device_hash = ?1 AND problem_id = ?2 AND date = ?3`,
-    )
-    .bind(key.installId, key.problemId, key.date)
-    .first<{ reached_keys: string | null; assisted_keys: string | null }>();
-  return { reached: parseStringList(row?.reached_keys), assisted: parseStringList(row?.assisted_keys) };
 }
 
 /**
