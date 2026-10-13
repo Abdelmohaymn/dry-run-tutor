@@ -189,6 +189,30 @@
           "text": "then one pointer at the start, one at the end. if the sum is too small move the left one right, too big move the right one left, when it matches I return the two original indices. n log n for the sort"
         }
       ]
+    },
+    {
+      "id": "J_nested_loop_finish_after_open_question",
+      "kind": "J_nested_loop_finish_after_open_question",
+      "expected_verdicts": [
+        "unclear"
+      ],
+      "must_miss": [
+        "complement_lookup",
+        "index_storage",
+        "single_pass",
+        "duplicates_ok"
+      ],
+      "why": "An open tutor question followed by Finish accepts nothing (PLAN_08): the learner said only \"nested loop\", the tutor asked how to avoid checking every pair, and the learner tapped Finish.",
+      "conversation": [
+        {
+          "role": "user",
+          "text": "nested loop"
+        },
+        {
+          "role": "tutor",
+          "text": "Using a nested loop means checking every possible pair – with 10⁷ numbers that's on the order of 10¹⁴ comparisons. How long would that take to finish within the required sub-second limit? What could you do to avoid examining all those pairs?"
+        }
+      ]
     }
   ]
 }

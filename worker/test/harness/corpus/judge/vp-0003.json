@@ -239,6 +239,45 @@
           "text": "With two pointers you'd start one at the beginning and one at the end and move them toward each other; what would you do the moment you see a mismatch?"
         }
       ]
+    },
+    {
+      "id": "J_short_answers_finish_after_open_question",
+      "kind": "J_short_answers_finish_after_open_question",
+      "expected_verdicts": [
+        "pass",
+        "borderline"
+      ],
+      "must_hit": [
+        "two_pointer_no_copy"
+      ],
+      "must_not_own": [
+        "scan_in_array_order"
+      ],
+      "must_miss": [
+        "bail_on_first_mismatch"
+      ],
+      "approach_not": [
+        "reverse_compare_scan"
+      ],
+      "why": "Two short answers (\"brute force\", \"two pointer technique\") and a Finish after an open tutor question (PLAN_08). \"Scan in array order\" was only ever the tutor's: it may be credited with a nudge, never as their own words, and the approach must not be \"Reverse compare scan\". The tutor's \"go through the words one by one\" may or may not count as stating \"check in order, return the first\", so pass and borderline are both honest.",
+      "conversation": [
+        {
+          "role": "user",
+          "text": "brute force"
+        },
+        {
+          "role": "tutor",
+          "text": "Brute-force scanning each word and testing if it reads the same forward and backward will solve the problem. How would you check whether a single word is a palindrome?"
+        },
+        {
+          "role": "user",
+          "text": "two pointer technique"
+        },
+        {
+          "role": "tutor",
+          "text": "You'll go through the words one by one; when the two-pointer check shows a word is a palindrome, what do you do next?"
+        }
+      ]
     }
   ]
 }
