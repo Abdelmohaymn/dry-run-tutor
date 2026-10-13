@@ -29,6 +29,10 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
+      # The two APK builds pull in the NDK and CMake on top of Flutter and
+      # the Android SDK, which fills the runner's disk ("No space left on
+      # device"). Drop toolchains this job never uses.
+      - run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk/2[0-7]* /opt/ghc /usr/local/.ghcup /usr/local/share/boost /opt/hostedtoolcache/CodeQL && df -h /
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
